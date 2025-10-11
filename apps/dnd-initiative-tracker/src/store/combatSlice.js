@@ -18,6 +18,7 @@ const combatSlice = createSlice({
         armorClass = null,
         notes = '',
         sourceTemplateId = null,
+        sourceCampaignId = null,
       }) {
         const parsedArmorClass = Number.parseInt(armorClass, 10)
         return {
@@ -36,6 +37,10 @@ const combatSlice = createSlice({
             sourceTemplateId:
               typeof sourceTemplateId === 'string' && sourceTemplateId
                 ? sourceTemplateId
+                : null,
+            sourceCampaignId:
+              typeof sourceCampaignId === 'string' && sourceCampaignId
+                ? sourceCampaignId
                 : null,
           },
         }
@@ -166,6 +171,10 @@ const combatSlice = createSlice({
               sourceTemplateId:
                 typeof combatant.sourceTemplateId === 'string'
                   ? combatant.sourceTemplateId
+                  : null,
+              sourceCampaignId:
+                typeof combatant.sourceCampaignId === 'string'
+                  ? combatant.sourceCampaignId
                   : null,
             }
           })
