@@ -23,6 +23,7 @@ function App() {
   const [formError, setFormError] = useState('')
   const [adjustments, setAdjustments] = useState({})
   const [initiativeDrafts, setInitiativeDrafts] = useState({})
+  const [activeCombatantId, setActiveCombatantId] = useState(null)
 
   const sortedCombatants = useMemo(() => {
     return [...combatants].sort((a, b) => {
@@ -277,6 +278,58 @@ function App() {
 
   const hasMonsters = combatants.some((combatant) => combatant.type === 'monster')
 
+  useEffect(() => {
+    if (sortedCombatants.length === 0) {
+      if (activeCombatantId !== null) {
+        setActiveCombatantId(null)
+      }
+      return
+    }
+
+    if (activeCombatantId === null) {
+      return
+    }
+
+    const isActivePresent = sortedCombatants.some(
+      (combatant) => combatant.id === activeCombatantId,
+    )
+
+    if (!isActivePresent) {
+      setActiveCombatantId(sortedCombatants[0].id)
+    }
+  }, [sortedCombatants, activeCombatantId])
+
+  const handleStartCombat = () => {
+    if (sortedCombatants.length === 0) {
+      return
+    }
+
+    setActiveCombatantId(sortedCombatants[0].id)
+  }
+
+  const handleAdvanceTurn = () => {
+    if (sortedCombatants.length === 0) {
+      return
+    }
+
+    if (activeCombatantId === null) {
+      setActiveCombatantId(sortedCombatants[0].id)
+      return
+    }
+
+    const currentIndex = sortedCombatants.findIndex(
+      (combatant) => combatant.id === activeCombatantId,
+    )
+    const nextIndex =
+      currentIndex === -1 || currentIndex === sortedCombatants.length - 1
+        ? 0
+        : currentIndex + 1
+
+    setActiveCombatantId(sortedCombatants[nextIndex].id)
+  }
+
+  const isCombatActive = activeCombatantId !== null
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -362,14 +415,32 @@ function App() {
           <div className="tracker__list">
             <div className="list-controls">
               <h3>Initiative order</h3>
-              <button
-                type="button"
-                className="danger-button"
-                onClick={handleClearMonsters}
-                disabled={!hasMonsters}
-              >
-                Clear monsters
-              </button>
+              <div className="list-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={handleStartCombat}
+                  disabled={sortedCombatants.length === 0}
+                >
+                  Start combat
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={handleAdvanceTurn}
+                  disabled={sortedCombatants.length === 0 || !isCombatActive}
+                >
+                  Next turn
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  onClick={handleClearMonsters}
+                  disabled={!hasMonsters}
+                >
+                  Clear monsters
+                </button>
+              </div>
             </div>
             {sortedCombatants.length === 0 ? (
               <div className="empty-state">
@@ -395,6 +466,7 @@ function App() {
                     combatant.type === 'player'
                       ? 'combatant-card--player'
                       : 'combatant-card--monster'
+                  const isActive = combatant.id === activeCombatantId
                   const isBloodied =
                     combatant.currentHp > 0 &&
                     combatant.currentHp <= combatant.maxHp / 2
@@ -402,10 +474,21 @@ function App() {
                   return (
                     <li
                       key={combatant.id}
-                      className={`combatant-card ${typeClassName}`}
+                      className={`combatant-card ${typeClassName} ${
+                        isActive ? 'combatant-card--active' : ''
+                      }`}
                     >
                       <header className="combatant-card__header">
                         <div className="combatant-card__initiative">
+                          {isActive && (
+                            <span
+                              className="turn-indicator"
+                              role="img"
+                              aria-label="Current turn"
+                            >
+                              ⭐
+                            </span>
+                          )}
                           <span className="initiative-rank">#{index + 1}</span>
                           <label className="initiative-editor">
                             <span className="initiative-editor__caption">
