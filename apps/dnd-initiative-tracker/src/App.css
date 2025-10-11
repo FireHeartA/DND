@@ -3,9 +3,11 @@
   grid-template-columns: 280px 1fr;
   min-height: 100vh;
   color: #f4f1ea;
-  background: radial-gradient(circle at top, rgba(101, 45, 75, 0.7), rgba(20, 16, 25, 0.92)),
-    url('https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1600&q=80')
-      center/cover fixed;
+  background:
+    radial-gradient(130% 140% at 85% -20%, rgba(94, 204, 201, 0.22), rgba(20, 8, 32, 0)),
+    radial-gradient(90% 90% at -10% 20%, rgba(255, 180, 120, 0.18), rgba(20, 8, 32, 0)),
+    linear-gradient(188deg, rgba(40, 16, 48, 0.94), rgba(11, 9, 20, 0.92));
+  background-attachment: fixed;
 }
 
 .sidebar {
@@ -168,6 +170,187 @@
   gap: 2rem;
 }
 
+.campaign-section {
+  background: rgba(14, 10, 16, 0.65);
+  border-radius: 18px;
+  border: 1px solid rgba(244, 241, 234, 0.08);
+  padding: 2rem;
+  display: grid;
+  gap: 1.75rem;
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.35);
+}
+
+.campaign-section__header h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255, 239, 213, 0.85);
+}
+
+.campaign-section__header p {
+  margin: 0.5rem 0 0;
+  color: rgba(244, 241, 234, 0.72);
+  max-width: 48ch;
+}
+
+.campaign-section__content {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(260px, 360px) 1fr;
+  align-items: start;
+}
+
+.campaign-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background: rgba(18, 12, 20, 0.75);
+  border: 1px solid rgba(244, 241, 234, 0.1);
+  border-radius: 16px;
+  padding: 1.75rem;
+}
+
+.campaign-form h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 239, 213, 0.8);
+}
+
+.campaign-form__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.campaign-form__notes textarea {
+  resize: vertical;
+  min-height: 112px;
+}
+
+.campaign-form__notes {
+  grid-column: 1 / -1;
+}
+
+.campaign-form__actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-start;
+}
+
+.campaign-roster {
+  background: rgba(18, 12, 20, 0.6);
+  border: 1px solid rgba(244, 241, 234, 0.1);
+  border-radius: 16px;
+  padding: 1.75rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.campaign-roster__header h4 {
+  margin: 0;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 239, 213, 0.75);
+}
+
+.campaign-roster__header p {
+  margin: 0.4rem 0 0;
+  color: rgba(244, 241, 234, 0.7);
+  font-size: 0.9rem;
+}
+
+.campaign-roster__empty {
+  border: 1px dashed rgba(244, 241, 234, 0.2);
+  border-radius: 14px;
+  padding: 1.5rem;
+  text-align: center;
+  color: rgba(244, 241, 234, 0.7);
+  font-size: 0.95rem;
+}
+
+.template-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.template-card {
+  background: rgba(26, 18, 28, 0.85);
+  border: 1px solid rgba(244, 241, 234, 0.08);
+  border-left: 3px solid rgba(255, 179, 109, 0.75);
+  border-radius: 14px;
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.template-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.template-card__header h5 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.template-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.stat-chip {
+  background: rgba(244, 241, 234, 0.12);
+  border-radius: 9999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 234, 0.75);
+}
+
+.template-card__notes {
+  margin: 0;
+  color: rgba(244, 241, 234, 0.78);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.template-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.template-card__initiative {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: rgba(244, 241, 234, 0.75);
+}
+
+.template-card__initiative input {
+  width: 110px;
+}
+
+.template-card__error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #ffbdbd;
+}
+
 .tracker__form {
   background: rgba(14, 10, 16, 0.7);
   border: 1px solid rgba(244, 241, 234, 0.08);
@@ -201,7 +384,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   border-radius: 10px;
   border: 1px solid rgba(244, 241, 234, 0.15);
   background: rgba(30, 23, 33, 0.9);
@@ -212,7 +396,8 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: rgba(255, 189, 115, 0.7);
   box-shadow: 0 0 0 2px rgba(255, 189, 115, 0.2);
@@ -563,6 +748,35 @@ select:focus {
   color: #ff8d8d;
 }
 
+.combatant-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.combatant-card__meta-item {
+  background: rgba(244, 241, 234, 0.12);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(244, 241, 234, 0.7);
+}
+
+.combatant-card__meta-item--tag {
+  background: rgba(255, 179, 109, 0.24);
+  color: rgba(255, 239, 213, 0.92);
+}
+
+.combatant-card__notes {
+  margin: 0.6rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(244, 241, 234, 0.78);
+}
+
 .status {
   margin: 0;
   font-size: 0.85rem;
@@ -707,6 +921,15 @@ select:focus {
   .tracker {
     grid-template-columns: 1fr;
   }
+
+  .campaign-section__content {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-form,
+  .campaign-roster {
+    padding: 1.5rem;
+  }
 }
 
 @media (max-width: 640px) {
@@ -724,5 +947,18 @@ select:focus {
 
   .action-buttons {
     grid-template-columns: 1fr;
+  }
+
+  .campaign-section {
+    padding: 1.5rem;
+  }
+
+  .template-card__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .template-card__initiative input {
+    width: 100%;
   }
 }
