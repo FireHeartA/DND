@@ -19,6 +19,7 @@ const combatSlice = createSlice({
         notes = '',
         sourceTemplateId = null,
         sourceCampaignId = null,
+        sourceMonsterId = null,
       }) {
         const parsedArmorClass = Number.parseInt(armorClass, 10)
         return {
@@ -41,6 +42,10 @@ const combatSlice = createSlice({
             sourceCampaignId:
               typeof sourceCampaignId === 'string' && sourceCampaignId
                 ? sourceCampaignId
+                : null,
+            sourceMonsterId:
+              typeof sourceMonsterId === 'string' && sourceMonsterId
+                ? sourceMonsterId
                 : null,
           },
         }
@@ -168,17 +173,21 @@ const combatSlice = createSlice({
                 : null,
               notes:
                 typeof combatant.notes === 'string' ? combatant.notes : '',
-              sourceTemplateId:
-                typeof combatant.sourceTemplateId === 'string'
-                  ? combatant.sourceTemplateId
-                  : null,
-              sourceCampaignId:
-                typeof combatant.sourceCampaignId === 'string'
-                  ? combatant.sourceCampaignId
-                  : null,
-            }
-          })
-          .filter(Boolean)
+            sourceTemplateId:
+              typeof combatant.sourceTemplateId === 'string'
+                ? combatant.sourceTemplateId
+                : null,
+            sourceCampaignId:
+              typeof combatant.sourceCampaignId === 'string'
+                ? combatant.sourceCampaignId
+                : null,
+            sourceMonsterId:
+              typeof combatant.sourceMonsterId === 'string'
+                ? combatant.sourceMonsterId
+                : null,
+          }
+        })
+        .filter(Boolean)
 
         state.combatants = sanitizedCombatants
       }
