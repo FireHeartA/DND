@@ -89,6 +89,13 @@
   gap: 1.5rem;
 }
 
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
 .main__header h2 {
   font-family: 'Cinzel', 'Times New Roman', serif;
   margin: 0;
@@ -122,6 +129,37 @@
   font-size: 2.4rem;
   line-height: 1;
   font-weight: 600;
+}
+
+.save-load-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.save-load-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.load-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #ffbdbd;
+  text-align: right;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .tracker {
