@@ -71,6 +71,56 @@ const combatSlice = createSlice({
         (combatant) => combatant.type !== 'monster',
       )
     },
+    loadState(state, action) {
+      const { combatants } = action.payload || {}
+
+      if (!Array.isArray(combatants)) {
+        return
+      }
+
+      const sanitizedCombatants = combatants
+        .map((combatant) => {
+          const name =
+            typeof combatant.name === 'string' ? combatant.name.trim() : ''
+          const maxHpValue = Number.parseInt(combatant.maxHp, 10)
+          const maxHp = Number.isFinite(maxHpValue)
+            ? Math.max(1, Math.trunc(maxHpValue))
+            : null
+          const initiativeValue = Number.parseInt(combatant.initiative, 10)
+          const initiative = Number.isFinite(initiativeValue)
+            ? Math.trunc(initiativeValue)
+            : null
+
+          if (!name || maxHp === null || maxHp <= 0 || initiative === null) {
+            return null
+          }
+
+          const currentHpValue = Number.parseInt(combatant.currentHp, 10)
+          const currentHp = Number.isFinite(currentHpValue)
+            ? Math.min(maxHp, Math.max(0, Math.trunc(currentHpValue)))
+            : maxHp
+
+          const createdAtValue = Number.parseInt(combatant.createdAt, 10)
+
+          return {
+            id:
+              typeof combatant.id === 'string' && combatant.id
+                ? combatant.id
+                : nanoid(),
+            name,
+            maxHp,
+            currentHp,
+            initiative,
+            createdAt: Number.isFinite(createdAtValue)
+              ? createdAtValue
+              : Date.now(),
+            type: combatant.type === 'monster' ? 'monster' : 'player',
+          }
+        })
+        .filter(Boolean)
+
+      state.combatants = sanitizedCombatants
+    },
   },
 })
 
@@ -82,6 +132,7 @@ export const {
   resetCombatant,
   updateInitiative,
   clearMonsters,
+  loadState,
 } = combatSlice.actions
 
 export default combatSlice.reducer

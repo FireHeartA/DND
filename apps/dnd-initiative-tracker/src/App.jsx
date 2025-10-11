@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDispatch, useSelector, useStore } from 'react-redux'
 import './App.css'
 import {
   addCombatant,
   applyDamage,
   applyHealing,
   clearMonsters,
+  loadState,
   removeCombatant as removeCombatantAction,
   resetCombatant as resetCombatantAction,
   updateInitiative as updateInitiativeAction,
@@ -13,6 +14,7 @@ import {
 
 function App() {
   const dispatch = useDispatch()
+  const store = useStore()
   const combatants = useSelector((state) => state.combat.combatants)
   const [formData, setFormData] = useState({
     name: '',
@@ -21,9 +23,11 @@ function App() {
     type: 'player',
   })
   const [formError, setFormError] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [adjustments, setAdjustments] = useState({})
   const [initiativeDrafts, setInitiativeDrafts] = useState({})
   const [activeCombatantId, setActiveCombatantId] = useState(null)
+  const fileInputRef = useRef(null)
 
   const sortedCombatants = useMemo(() => {
     return [...combatants].sort((a, b) => {
@@ -330,6 +334,83 @@ function App() {
 
   const isCombatActive = activeCombatantId !== null
 
+  const handleDownloadState = () => {
+    const state = store.getState()
+    const data = JSON.stringify(state, null, 2)
+    const blob = new Blob([data], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+
+    const now = new Date()
+    const pad = (value) => String(value).padStart(2, '0')
+    const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(
+      now.getDate(),
+    )}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+    const filename = `DNDdata-${timestamp}.json`
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+
+    URL.revokeObjectURL(url)
+  }
+
+  const handleUploadClick = () => {
+    setLoadError('')
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
+    }
+  }
+
+  const handleFileInputChange = (event) => {
+    const [file] = event.target.files || []
+
+    if (!file) {
+      return
+    }
+
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      const text = typeof reader.result === 'string' ? reader.result : ''
+
+      if (!text) {
+        setLoadError('Failed to load file. Please select a valid DNDdata file.')
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        return
+      }
+
+      try {
+        const parsed = JSON.parse(text)
+
+        if (parsed && typeof parsed === 'object' && parsed.combat) {
+          dispatch(loadState(parsed.combat))
+          setActiveCombatantId(null)
+          setLoadError('')
+        } else {
+          setLoadError('The selected file does not contain combat data.')
+        }
+      } catch (error) {
+        setLoadError('Failed to load file. Please select a valid DNDdata file.')
+      }
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+
+    reader.onerror = () => {
+      setLoadError('Failed to read the selected file.')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+
+    reader.readAsText(file)
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -356,9 +437,37 @@ function App() {
             <h2>Initiative Tracker</h2>
             <p>Command the flow of battle by managing heroes and monsters in one place.</p>
           </div>
-          <div className="initiative-summary">
-            <span className="summary__label">Creatures</span>
-            <span className="summary__value">{combatants.length}</span>
+          <div className="header-actions">
+            <div className="initiative-summary">
+              <span className="summary__label">Creatures</span>
+              <span className="summary__value">{combatants.length}</span>
+            </div>
+            <div className="save-load-controls">
+              <div className="save-load-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={handleDownloadState}
+                >
+                  Download state
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={handleUploadClick}
+                >
+                  Upload state
+                </button>
+              </div>
+              {loadError && <p className="load-error">{loadError}</p>}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json"
+                className="visually-hidden"
+                onChange={handleFileInputChange}
+              />
+            </div>
           </div>
         </section>
 
