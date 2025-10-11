@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import './App.css'
 import {
   addCombatant,
   applyDamage,
   applyHealing,
+  clearMonsters,
   removeCombatant as removeCombatantAction,
   resetCombatant as resetCombatantAction,
+  updateInitiative as updateInitiativeAction,
 } from './store/combatSlice'
 
 function App() {
@@ -16,9 +18,11 @@ function App() {
     name: '',
     maxHp: '',
     initiative: '',
+    type: 'player',
   })
   const [formError, setFormError] = useState('')
   const [adjustments, setAdjustments] = useState({})
+  const [initiativeDrafts, setInitiativeDrafts] = useState({})
 
   const sortedCombatants = useMemo(() => {
     return [...combatants].sort((a, b) => {
@@ -37,7 +41,7 @@ function App() {
   }
 
   const resetForm = () => {
-    setFormData({ name: '', maxHp: '', initiative: '' })
+    setFormData({ name: '', maxHp: '', initiative: '', type: 'player' })
   }
 
   const handleAddCombatant = (event) => {
@@ -45,6 +49,7 @@ function App() {
     const name = formData.name.trim()
     const maxHp = Number.parseInt(formData.maxHp, 10)
     const initiative = Number.parseInt(formData.initiative, 10)
+    const type = formData.type === 'monster' ? 'monster' : 'player'
 
     if (!name) {
       setFormError('A creature needs a name worthy of the tale.')
@@ -66,6 +71,7 @@ function App() {
         name,
         maxHp,
         initiative,
+        type,
       }),
     )
     const { id } = action.payload
@@ -73,6 +79,11 @@ function App() {
     setAdjustments((prev) => ({
       ...prev,
       [id]: '',
+    }))
+
+    setInitiativeDrafts((prev) => ({
+      ...prev,
+      [id]: { value: String(initiative), isDirty: false },
     }))
 
     setFormError('')
@@ -110,9 +121,79 @@ function App() {
     }))
   }
 
+  const handleInitiativeDraftChange = (id, value) => {
+    setInitiativeDrafts((prev) => ({
+      ...prev,
+      [id]: { value, isDirty: true },
+    }))
+  }
+
+  const revertInitiativeDraft = (id) => {
+    const combatant = combatants.find((entry) => entry.id === id)
+
+    if (!combatant) {
+      setInitiativeDrafts((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      return
+    }
+
+    setInitiativeDrafts((prev) => ({
+      ...prev,
+      [id]: { value: String(combatant.initiative), isDirty: false },
+    }))
+  }
+
+  const commitInitiativeChange = (id) => {
+    const combatant = combatants.find((entry) => entry.id === id)
+
+    if (!combatant) return
+
+    const draftEntry = initiativeDrafts[id]
+    const rawValue = draftEntry ? draftEntry.value.trim() : ''
+    const parsedInitiative = Number.parseInt(rawValue, 10)
+
+    if (!Number.isFinite(parsedInitiative)) {
+      revertInitiativeDraft(id)
+      return
+    }
+
+    if (parsedInitiative === combatant.initiative) {
+      setInitiativeDrafts((prev) => ({
+        ...prev,
+        [id]: { value: String(parsedInitiative), isDirty: false },
+      }))
+      return
+    }
+
+    dispatch(updateInitiativeAction({ id, initiative: parsedInitiative }))
+
+    setInitiativeDrafts((prev) => ({
+      ...prev,
+      [id]: { value: String(parsedInitiative), isDirty: false },
+    }))
+  }
+
+  const handleInitiativeKeyDown = (event, id) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      commitInitiativeChange(id)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      revertInitiativeDraft(id)
+    }
+  }
+
   const handleRemoveCombatant = (id) => {
     dispatch(removeCombatantAction(id))
     setAdjustments((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+    setInitiativeDrafts((prev) => {
       const next = { ...prev }
       delete next[id]
       return next
@@ -122,6 +203,79 @@ function App() {
   const handleResetCombatant = (id) => {
     dispatch(resetCombatantAction(id))
   }
+
+  const handleClearMonsters = () => {
+    const monsterIds = combatants
+      .filter((combatant) => combatant.type === 'monster')
+      .map((combatant) => combatant.id)
+
+    if (monsterIds.length === 0) {
+      return
+    }
+
+    dispatch(clearMonsters())
+    setAdjustments((prev) => {
+      const next = { ...prev }
+      monsterIds.forEach((id) => {
+        delete next[id]
+      })
+      return next
+    })
+    setInitiativeDrafts((prev) => {
+      const next = { ...prev }
+      monsterIds.forEach((id) => {
+        delete next[id]
+      })
+      return next
+    })
+  }
+
+  useEffect(() => {
+    setAdjustments((prev) => {
+      const validIds = new Set(combatants.map((combatant) => combatant.id))
+      const shouldUpdate = Object.keys(prev).some(
+        (id) => !validIds.has(id),
+      )
+
+      if (!shouldUpdate) {
+        return prev
+      }
+
+      const next = {}
+      validIds.forEach((id) => {
+        if (prev[id] !== undefined) {
+          next[id] = prev[id]
+        }
+      })
+
+      return next
+    })
+  }, [combatants])
+
+  useEffect(() => {
+    setInitiativeDrafts((prev) => {
+      const next = {}
+
+      combatants.forEach((combatant) => {
+        const previousEntry = prev[combatant.id]
+
+        if (previousEntry) {
+          next[combatant.id] = previousEntry.isDirty
+            ? previousEntry
+            : { value: String(combatant.initiative), isDirty: false }
+        } else {
+          next[combatant.id] = {
+            value: String(combatant.initiative),
+            isDirty: false,
+          }
+        }
+      })
+
+      return next
+    })
+  }, [combatants])
+
+  const hasMonsters = combatants.some((combatant) => combatant.type === 'monster')
 
   return (
     <div className="app-shell">
@@ -169,6 +323,16 @@ function App() {
                 />
               </label>
               <label>
+                <span>Type</span>
+                <select
+                  value={formData.type}
+                  onChange={(event) => handleFormChange('type', event.target.value)}
+                >
+                  <option value="player">Player</option>
+                  <option value="monster">Monster</option>
+                </select>
+              </label>
+              <label>
                 <span>Max HP</span>
                 <input
                   value={formData.maxHp}
@@ -196,6 +360,17 @@ function App() {
           </form>
 
           <div className="tracker__list">
+            <div className="list-controls">
+              <h3>Initiative order</h3>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={handleClearMonsters}
+                disabled={!hasMonsters}
+              >
+                Clear monsters
+              </button>
+            </div>
             {sortedCombatants.length === 0 ? (
               <div className="empty-state">
                 <h3>No combatants yet</h3>
@@ -208,19 +383,51 @@ function App() {
               <ul className="combatant-list">
                 {sortedCombatants.map((combatant, index) => {
                   const adjustment = adjustments[combatant.id] ?? ''
+                  const initiativeEntry = initiativeDrafts[combatant.id]
+                  const initiativeValue =
+                    initiativeEntry?.value ?? String(combatant.initiative)
                   const isDown = combatant.currentHp === 0
                   const hpPercent = Math.round(
                     (combatant.currentHp / combatant.maxHp) * 100,
                   )
 
+                  const typeClassName =
+                    combatant.type === 'player'
+                      ? 'combatant-card--player'
+                      : 'combatant-card--monster'
+                  const isBloodied =
+                    combatant.currentHp > 0 &&
+                    combatant.currentHp <= combatant.maxHp / 2
+
                   return (
-                    <li key={combatant.id} className="combatant-card">
+                    <li
+                      key={combatant.id}
+                      className={`combatant-card ${typeClassName}`}
+                    >
                       <header className="combatant-card__header">
                         <div className="combatant-card__initiative">
                           <span className="initiative-rank">#{index + 1}</span>
-                          <span className="initiative-score">
-                            Init {combatant.initiative}
-                          </span>
+                          <label className="initiative-editor">
+                            <span className="initiative-editor__caption">
+                              Initiative
+                            </span>
+                            <input
+                              className="initiative-editor__input"
+                              value={initiativeValue}
+                              onChange={(event) =>
+                                handleInitiativeDraftChange(
+                                  combatant.id,
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() => commitInitiativeChange(combatant.id)}
+                              onKeyDown={(event) =>
+                                handleInitiativeKeyDown(event, combatant.id)
+                              }
+                              placeholder="0"
+                              inputMode="numeric"
+                            />
+                          </label>
                         </div>
                         <button
                           type="button"
@@ -232,8 +439,24 @@ function App() {
                       </header>
 
                       <div className="combatant-card__body">
-                        <div>
-                          <h4 className="combatant-name">{combatant.name}</h4>
+                        <div className="combatant-card__details">
+                          <div className="combatant-card__title">
+                            <h4 className="combatant-name">{combatant.name}</h4>
+                            <span
+                              className={`combatant-type-badge combatant-type-badge--${combatant.type}`}
+                            >
+                              {combatant.type === 'player' ? 'Player' : 'Monster'}
+                            </span>
+                            {isBloodied && (
+                              <span
+                                className="bloodied-indicator"
+                                title="Bloodied"
+                                aria-label="Bloodied"
+                              >
+                                <span aria-hidden="true">🩸</span>
+                              </span>
+                            )}
+                          </div>
                           <div className="hp-track">
                             <div className="hp-track__bar">
                               <span
