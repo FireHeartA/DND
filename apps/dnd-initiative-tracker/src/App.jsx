@@ -3,11 +3,13 @@ import { useDispatch, useSelector, useStore } from 'react-redux'
 import './App.css'
 import {
   addCombatant,
+  addPlayerTemplate as addPlayerTemplateAction,
   applyDamage,
   applyHealing,
   clearMonsters,
   loadState,
   removeCombatant as removeCombatantAction,
+  removePlayerTemplate as removePlayerTemplateAction,
   resetCombatant as resetCombatantAction,
   updateInitiative as updateInitiativeAction,
 } from './store/combatSlice'
@@ -146,6 +148,7 @@ function App() {
   const dispatch = useDispatch()
   const store = useStore()
   const combatants = useSelector((state) => state.combat.combatants)
+  const playerTemplates = useSelector((state) => state.combat.playerTemplates)
   const [formData, setFormData] = useState({
     name: '',
     maxHp: '',
@@ -156,6 +159,15 @@ function App() {
   const [loadError, setLoadError] = useState('')
   const [adjustments, setAdjustments] = useState({})
   const [initiativeDrafts, setInitiativeDrafts] = useState({})
+  const [playerTemplateForm, setPlayerTemplateForm] = useState({
+    name: '',
+    maxHp: '',
+    armorClass: '',
+    notes: '',
+  })
+  const [playerTemplateError, setPlayerTemplateError] = useState('')
+  const [templateInitiatives, setTemplateInitiatives] = useState({})
+  const [templateErrors, setTemplateErrors] = useState({})
   const [activeCombatantId, setActiveCombatantId] = useState(null)
   const [turnHistory, setTurnHistory] = useState([])
   const [turnStartTime, setTurnStartTime] = useState(null)
@@ -174,6 +186,10 @@ function App() {
     })
   }, [combatants])
 
+  const sortedPlayerTemplates = useMemo(() => {
+    return [...playerTemplates].sort((a, b) => a.createdAt - b.createdAt)
+  }, [playerTemplates])
+
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
@@ -183,6 +199,17 @@ function App() {
 
   const resetForm = () => {
     setFormData({ name: '', maxHp: '', initiative: '', type: 'player' })
+  }
+
+  const handlePlayerTemplateFormChange = (field, value) => {
+    setPlayerTemplateForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  const resetPlayerTemplateForm = () => {
+    setPlayerTemplateForm({ name: '', maxHp: '', armorClass: '', notes: '' })
   }
 
   const handleAddCombatant = (event) => {
@@ -231,10 +258,104 @@ function App() {
     resetForm()
   }
 
+  const handleAddPlayerTemplate = (event) => {
+    event.preventDefault()
+
+    const name = playerTemplateForm.name.trim()
+    const maxHp = Number.parseInt(playerTemplateForm.maxHp, 10)
+    const armorClassValue = Number.parseInt(playerTemplateForm.armorClass, 10)
+    const notes = playerTemplateForm.notes.trim()
+
+    if (!name) {
+      setPlayerTemplateError('Your hero needs a name before joining the roster.')
+      return
+    }
+
+    if (!Number.isFinite(maxHp) || maxHp <= 0) {
+      setPlayerTemplateError('Max HP must be a positive number for your heroes.')
+      return
+    }
+
+    const armorClass = Number.isFinite(armorClassValue)
+      ? Math.max(0, Math.trunc(armorClassValue))
+      : null
+
+    dispatch(
+      addPlayerTemplateAction({
+        name,
+        maxHp: Math.trunc(maxHp),
+        armorClass,
+        notes,
+      }),
+    )
+
+    setPlayerTemplateError('')
+    resetPlayerTemplateForm()
+  }
+
   const handleAdjustmentChange = (id, value) => {
     setAdjustments((prev) => ({
       ...prev,
       [id]: value,
+    }))
+  }
+
+  const handleRemovePlayerTemplate = (id) => {
+    dispatch(removePlayerTemplateAction(id))
+  }
+
+  const handleTemplateInitiativeChange = (id, value) => {
+    setTemplateInitiatives((prev) => ({
+      ...prev,
+      [id]: value,
+    }))
+  }
+
+  const handleQuickAddFromTemplate = (id) => {
+    const template = playerTemplates.find((entry) => entry.id === id)
+
+    if (!template) {
+      setTemplateErrors((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      return
+    }
+
+    const draftValue = templateInitiatives[id]
+    const rawInitiative = typeof draftValue === 'string' ? draftValue.trim() : ''
+    const initiative = Number.parseInt(rawInitiative, 10)
+
+    if (!Number.isFinite(initiative)) {
+      setTemplateErrors((prev) => ({
+        ...prev,
+        [id]: 'Set an initiative before adding to the tracker.',
+      }))
+      return
+    }
+
+    dispatch(
+      addCombatant({
+        name: template.name,
+        maxHp: template.maxHp,
+        initiative: Math.trunc(initiative),
+        type: 'player',
+        armorClass: template.armorClass,
+        notes: template.notes,
+        sourceTemplateId: template.id,
+      }),
+    )
+
+    setTemplateErrors((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+
+    setTemplateInitiatives((prev) => ({
+      ...prev,
+      [id]: '',
     }))
   }
 
@@ -415,6 +536,31 @@ function App() {
       return next
     })
   }, [combatants])
+
+  useEffect(() => {
+    setTemplateInitiatives((prev) => {
+      const next = {}
+
+      playerTemplates.forEach((template) => {
+        next[template.id] =
+          typeof prev[template.id] === 'string' ? prev[template.id] : ''
+      })
+
+      return next
+    })
+
+    setTemplateErrors((prev) => {
+      const next = {}
+
+      playerTemplates.forEach((template) => {
+        if (prev[template.id]) {
+          next[template.id] = prev[template.id]
+        }
+      })
+
+      return next
+    })
+  }, [playerTemplates])
 
   useEffect(() => {
     if (!isCombatActive || turnStartTime === null) {
@@ -627,7 +773,7 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <header className="sidebar__header">
-          <h1>Dragonspire</h1>
+          <h1>OneDND campaign assistant</h1>
           <p>Your party control room</p>
         </header>
         <nav className="sidebar__nav">
@@ -689,6 +835,155 @@ function App() {
                 View last combat stats
               </button>
             )}
+          </div>
+        </section>
+
+        <section className="campaign-section">
+          <header className="campaign-section__header">
+            <div>
+              <h3>Campaign roster</h3>
+              <p>
+                Save the full details of your primary characters once and pull them into combat
+                whenever you need them.
+              </p>
+            </div>
+          </header>
+          <div className="campaign-section__content">
+            <form className="campaign-form" onSubmit={handleAddPlayerTemplate}>
+              <h4>Create player character</h4>
+              <div className="form-grid campaign-form__grid">
+                <label>
+                  <span>Name</span>
+                  <input
+                    value={playerTemplateForm.name}
+                    onChange={(event) =>
+                      handlePlayerTemplateFormChange('name', event.target.value)
+                    }
+                    placeholder="Elowen Nightbloom"
+                  />
+                </label>
+                <label>
+                  <span>Max HP</span>
+                  <input
+                    value={playerTemplateForm.maxHp}
+                    onChange={(event) =>
+                      handlePlayerTemplateFormChange('maxHp', event.target.value)
+                    }
+                    placeholder="45"
+                    inputMode="numeric"
+                  />
+                </label>
+                <label>
+                  <span>Armor Class</span>
+                  <input
+                    value={playerTemplateForm.armorClass}
+                    onChange={(event) =>
+                      handlePlayerTemplateFormChange('armorClass', event.target.value)
+                    }
+                    placeholder="16"
+                    inputMode="numeric"
+                  />
+                </label>
+                <label className="campaign-form__notes">
+                  <span>Notes</span>
+                  <textarea
+                    value={playerTemplateForm.notes}
+                    onChange={(event) =>
+                      handlePlayerTemplateFormChange('notes', event.target.value)
+                    }
+                    placeholder="Personality, spell slots, reminders..."
+                    rows={3}
+                  />
+                </label>
+              </div>
+              {playerTemplateError && (
+                <p className="form-error">{playerTemplateError}</p>
+              )}
+              <div className="campaign-form__actions">
+                <button type="submit" className="primary-button">
+                  Add to roster
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={resetPlayerTemplateForm}
+                >
+                  Clear
+                </button>
+              </div>
+            </form>
+
+            <div className="campaign-roster">
+              <div className="campaign-roster__header">
+                <h4>Saved player characters</h4>
+                <p>Set an initiative and pull them straight into the tracker.</p>
+              </div>
+              {sortedPlayerTemplates.length === 0 ? (
+                <div className="campaign-roster__empty">
+                  <p>
+                    No heroes saved yet. Chronicle your party above to reuse them across
+                    encounters.
+                  </p>
+                </div>
+              ) : (
+                <ul className="template-list">
+                  {sortedPlayerTemplates.map((template) => {
+                    const initiativeValue = templateInitiatives[template.id] ?? ''
+                    return (
+                      <li key={template.id} className="template-card">
+                        <header className="template-card__header">
+                          <div>
+                            <h5>{template.name}</h5>
+                            <div className="template-card__stats">
+                              <span className="stat-chip">Max HP {template.maxHp}</span>
+                              {template.armorClass !== null && (
+                                <span className="stat-chip">AC {template.armorClass}</span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="ghost-button"
+                            onClick={() => handleRemovePlayerTemplate(template.id)}
+                          >
+                            Remove
+                          </button>
+                        </header>
+                        {template.notes && (
+                          <p className="template-card__notes">{template.notes}</p>
+                        )}
+                        <div className="template-card__actions">
+                          <label className="template-card__initiative">
+                            <span>Initiative</span>
+                            <input
+                              value={initiativeValue}
+                              onChange={(event) =>
+                                handleTemplateInitiativeChange(
+                                  template.id,
+                                  event.target.value,
+                                )
+                              }
+                              placeholder="0"
+                              inputMode="numeric"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={() => handleQuickAddFromTemplate(template.id)}
+                          >
+                            Add to initiative
+                          </button>
+                        </div>
+                        {templateErrors[template.id] && (
+                          <p className="template-card__error">{templateErrors[template.id]}</p>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
         </section>
 
@@ -1037,6 +1332,21 @@ function App() {
                               {combatant.currentHp} / {combatant.maxHp} HP
                             </span>
                           </div>
+                          <div className="combatant-card__meta">
+                            {combatant.armorClass !== null && (
+                              <span className="combatant-card__meta-item">
+                                AC {combatant.armorClass}
+                              </span>
+                            )}
+                            {combatant.sourceTemplateId && (
+                              <span className="combatant-card__meta-item combatant-card__meta-item--tag">
+                                Roster
+                              </span>
+                            )}
+                          </div>
+                          {combatant.notes && (
+                            <p className="combatant-card__notes">{combatant.notes}</p>
+                          )}
                           {isDown && (
                             <p className="status status--down">Unconscious</p>
                           )}

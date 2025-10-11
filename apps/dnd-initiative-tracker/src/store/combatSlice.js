@@ -2,6 +2,7 @@ import { createSlice, nanoid } from '@reduxjs/toolkit'
 
 const initialState = {
   combatants: [],
+  playerTemplates: [],
 }
 
 const combatSlice = createSlice({
@@ -9,7 +10,16 @@ const combatSlice = createSlice({
   initialState,
   reducers: {
     addCombatant: {
-      prepare({ name, maxHp, initiative, type }) {
+      prepare({
+        name,
+        maxHp,
+        initiative,
+        type,
+        armorClass = null,
+        notes = '',
+        sourceTemplateId = null,
+      }) {
+        const parsedArmorClass = Number.parseInt(armorClass, 10)
         return {
           payload: {
             id: nanoid(),
@@ -19,6 +29,14 @@ const combatSlice = createSlice({
             currentHp: maxHp,
             createdAt: Date.now(),
             type: type === 'monster' ? 'monster' : 'player',
+            armorClass: Number.isFinite(parsedArmorClass)
+              ? Math.max(0, Math.trunc(parsedArmorClass))
+              : null,
+            notes: typeof notes === 'string' ? notes : '',
+            sourceTemplateId:
+              typeof sourceTemplateId === 'string' && sourceTemplateId
+                ? sourceTemplateId
+                : null,
           },
         }
       },
@@ -71,61 +89,138 @@ const combatSlice = createSlice({
         (combatant) => combatant.type !== 'monster',
       )
     },
-    loadState(state, action) {
-      const { combatants } = action.payload || {}
-
-      if (!Array.isArray(combatants)) {
-        return
-      }
-
-      const sanitizedCombatants = combatants
-        .map((combatant) => {
-          const name =
-            typeof combatant.name === 'string' ? combatant.name.trim() : ''
-          const maxHpValue = Number.parseInt(combatant.maxHp, 10)
-          const maxHp = Number.isFinite(maxHpValue)
-            ? Math.max(1, Math.trunc(maxHpValue))
-            : null
-          const initiativeValue = Number.parseInt(combatant.initiative, 10)
-          const initiative = Number.isFinite(initiativeValue)
-            ? Math.trunc(initiativeValue)
-            : null
-
-          if (!name || maxHp === null || maxHp <= 0 || initiative === null) {
-            return null
-          }
-
-          const currentHpValue = Number.parseInt(combatant.currentHp, 10)
-          const currentHp = Number.isFinite(currentHpValue)
-            ? Math.min(maxHp, Math.max(0, Math.trunc(currentHpValue)))
-            : maxHp
-
-          const createdAtValue = Number.parseInt(combatant.createdAt, 10)
-
-          return {
-            id:
-              typeof combatant.id === 'string' && combatant.id
-                ? combatant.id
-                : nanoid(),
+    addPlayerTemplate: {
+      prepare({ name, maxHp, armorClass = null, notes = '' }) {
+        const parsedArmorClass = Number.parseInt(armorClass, 10)
+        return {
+          payload: {
+            id: nanoid(),
             name,
             maxHp,
-            currentHp,
-            initiative,
-            createdAt: Number.isFinite(createdAtValue)
-              ? createdAtValue
-              : Date.now(),
-            type: combatant.type === 'monster' ? 'monster' : 'player',
-          }
-        })
-        .filter(Boolean)
+            armorClass: Number.isFinite(parsedArmorClass)
+              ? Math.max(0, Math.trunc(parsedArmorClass))
+              : null,
+            notes: typeof notes === 'string' ? notes : '',
+            createdAt: Date.now(),
+          },
+        }
+      },
+      reducer(state, action) {
+        state.playerTemplates.push(action.payload)
+      },
+    },
+    removePlayerTemplate(state, action) {
+      state.playerTemplates = state.playerTemplates.filter(
+        (template) => template.id !== action.payload,
+      )
+    },
+    loadState(state, action) {
+      const { combatants, playerTemplates } = action.payload || {}
 
-      state.combatants = sanitizedCombatants
+      if (!Array.isArray(combatants)) {
+        state.combatants = []
+      } else {
+        const sanitizedCombatants = combatants
+          .map((combatant) => {
+            const name =
+              typeof combatant.name === 'string' ? combatant.name.trim() : ''
+            const maxHpValue = Number.parseInt(combatant.maxHp, 10)
+            const maxHp = Number.isFinite(maxHpValue)
+              ? Math.max(1, Math.trunc(maxHpValue))
+              : null
+            const initiativeValue = Number.parseInt(combatant.initiative, 10)
+            const initiative = Number.isFinite(initiativeValue)
+              ? Math.trunc(initiativeValue)
+              : null
+
+            if (!name || maxHp === null || maxHp <= 0 || initiative === null) {
+              return null
+            }
+
+            const currentHpValue = Number.parseInt(combatant.currentHp, 10)
+            const currentHp = Number.isFinite(currentHpValue)
+              ? Math.min(maxHp, Math.max(0, Math.trunc(currentHpValue)))
+              : maxHp
+
+            const createdAtValue = Number.parseInt(combatant.createdAt, 10)
+            const armorClassValue = Number.parseInt(combatant.armorClass, 10)
+
+            return {
+              id:
+                typeof combatant.id === 'string' && combatant.id
+                  ? combatant.id
+                  : nanoid(),
+              name,
+              maxHp,
+              currentHp,
+              initiative,
+              createdAt: Number.isFinite(createdAtValue)
+                ? createdAtValue
+                : Date.now(),
+              type: combatant.type === 'monster' ? 'monster' : 'player',
+              armorClass: Number.isFinite(armorClassValue)
+                ? Math.max(0, Math.trunc(armorClassValue))
+                : null,
+              notes:
+                typeof combatant.notes === 'string' ? combatant.notes : '',
+              sourceTemplateId:
+                typeof combatant.sourceTemplateId === 'string'
+                  ? combatant.sourceTemplateId
+                  : null,
+            }
+          })
+          .filter(Boolean)
+
+        state.combatants = sanitizedCombatants
+      }
+
+      if (Array.isArray(playerTemplates)) {
+        const sanitizedTemplates = playerTemplates
+          .map((template) => {
+            const name =
+              typeof template.name === 'string' ? template.name.trim() : ''
+            const maxHpValue = Number.parseInt(template.maxHp, 10)
+            const maxHp = Number.isFinite(maxHpValue)
+              ? Math.max(1, Math.trunc(maxHpValue))
+              : null
+
+            if (!name || maxHp === null || maxHp <= 0) {
+              return null
+            }
+
+            const armorClassValue = Number.parseInt(template.armorClass, 10)
+            const createdAtValue = Number.parseInt(template.createdAt, 10)
+
+            return {
+              id:
+                typeof template.id === 'string' && template.id
+                  ? template.id
+                  : nanoid(),
+              name,
+              maxHp,
+              armorClass: Number.isFinite(armorClassValue)
+                ? Math.max(0, Math.trunc(armorClassValue))
+                : null,
+              notes:
+                typeof template.notes === 'string' ? template.notes : '',
+              createdAt: Number.isFinite(createdAtValue)
+                ? createdAtValue
+                : Date.now(),
+            }
+          })
+          .filter(Boolean)
+
+        state.playerTemplates = sanitizedTemplates
+      } else {
+        state.playerTemplates = []
+      }
     },
   },
 })
 
 export const {
   addCombatant,
+  addPlayerTemplate,
   removeCombatant,
   applyDamage,
   applyHealing,
@@ -133,6 +228,7 @@ export const {
   updateInitiative,
   clearMonsters,
   loadState,
+  removePlayerTemplate,
 } = combatSlice.actions
 
 export default combatSlice.reducer
