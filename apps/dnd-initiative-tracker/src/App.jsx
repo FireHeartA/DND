@@ -3,16 +3,23 @@ import { useDispatch, useSelector, useStore } from 'react-redux'
 import './App.css'
 import {
   addCombatant,
-  addPlayerTemplate as addPlayerTemplateAction,
   applyDamage,
   applyHealing,
   clearMonsters,
-  loadState,
+  loadState as loadCombatStateAction,
   removeCombatant as removeCombatantAction,
-  removePlayerTemplate as removePlayerTemplateAction,
   resetCombatant as resetCombatantAction,
   updateInitiative as updateInitiativeAction,
 } from './store/combatSlice'
+import {
+  addPlayerCharacter as addPlayerCharacterAction,
+  createCampaign as createCampaignAction,
+  loadState as loadCampaignStateAction,
+  removeCampaign as removeCampaignAction,
+  removePlayerCharacter as removePlayerCharacterAction,
+  setActiveCampaign as setActiveCampaignAction,
+  updateCampaignDetails as updateCampaignDetailsAction,
+} from './store/campaignSlice'
 
 const formatDurationClock = (durationMs) => {
   if (!Number.isFinite(durationMs) || durationMs <= 0) {
@@ -148,7 +155,8 @@ function App() {
   const dispatch = useDispatch()
   const store = useStore()
   const combatants = useSelector((state) => state.combat.combatants)
-  const playerTemplates = useSelector((state) => state.combat.playerTemplates)
+  const campaigns = useSelector((state) => state.campaigns.campaigns)
+  const activeCampaignId = useSelector((state) => state.campaigns.activeCampaignId)
   const [formData, setFormData] = useState({
     name: '',
     maxHp: '',
@@ -159,6 +167,7 @@ function App() {
   const [loadError, setLoadError] = useState('')
   const [adjustments, setAdjustments] = useState({})
   const [initiativeDrafts, setInitiativeDrafts] = useState({})
+  const [activeView, setActiveView] = useState('initiative')
   const [playerTemplateForm, setPlayerTemplateForm] = useState({
     name: '',
     maxHp: '',
@@ -168,6 +177,13 @@ function App() {
   const [playerTemplateError, setPlayerTemplateError] = useState('')
   const [templateInitiatives, setTemplateInitiatives] = useState({})
   const [templateErrors, setTemplateErrors] = useState({})
+  const [campaignForm, setCampaignForm] = useState({ name: '' })
+  const [campaignFormError, setCampaignFormError] = useState('')
+  const [campaignDetailsDraft, setCampaignDetailsDraft] = useState({
+    name: '',
+    notes: '',
+  })
+  const [campaignDetailsError, setCampaignDetailsError] = useState('')
   const [activeCombatantId, setActiveCombatantId] = useState(null)
   const [turnHistory, setTurnHistory] = useState([])
   const [turnStartTime, setTurnStartTime] = useState(null)
@@ -186,9 +202,28 @@ function App() {
     })
   }, [combatants])
 
-  const sortedPlayerTemplates = useMemo(() => {
-    return [...playerTemplates].sort((a, b) => a.createdAt - b.createdAt)
-  }, [playerTemplates])
+  const activeCampaign = useMemo(() => {
+    return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
+  }, [campaigns, activeCampaignId])
+
+  const activeCampaignRoster = useMemo(() => {
+    if (!activeCampaign) {
+      return []
+    }
+
+    return [...activeCampaign.playerCharacters].sort((a, b) => a.createdAt - b.createdAt)
+  }, [activeCampaign])
+
+  const sortedCampaigns = useMemo(() => {
+    return [...campaigns].sort((a, b) => a.createdAt - b.createdAt)
+  }, [campaigns])
+
+  const totalSavedCharacters = useMemo(() => {
+    return campaigns.reduce(
+      (count, campaign) => count + campaign.playerCharacters.length,
+      0,
+    )
+  }, [campaigns])
 
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({
@@ -266,6 +301,11 @@ function App() {
     const armorClassValue = Number.parseInt(playerTemplateForm.armorClass, 10)
     const notes = playerTemplateForm.notes.trim()
 
+    if (!activeCampaignId) {
+      setPlayerTemplateError('Select or create a campaign before adding heroes.')
+      return
+    }
+
     if (!name) {
       setPlayerTemplateError('Your hero needs a name before joining the roster.')
       return
@@ -281,7 +321,8 @@ function App() {
       : null
 
     dispatch(
-      addPlayerTemplateAction({
+      addPlayerCharacterAction({
+        campaignId: activeCampaignId,
         name,
         maxHp: Math.trunc(maxHp),
         armorClass,
@@ -301,7 +342,16 @@ function App() {
   }
 
   const handleRemovePlayerTemplate = (id) => {
-    dispatch(removePlayerTemplateAction(id))
+    if (!activeCampaignId) {
+      return
+    }
+
+    dispatch(
+      removePlayerCharacterAction({
+        campaignId: activeCampaignId,
+        characterId: id,
+      }),
+    )
   }
 
   const handleTemplateInitiativeChange = (id, value) => {
@@ -312,7 +362,15 @@ function App() {
   }
 
   const handleQuickAddFromTemplate = (id) => {
-    const template = playerTemplates.find((entry) => entry.id === id)
+    if (!activeCampaign) {
+      setTemplateErrors((prev) => ({
+        ...prev,
+        [id]: 'Select a campaign before adding heroes to initiative.',
+      }))
+      return
+    }
+
+    const template = activeCampaignRoster.find((entry) => entry.id === id)
 
     if (!template) {
       setTemplateErrors((prev) => {
@@ -344,6 +402,7 @@ function App() {
         armorClass: template.armorClass,
         notes: template.notes,
         sourceTemplateId: template.id,
+        sourceCampaignId: activeCampaign.id,
       }),
     )
 
@@ -358,6 +417,86 @@ function App() {
       [id]: '',
     }))
   }
+
+  const handleCampaignFormChange = (field, value) => {
+    setCampaignForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  const resetCampaignForm = () => {
+    setCampaignForm({ name: '' })
+  }
+
+  const handleCreateCampaign = (event) => {
+    event.preventDefault()
+    const name = campaignForm.name.trim()
+
+    if (!name) {
+      setCampaignFormError('Name your campaign to begin planning your adventures.')
+      return
+    }
+
+    dispatch(createCampaignAction({ name }))
+    setCampaignFormError('')
+    resetCampaignForm()
+  }
+
+  const handleSelectCampaign = (campaignId) => {
+    dispatch(setActiveCampaignAction(campaignId))
+    setPlayerTemplateError('')
+    setTemplateErrors({})
+  }
+
+  const handleRemoveCampaign = (campaignId) => {
+    dispatch(removeCampaignAction(campaignId))
+  }
+
+  const handleCampaignDetailsChange = (field, value) => {
+    setCampaignDetailsDraft((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  const handleSaveCampaignDetails = (event) => {
+    event.preventDefault()
+
+    if (!activeCampaign) {
+      return
+    }
+
+    const name = campaignDetailsDraft.name.trim()
+
+    if (!name) {
+      setCampaignDetailsError('A campaign needs a name worthy of the saga.')
+      return
+    }
+
+    dispatch(
+      updateCampaignDetailsAction({
+        id: activeCampaign.id,
+        name,
+        notes: campaignDetailsDraft.notes,
+      }),
+    )
+
+    setCampaignDetailsError('')
+  }
+
+  const activeHeader =
+    activeView === 'campaigns'
+      ? {
+          title: 'Campaign Manager',
+          description:
+            'Build multiple worlds, organize notes, and curate hero rosters for every table you run.',
+        }
+      : {
+          title: 'Initiative Tracker',
+          description:
+            'Command the flow of battle by managing heroes and monsters in one place.',
+        }
 
   const applyAdjustment = (id, direction) => {
     const rawValue = adjustments[id]
@@ -541,7 +680,7 @@ function App() {
     setTemplateInitiatives((prev) => {
       const next = {}
 
-      playerTemplates.forEach((template) => {
+      activeCampaignRoster.forEach((template) => {
         next[template.id] =
           typeof prev[template.id] === 'string' ? prev[template.id] : ''
       })
@@ -552,7 +691,7 @@ function App() {
     setTemplateErrors((prev) => {
       const next = {}
 
-      playerTemplates.forEach((template) => {
+      activeCampaignRoster.forEach((template) => {
         if (prev[template.id]) {
           next[template.id] = prev[template.id]
         }
@@ -560,7 +699,21 @@ function App() {
 
       return next
     })
-  }, [playerTemplates])
+  }, [activeCampaignRoster])
+
+  useEffect(() => {
+    if (!activeCampaign) {
+      setCampaignDetailsDraft({ name: '', notes: '' })
+      setCampaignDetailsError('')
+      return
+    }
+
+    setCampaignDetailsDraft({
+      name: activeCampaign.name,
+      notes: activeCampaign.notes || '',
+    })
+    setCampaignDetailsError('')
+  }, [activeCampaign])
 
   useEffect(() => {
     if (!isCombatActive || turnStartTime === null) {
@@ -739,18 +892,61 @@ function App() {
 
       try {
         const parsed = JSON.parse(text)
+        let hasValidData = false
 
-        if (parsed && typeof parsed === 'object' && parsed.combat) {
-          dispatch(loadState(parsed.combat))
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.combat && typeof parsed.combat === 'object') {
+            dispatch(loadCombatStateAction(parsed.combat))
+            hasValidData = true
+          } else if (Array.isArray(parsed.combatants)) {
+            dispatch(loadCombatStateAction({ combatants: parsed.combatants }))
+            hasValidData = true
+          }
+
+          if (parsed.campaigns && typeof parsed.campaigns === 'object') {
+            dispatch(loadCampaignStateAction(parsed.campaigns))
+            hasValidData = true
+          } else if (
+            parsed.combat &&
+            typeof parsed.combat === 'object' &&
+            Array.isArray(parsed.combat.playerTemplates)
+          ) {
+            const legacyCampaignPayload = {
+              campaigns:
+                parsed.combat.playerTemplates.length > 0
+                  ? [
+                      {
+                        id: 'legacy-import',
+                        name: 'Imported roster',
+                        notes: '',
+                        createdAt: Date.now(),
+                        playerCharacters: parsed.combat.playerTemplates,
+                      },
+                    ]
+                  : [],
+              activeCampaignId:
+                parsed.combat.playerTemplates.length > 0 ? 'legacy-import' : null,
+            }
+            dispatch(loadCampaignStateAction(legacyCampaignPayload))
+            hasValidData = true
+          } else if (hasValidData) {
+            dispatch(
+              loadCampaignStateAction({ campaigns: [], activeCampaignId: null }),
+            )
+          }
+        }
+
+        if (hasValidData) {
           setActiveCombatantId(null)
           setTurnStartTime(null)
           setTurnHistory([])
           setIsStatsVisible(false)
           setLoadError('')
         } else {
-          setLoadError('The selected file does not contain combat data.')
+          setLoadError('The selected file does not contain recognizable assistant data.')
         }
       } catch (error) {
+        console.error('Failed to parse uploaded state file', error)
         setLoadError('Failed to load file. Please select a valid DNDdata file.')
       }
 
@@ -773,17 +969,67 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <header className="sidebar__header">
-          <h1>OneDND campaign assistant</h1>
+          <h1>TTRP campaign assistant</h1>
           <p>Your party control room</p>
         </header>
         <nav className="sidebar__nav">
           <span className="sidebar__section">Campaign Tools</span>
           <ul>
-            <li className="sidebar__item sidebar__item--active">Initiative Tracker</li>
-            <li className="sidebar__item">Quest Log (coming soon)</li>
-            <li className="sidebar__item">Treasure Ledger (coming soon)</li>
+            <li>
+              <button
+                type="button"
+                className={`sidebar__item${activeView === 'initiative' ? ' sidebar__item--active' : ''}`}
+                onClick={() => setActiveView('initiative')}
+              >
+                Initiative Tracker
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                className={`sidebar__item${activeView === 'campaigns' ? ' sidebar__item--active' : ''}`}
+                onClick={() => setActiveView('campaigns')}
+              >
+                Campaign Manager
+              </button>
+            </li>
+            <li>
+              <span className="sidebar__item sidebar__item--disabled">Quest Log (coming soon)</span>
+            </li>
+            <li>
+              <span className="sidebar__item sidebar__item--disabled">Treasure Ledger (coming soon)</span>
+            </li>
           </ul>
         </nav>
+        <div className="sidebar__global-actions">
+          <span className="sidebar__section">Data management</span>
+          <div className="save-load-controls">
+            <div className="save-load-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleDownloadState}
+              >
+                Download state
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleUploadClick}
+              >
+                Upload state
+              </button>
+            </div>
+            {loadError && <p className="load-error">{loadError}</p>}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json"
+              className="visually-hidden"
+              onChange={handleFileInputChange}
+            />
+          </div>
+        </div>
         <footer className="sidebar__footer">
           <p>Forged for D&D tables that crave order in the chaos.</p>
         </footer>
@@ -792,329 +1038,394 @@ function App() {
       <main className="main">
         <section className="main__header">
           <div>
-            <h2>Initiative Tracker</h2>
-            <p>Command the flow of battle by managing heroes and monsters in one place.</p>
+            <h2>{activeHeader.title}</h2>
+            <p>{activeHeader.description}</p>
           </div>
           <div className="header-actions">
-            <div className="initiative-summary">
-              <span className="summary__label">Creatures</span>
-              <span className="summary__value">{combatants.length}</span>
-            </div>
-            <div className="save-load-controls">
-              <div className="save-load-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={handleDownloadState}
-                >
-                  Download state
-                </button>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={handleUploadClick}
-                >
-                  Upload state
-                </button>
-              </div>
-              {loadError && <p className="load-error">{loadError}</p>}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json"
-                className="visually-hidden"
-                onChange={handleFileInputChange}
-              />
-            </div>
-            {hasStatsToShow && !shouldShowStats && (
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => setIsStatsVisible(true)}
-              >
-                View last combat stats
-              </button>
-            )}
-          </div>
-        </section>
-
-        <section className="campaign-section">
-          <header className="campaign-section__header">
-            <div>
-              <h3>Campaign roster</h3>
-              <p>
-                Save the full details of your primary characters once and pull them into combat
-                whenever you need them.
-              </p>
-            </div>
-          </header>
-          <div className="campaign-section__content">
-            <form className="campaign-form" onSubmit={handleAddPlayerTemplate}>
-              <h4>Create player character</h4>
-              <div className="form-grid campaign-form__grid">
-                <label>
-                  <span>Name</span>
-                  <input
-                    value={playerTemplateForm.name}
-                    onChange={(event) =>
-                      handlePlayerTemplateFormChange('name', event.target.value)
-                    }
-                    placeholder="Elowen Nightbloom"
-                  />
-                </label>
-                <label>
-                  <span>Max HP</span>
-                  <input
-                    value={playerTemplateForm.maxHp}
-                    onChange={(event) =>
-                      handlePlayerTemplateFormChange('maxHp', event.target.value)
-                    }
-                    placeholder="45"
-                    inputMode="numeric"
-                  />
-                </label>
-                <label>
-                  <span>Armor Class</span>
-                  <input
-                    value={playerTemplateForm.armorClass}
-                    onChange={(event) =>
-                      handlePlayerTemplateFormChange('armorClass', event.target.value)
-                    }
-                    placeholder="16"
-                    inputMode="numeric"
-                  />
-                </label>
-                <label className="campaign-form__notes">
-                  <span>Notes</span>
-                  <textarea
-                    value={playerTemplateForm.notes}
-                    onChange={(event) =>
-                      handlePlayerTemplateFormChange('notes', event.target.value)
-                    }
-                    placeholder="Personality, spell slots, reminders..."
-                    rows={3}
-                  />
-                </label>
-              </div>
-              {playerTemplateError && (
-                <p className="form-error">{playerTemplateError}</p>
-              )}
-              <div className="campaign-form__actions">
-                <button type="submit" className="primary-button">
-                  Add to roster
-                </button>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={resetPlayerTemplateForm}
-                >
-                  Clear
-                </button>
-              </div>
-            </form>
-
-            <div className="campaign-roster">
-              <div className="campaign-roster__header">
-                <h4>Saved player characters</h4>
-                <p>Set an initiative and pull them straight into the tracker.</p>
-              </div>
-              {sortedPlayerTemplates.length === 0 ? (
-                <div className="campaign-roster__empty">
-                  <p>
-                    No heroes saved yet. Chronicle your party above to reuse them across
-                    encounters.
-                  </p>
+            {activeView === 'campaigns' ? (
+              <div className="campaign-summary">
+                <div className="summary-card">
+                  <span className="summary__label">Campaigns</span>
+                  <span className="summary__value">{campaigns.length}</span>
                 </div>
-              ) : (
-                <ul className="template-list">
-                  {sortedPlayerTemplates.map((template) => {
-                    const initiativeValue = templateInitiatives[template.id] ?? ''
-                    return (
-                      <li key={template.id} className="template-card">
-                        <header className="template-card__header">
-                          <div>
-                            <h5>{template.name}</h5>
-                            <div className="template-card__stats">
-                              <span className="stat-chip">Max HP {template.maxHp}</span>
-                              {template.armorClass !== null && (
-                                <span className="stat-chip">AC {template.armorClass}</span>
-                              )}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="ghost-button"
-                            onClick={() => handleRemovePlayerTemplate(template.id)}
-                          >
-                            Remove
-                          </button>
-                        </header>
-                        {template.notes && (
-                          <p className="template-card__notes">{template.notes}</p>
-                        )}
-                        <div className="template-card__actions">
-                          <label className="template-card__initiative">
-                            <span>Initiative</span>
-                            <input
-                              value={initiativeValue}
-                              onChange={(event) =>
-                                handleTemplateInitiativeChange(
-                                  template.id,
-                                  event.target.value,
-                                )
-                              }
-                              placeholder="0"
-                              inputMode="numeric"
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            onClick={() => handleQuickAddFromTemplate(template.id)}
-                          >
-                            Add to initiative
-                          </button>
-                        </div>
-                        {templateErrors[template.id] && (
-                          <p className="template-card__error">{templateErrors[template.id]}</p>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {shouldShowStats ? (
-          <section className="combat-stats">
-            <header className="combat-stats__header">
-              <div>
-                <h3>Combat statistics</h3>
-                <p>Review timing insights from the last initiative.</p>
-              </div>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => setIsStatsVisible(false)}
-              >
-                Back to tracker
-              </button>
-            </header>
-            {lastCombatStats.totalTurns === 0 ? (
-              <div className="combat-stats__empty">
-                <p>No turn timing data was captured for the last combat.</p>
+                <div className="summary-card">
+                  <span className="summary__label">Saved heroes</span>
+                  <span className="summary__value">{totalSavedCharacters}</span>
+                </div>
               </div>
             ) : (
               <>
-                <div className="combat-stats__summary">
-                  <div className="combat-stats__summary-card">
-                    <span className="combat-stats__summary-label">
-                      Total combat time
-                    </span>
-                    <span className="combat-stats__summary-value">
-                      {formatDurationClock(lastCombatStats.totalDuration)}
-                    </span>
-                  </div>
-                  <div className="combat-stats__summary-card">
-                    <span className="combat-stats__summary-label">Average turn</span>
-                    <span className="combat-stats__summary-value">
-                      {formatDurationVerbose(lastCombatStats.averageTurnDuration)}
-                    </span>
-                    <span className="combat-stats__summary-hint">
-                      {lastCombatStats.totalTurns} turns
-                    </span>
-                  </div>
-                  {lastCombatStats.longestTurnEntry && (
-                    <div className="combat-stats__summary-card">
-                      <span className="combat-stats__summary-label">
-                        Longest turn
-                      </span>
-                      <span className="combat-stats__summary-value">
-                        {formatDurationVerbose(
-                          lastCombatStats.longestTurnEntry.duration,
-                        )}
-                      </span>
-                      <span className="combat-stats__summary-hint">
-                        {lastCombatStats.longestTurnEntry.combatantName}
-                      </span>
-                    </div>
-                  )}
-                  {lastCombatStats.fastestTurnEntry && (
-                    <div className="combat-stats__summary-card">
-                      <span className="combat-stats__summary-label">
-                        Quickest turn
-                      </span>
-                      <span className="combat-stats__summary-value">
-                        {formatDurationVerbose(
-                          lastCombatStats.fastestTurnEntry.duration,
-                        )}
-                      </span>
-                      <span className="combat-stats__summary-hint">
-                        {lastCombatStats.fastestTurnEntry.combatantName}
-                      </span>
-                    </div>
-                  )}
-                  {lastCombatStats.slowestAverage && (
-                    <div className="combat-stats__summary-card">
-                      <span className="combat-stats__summary-label">
-                        Slowest average
-                      </span>
-                      <span className="combat-stats__summary-value">
-                        {formatDurationVerbose(
-                          lastCombatStats.slowestAverage.averageDuration,
-                        )}
-                      </span>
-                      <span className="combat-stats__summary-hint">
-                        {lastCombatStats.slowestAverage.name}
-                      </span>
-                    </div>
-                  )}
-                  {lastCombatStats.quickestAverage && (
-                    <div className="combat-stats__summary-card">
-                      <span className="combat-stats__summary-label">
-                        Quickest average
-                      </span>
-                      <span className="combat-stats__summary-value">
-                        {formatDurationVerbose(
-                          lastCombatStats.quickestAverage.averageDuration,
-                        )}
-                      </span>
-                      <span className="combat-stats__summary-hint">
-                        {lastCombatStats.quickestAverage.name}
-                      </span>
-                    </div>
-                  )}
+                <div className="initiative-summary">
+                  <span className="summary__label">Creatures</span>
+                  <span className="summary__value">{combatants.length}</span>
                 </div>
-                <div className="combat-stats__table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th scope="col">Combatant</th>
-                        <th scope="col">Turns</th>
-                        <th scope="col">Avg turn</th>
-                        <th scope="col">Longest</th>
-                        <th scope="col">Total time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lastCombatStats.combatantStats.map((entry) => (
-                        <tr key={entry.combatantId}>
-                          <td>{entry.name}</td>
-                          <td>{entry.turnCount}</td>
-                          <td>{formatDurationClock(entry.averageDuration)}</td>
-                          <td>{formatDurationClock(entry.longestTurn)}</td>
-                          <td>{formatDurationClock(entry.totalDuration)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {hasStatsToShow && !shouldShowStats && (
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => setIsStatsVisible(true)}
+                  >
+                    View last combat stats
+                  </button>
+                )}
               </>
             )}
+          </div>
+        </section>
+        {activeView === 'campaigns' && (
+          <section className="campaign-section">
+            <header className="campaign-section__header">
+              <div>
+                <h3>Campaign manager</h3>
+                <p>
+                  Organize multiple campaigns, craft notes, and maintain reusable party
+                  rosters.
+                </p>
+              </div>
+            </header>
+            <div className="campaign-section__content">
+              <div className="campaign-manager__sidebar">
+                <div className="campaign-manager__list">
+                  <h4>Your campaigns</h4>
+                  {sortedCampaigns.length === 0 ? (
+                    <div className="campaign-manager__empty-list">
+                      <p>No campaigns yet. Create one below to begin planning.</p>
+                    </div>
+                  ) : (
+                    <ul>
+                      {sortedCampaigns.map((campaign) => (
+                        <li key={campaign.id}>
+                          <button
+                            type="button"
+                            className={`campaign-manager__campaign-button${
+                              campaign.id === activeCampaignId
+                                ? ' campaign-manager__campaign-button--active'
+                                : ''
+                            }`}
+                            onClick={() => handleSelectCampaign(campaign.id)}
+                          >
+                            <span>{campaign.name}</span>
+                            <span className="campaign-manager__campaign-count">
+                              {campaign.playerCharacters.length} heroes
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className="campaign-manager__campaign-remove"
+                            onClick={() => handleRemoveCampaign(campaign.id)}
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <form className="campaign-form campaign-form--compact" onSubmit={handleCreateCampaign}>
+                  <h4>Start a new campaign</h4>
+                  <label>
+                    <span>Campaign name</span>
+                    <input
+                      value={campaignForm.name}
+                      onChange={(event) =>
+                        handleCampaignFormChange('name', event.target.value)
+                      }
+                      placeholder="Rime of the Frostmaiden"
+                    />
+                  </label>
+                  {campaignFormError && (
+                    <p className="form-error">{campaignFormError}</p>
+                  )}
+                  <button type="submit" className="primary-button">
+                    Create campaign
+                  </button>
+                </form>
+              </div>
+              <div className="campaign-manager__content">
+                {activeCampaign ? (
+                  <>
+                    <form className="campaign-details" onSubmit={handleSaveCampaignDetails}>
+                      <div className="campaign-details__header">
+                        <h4>Campaign details</h4>
+                        <button type="submit" className="secondary-button">
+                          Save details
+                        </button>
+                      </div>
+                      <div className="form-grid campaign-form__grid">
+                        <label>
+                          <span>Name</span>
+                          <input
+                            value={campaignDetailsDraft.name}
+                            onChange={(event) =>
+                              handleCampaignDetailsChange('name', event.target.value)
+                            }
+                            placeholder="Storm King's Thunder"
+                          />
+                        </label>
+                        <label className="campaign-form__notes">
+                          <span>Notes</span>
+                          <textarea
+                            value={campaignDetailsDraft.notes}
+                            onChange={(event) =>
+                              handleCampaignDetailsChange('notes', event.target.value)
+                            }
+                            placeholder="Session prep, world lore, or loot ideas."
+                            rows={3}
+                          />
+                        </label>
+                      </div>
+                      {campaignDetailsError && (
+                        <p className="form-error">{campaignDetailsError}</p>
+                      )}
+                    </form>
+
+                    <form className="campaign-form" onSubmit={handleAddPlayerTemplate}>
+                      <h4>Create player character</h4>
+                      <div className="form-grid campaign-form__grid">
+                        <label>
+                          <span>Name</span>
+                          <input
+                            value={playerTemplateForm.name}
+                            onChange={(event) =>
+                              handlePlayerTemplateFormChange('name', event.target.value)
+                            }
+                            placeholder="Elowen Nightbloom"
+                          />
+                        </label>
+                        <label>
+                          <span>Max HP</span>
+                          <input
+                            value={playerTemplateForm.maxHp}
+                            onChange={(event) =>
+                              handlePlayerTemplateFormChange('maxHp', event.target.value)
+                            }
+                            placeholder="45"
+                            inputMode="numeric"
+                          />
+                        </label>
+                        <label>
+                          <span>Armor Class</span>
+                          <input
+                            value={playerTemplateForm.armorClass}
+                            onChange={(event) =>
+                              handlePlayerTemplateFormChange('armorClass', event.target.value)
+                            }
+                            placeholder="16"
+                            inputMode="numeric"
+                          />
+                        </label>
+                        <label className="campaign-form__notes">
+                          <span>Notes</span>
+                          <textarea
+                            value={playerTemplateForm.notes}
+                            onChange={(event) =>
+                              handlePlayerTemplateFormChange('notes', event.target.value)
+                            }
+                            placeholder="Personality, spell slots, reminders..."
+                            rows={3}
+                          />
+                        </label>
+                      </div>
+                      {playerTemplateError && (
+                        <p className="form-error">{playerTemplateError}</p>
+                      )}
+                      <div className="campaign-form__actions">
+                        <button type="submit" className="primary-button">
+                          Add to roster
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={resetPlayerTemplateForm}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </form>
+
+                    <div className="campaign-roster">
+                      <div className="campaign-roster__header">
+                        <h4>Saved player characters</h4>
+                        <p>Reuse your heroes across sessions with a single click.</p>
+                      </div>
+                      {activeCampaignRoster.length === 0 ? (
+                        <div className="campaign-roster__empty">
+                          <p>
+                            No heroes saved yet. Chronicle your party above to reuse them across
+                            encounters.
+                          </p>
+                        </div>
+                      ) : (
+                        <ul className="template-list">
+                          {activeCampaignRoster.map((template) => (
+                            <li key={template.id} className="template-card">
+                              <header className="template-card__header">
+                                <div>
+                                  <h5>{template.name}</h5>
+                                  <div className="template-card__stats">
+                                    <span className="stat-chip">Max HP {template.maxHp}</span>
+                                    {template.armorClass !== null && (
+                                      <span className="stat-chip">AC {template.armorClass}</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="ghost-button"
+                                  onClick={() => handleRemovePlayerTemplate(template.id)}
+                                >
+                                  Remove
+                                </button>
+                              </header>
+                              {template.notes && (
+                                <p className="template-card__notes">{template.notes}</p>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="campaign-manager__empty">
+                    <p>Select a campaign or create a new one to start building its roster.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </section>
-        ) : (
+        )}
+
+        {activeView === 'initiative' &&
+          (shouldShowStats ? (
+            <section className="combat-stats">
+              <header className="combat-stats__header">
+                <div>
+                  <h3>Combat statistics</h3>
+                  <p>Review timing insights from the last initiative.</p>
+                </div>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setIsStatsVisible(false)}
+                >
+                  Back to tracker
+                </button>
+              </header>
+              {lastCombatStats.totalTurns === 0 ? (
+                <div className="combat-stats__empty">
+                  <p>No turn timing data was captured for the last combat.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="combat-stats__summary">
+                    <div className="combat-stats__summary-card">
+                      <span className="combat-stats__summary-label">
+                        Total combat time
+                      </span>
+                      <span className="combat-stats__summary-value">
+                        {formatDurationClock(lastCombatStats.totalDuration)}
+                      </span>
+                    </div>
+                    <div className="combat-stats__summary-card">
+                      <span className="combat-stats__summary-label">Average turn</span>
+                      <span className="combat-stats__summary-value">
+                        {formatDurationVerbose(lastCombatStats.averageTurnDuration)}
+                      </span>
+                      <span className="combat-stats__summary-hint">
+                        {lastCombatStats.totalTurns} turns
+                      </span>
+                    </div>
+                    {lastCombatStats.longestTurnEntry && (
+                      <div className="combat-stats__summary-card">
+                        <span className="combat-stats__summary-label">
+                          Longest turn
+                        </span>
+                        <span className="combat-stats__summary-value">
+                          {formatDurationVerbose(
+                            lastCombatStats.longestTurnEntry.duration,
+                          )}
+                        </span>
+                        <span className="combat-stats__summary-hint">
+                          {lastCombatStats.longestTurnEntry.combatantName}
+                        </span>
+                      </div>
+                    )}
+                    {lastCombatStats.fastestTurnEntry && (
+                      <div className="combat-stats__summary-card">
+                        <span className="combat-stats__summary-label">
+                          Quickest turn
+                        </span>
+                        <span className="combat-stats__summary-value">
+                          {formatDurationVerbose(
+                            lastCombatStats.fastestTurnEntry.duration,
+                          )}
+                        </span>
+                        <span className="combat-stats__summary-hint">
+                          {lastCombatStats.fastestTurnEntry.combatantName}
+                        </span>
+                      </div>
+                    )}
+                    {lastCombatStats.slowestAverage && (
+                      <div className="combat-stats__summary-card">
+                        <span className="combat-stats__summary-label">
+                          Slowest average
+                        </span>
+                        <span className="combat-stats__summary-value">
+                          {formatDurationVerbose(
+                            lastCombatStats.slowestAverage.averageDuration,
+                          )}
+                        </span>
+                        <span className="combat-stats__summary-hint">
+                          {lastCombatStats.slowestAverage.name}
+                        </span>
+                      </div>
+                    )}
+                    {lastCombatStats.quickestAverage && (
+                      <div className="combat-stats__summary-card">
+                        <span className="combat-stats__summary-label">
+                          Quickest average
+                        </span>
+                        <span className="combat-stats__summary-value">
+                          {formatDurationVerbose(
+                            lastCombatStats.quickestAverage.averageDuration,
+                          )}
+                        </span>
+                        <span className="combat-stats__summary-hint">
+                          {lastCombatStats.quickestAverage.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="combat-stats__table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th scope="col">Combatant</th>
+                          <th scope="col">Turns</th>
+                          <th scope="col">Avg turn</th>
+                          <th scope="col">Longest</th>
+                          <th scope="col">Total time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lastCombatStats.combatantStats.map((entry) => (
+                          <tr key={entry.combatantId}>
+                            <td>{entry.name}</td>
+                            <td>{entry.turnCount}</td>
+                            <td>{formatDurationClock(entry.averageDuration)}</td>
+                            <td>{formatDurationClock(entry.longestTurn)}</td>
+                            <td>{formatDurationClock(entry.totalDuration)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </section>
+          ) : (
+            <>
           <section className="tracker">
             <form className="tracker__form" onSubmit={handleAddCombatant}>
               <h3>Add a combatant</h3>
@@ -1399,7 +1710,110 @@ function App() {
             )}
           </div>
         </section>
-        )}
+
+        <section className="initiative-campaign">
+          <header className="initiative-campaign__header">
+            <div>
+              <h3>Pull from campaign roster</h3>
+              <p>Choose a campaign and drop ready-made heroes straight into initiative.</p>
+            </div>
+            <div className="initiative-campaign__controls">
+              <label>
+                <span>Campaign</span>
+                <select
+                  value={activeCampaign ? activeCampaign.id : ''}
+                  onChange={(event) => {
+                    const nextId = event.target.value
+                    if (!nextId) {
+                      return
+                    }
+                    handleSelectCampaign(nextId)
+                  }}
+                >
+                  <option value="" disabled>
+                    {sortedCampaigns.length === 0
+                      ? 'No campaigns available'
+                      : 'Select campaign'}
+                  </option>
+                  {sortedCampaigns.map((campaign) => (
+                    <option key={campaign.id} value={campaign.id}>
+                      {campaign.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setActiveView('campaigns')}
+              >
+                Manage campaigns
+              </button>
+            </div>
+          </header>
+          {activeCampaign ? (
+            activeCampaignRoster.length === 0 ? (
+              <div className="initiative-campaign__empty">
+                <p>
+                  No heroes saved for {activeCampaign.name}. Add them in the campaign manager.
+                </p>
+              </div>
+            ) : (
+              <ul className="template-list">
+                {activeCampaignRoster.map((template) => {
+                  const initiativeValue = templateInitiatives[template.id] ?? ''
+                  return (
+                    <li key={template.id} className="template-card">
+                      <header className="template-card__header">
+                        <div>
+                          <h5>{template.name}</h5>
+                          <div className="template-card__stats">
+                            <span className="stat-chip">Max HP {template.maxHp}</span>
+                            {template.armorClass !== null && (
+                              <span className="stat-chip">AC {template.armorClass}</span>
+                            )}
+                          </div>
+                        </div>
+                      </header>
+                      {template.notes && (
+                        <p className="template-card__notes">{template.notes}</p>
+                      )}
+                      <div className="template-card__actions">
+                        <label className="template-card__initiative">
+                          <span>Initiative</span>
+                          <input
+                            value={initiativeValue}
+                            onChange={(event) =>
+                              handleTemplateInitiativeChange(template.id, event.target.value)
+                            }
+                            placeholder="0"
+                            inputMode="numeric"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => handleQuickAddFromTemplate(template.id)}
+                        >
+                          Add to initiative
+                        </button>
+                      </div>
+                      {templateErrors[template.id] && (
+                        <p className="template-card__error">{templateErrors[template.id]}</p>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )
+          ) : (
+            <div className="initiative-campaign__empty">
+              <p>Create a campaign to quickly load recurring party members.</p>
+            </div>
+          )}
+        </section>
+      </>
+    ))}
       </main>
     </div>
   )
