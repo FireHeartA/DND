@@ -162,7 +162,8 @@ label {
   color: rgba(244, 241, 234, 0.8);
 }
 
-input {
+input,
+select {
   border-radius: 10px;
   border: 1px solid rgba(244, 241, 234, 0.15);
   background: rgba(30, 23, 33, 0.9);
@@ -172,7 +173,8 @@ input {
   transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
-input:focus {
+input:focus,
+select:focus {
   outline: none;
   border-color: rgba(255, 189, 115, 0.7);
   box-shadow: 0 0 0 2px rgba(255, 189, 115, 0.2);
@@ -199,6 +201,16 @@ input:focus {
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.danger-button:disabled,
+.ghost-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .primary-button {
@@ -240,6 +252,22 @@ input:focus {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
 }
 
+.list-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.list-controls h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255, 239, 213, 0.85);
+}
+
 .empty-state {
   text-align: center;
   color: rgba(244, 241, 234, 0.8);
@@ -274,6 +302,28 @@ input:focus {
   gap: 1.25rem;
 }
 
+.combatant-card--player {
+  border-color: rgba(255, 230, 128, 0.7);
+  box-shadow: 0 0 0 2px rgba(255, 230, 128, 0.25);
+  background: linear-gradient(
+      135deg,
+      rgba(255, 230, 128, 0.15),
+      rgba(26, 18, 28, 0.75)
+    ),
+    rgba(26, 18, 28, 0.85);
+}
+
+.combatant-card--monster {
+  border-color: rgba(255, 128, 128, 0.7);
+  box-shadow: 0 0 0 2px rgba(255, 128, 128, 0.2);
+  background: linear-gradient(
+      135deg,
+      rgba(255, 128, 128, 0.15),
+      rgba(26, 18, 28, 0.75)
+    ),
+    rgba(26, 18, 28, 0.85);
+}
+
 .combatant-card__header {
   display: flex;
   justify-content: space-between;
@@ -293,10 +343,11 @@ input:focus {
 }
 
 .initiative-score {
-  font-size: 0.9rem;
+  font-size: 1.2rem;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(244, 241, 234, 0.6);
+  color: rgba(255, 239, 213, 0.85);
 }
 
 .combatant-card__body {
@@ -306,10 +357,56 @@ input:focus {
   justify-content: space-between;
 }
 
+.combatant-card__details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.combatant-card__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
 .combatant-name {
   margin: 0;
   font-size: 1.4rem;
   font-family: 'Cinzel', 'Times New Roman', serif;
+}
+
+.combatant-type-badge {
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  border: 1px solid transparent;
+}
+
+.combatant-type-badge--player {
+  background: rgba(255, 230, 128, 0.15);
+  border-color: rgba(255, 230, 128, 0.4);
+  color: rgba(255, 244, 214, 0.9);
+}
+
+.combatant-type-badge--monster {
+  background: rgba(255, 128, 128, 0.15);
+  border-color: rgba(255, 128, 128, 0.4);
+  color: rgba(255, 204, 204, 0.9);
+}
+
+.bloodied-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #ff5f5f, #8b1e1e);
+  box-shadow: 0 0 12px rgba(255, 95, 95, 0.45);
+  font-size: 1rem;
 }
 
 .hp-track {

@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import './App.css'
 import {
   addCombatant,
   applyDamage,
   applyHealing,
+  clearMonsters,
   removeCombatant as removeCombatantAction,
   resetCombatant as resetCombatantAction,
 } from './store/combatSlice'
@@ -16,6 +17,7 @@ function App() {
     name: '',
     maxHp: '',
     initiative: '',
+    type: 'player',
   })
   const [formError, setFormError] = useState('')
   const [adjustments, setAdjustments] = useState({})
@@ -37,7 +39,7 @@ function App() {
   }
 
   const resetForm = () => {
-    setFormData({ name: '', maxHp: '', initiative: '' })
+    setFormData({ name: '', maxHp: '', initiative: '', type: 'player' })
   }
 
   const handleAddCombatant = (event) => {
@@ -45,6 +47,7 @@ function App() {
     const name = formData.name.trim()
     const maxHp = Number.parseInt(formData.maxHp, 10)
     const initiative = Number.parseInt(formData.initiative, 10)
+    const type = formData.type === 'monster' ? 'monster' : 'player'
 
     if (!name) {
       setFormError('A creature needs a name worthy of the tale.')
@@ -66,6 +69,7 @@ function App() {
         name,
         maxHp,
         initiative,
+        type,
       }),
     )
     const { id } = action.payload
@@ -123,6 +127,49 @@ function App() {
     dispatch(resetCombatantAction(id))
   }
 
+  const handleClearMonsters = () => {
+    const monsterIds = combatants
+      .filter((combatant) => combatant.type === 'monster')
+      .map((combatant) => combatant.id)
+
+    if (monsterIds.length === 0) {
+      return
+    }
+
+    dispatch(clearMonsters())
+    setAdjustments((prev) => {
+      const next = { ...prev }
+      monsterIds.forEach((id) => {
+        delete next[id]
+      })
+      return next
+    })
+  }
+
+  useEffect(() => {
+    setAdjustments((prev) => {
+      const validIds = new Set(combatants.map((combatant) => combatant.id))
+      const shouldUpdate = Object.keys(prev).some(
+        (id) => !validIds.has(id),
+      )
+
+      if (!shouldUpdate) {
+        return prev
+      }
+
+      const next = {}
+      validIds.forEach((id) => {
+        if (prev[id] !== undefined) {
+          next[id] = prev[id]
+        }
+      })
+
+      return next
+    })
+  }, [combatants])
+
+  const hasMonsters = combatants.some((combatant) => combatant.type === 'monster')
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -169,6 +216,16 @@ function App() {
                 />
               </label>
               <label>
+                <span>Type</span>
+                <select
+                  value={formData.type}
+                  onChange={(event) => handleFormChange('type', event.target.value)}
+                >
+                  <option value="player">Player</option>
+                  <option value="monster">Monster</option>
+                </select>
+              </label>
+              <label>
                 <span>Max HP</span>
                 <input
                   value={formData.maxHp}
@@ -196,6 +253,17 @@ function App() {
           </form>
 
           <div className="tracker__list">
+            <div className="list-controls">
+              <h3>Initiative order</h3>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={handleClearMonsters}
+                disabled={!hasMonsters}
+              >
+                Clear monsters
+              </button>
+            </div>
             {sortedCombatants.length === 0 ? (
               <div className="empty-state">
                 <h3>No combatants yet</h3>
@@ -213,8 +281,19 @@ function App() {
                     (combatant.currentHp / combatant.maxHp) * 100,
                   )
 
+                  const typeClassName =
+                    combatant.type === 'player'
+                      ? 'combatant-card--player'
+                      : 'combatant-card--monster'
+                  const isBloodied =
+                    combatant.currentHp > 0 &&
+                    combatant.currentHp <= combatant.maxHp / 2
+
                   return (
-                    <li key={combatant.id} className="combatant-card">
+                    <li
+                      key={combatant.id}
+                      className={`combatant-card ${typeClassName}`}
+                    >
                       <header className="combatant-card__header">
                         <div className="combatant-card__initiative">
                           <span className="initiative-rank">#{index + 1}</span>
@@ -232,8 +311,24 @@ function App() {
                       </header>
 
                       <div className="combatant-card__body">
-                        <div>
-                          <h4 className="combatant-name">{combatant.name}</h4>
+                        <div className="combatant-card__details">
+                          <div className="combatant-card__title">
+                            <h4 className="combatant-name">{combatant.name}</h4>
+                            <span
+                              className={`combatant-type-badge combatant-type-badge--${combatant.type}`}
+                            >
+                              {combatant.type === 'player' ? 'Player' : 'Monster'}
+                            </span>
+                            {isBloodied && (
+                              <span
+                                className="bloodied-indicator"
+                                title="Bloodied"
+                                aria-label="Bloodied"
+                              >
+                                <span aria-hidden="true">🩸</span>
+                              </span>
+                            )}
+                          </div>
                           <div className="hp-track">
                             <div className="hp-track__bar">
                               <span

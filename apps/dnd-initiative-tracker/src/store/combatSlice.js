@@ -9,7 +9,7 @@ const combatSlice = createSlice({
   initialState,
   reducers: {
     addCombatant: {
-      prepare({ name, maxHp, initiative }) {
+      prepare({ name, maxHp, initiative, type }) {
         return {
           payload: {
             id: nanoid(),
@@ -18,6 +18,7 @@ const combatSlice = createSlice({
             initiative,
             currentHp: maxHp,
             createdAt: Date.now(),
+            type: type === 'monster' ? 'monster' : 'player',
           },
         }
       },
@@ -57,6 +58,11 @@ const combatSlice = createSlice({
 
       combatant.currentHp = combatant.maxHp
     },
+    clearMonsters(state) {
+      state.combatants = state.combatants.filter(
+        (combatant) => combatant.type !== 'monster',
+      )
+    },
   },
 })
 
@@ -66,6 +72,7 @@ export const {
   applyDamage,
   applyHealing,
   resetCombatant,
+  clearMonsters,
 } = combatSlice.actions
 
 export default combatSlice.reducer
