@@ -12,6 +12,136 @@ import {
   updateInitiative as updateInitiativeAction,
 } from './store/combatSlice'
 
+const formatDurationClock = (durationMs) => {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    return '00:00'
+  }
+
+  const totalSeconds = Math.floor(durationMs / 1000)
+  const seconds = totalSeconds % 60
+  const minutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(minutes / 60)
+  const minutesComponent = minutes % 60
+
+  const pad = (value) => String(value).padStart(2, '0')
+
+  if (hours > 0) {
+    return `${pad(hours)}:${pad(minutesComponent)}:${pad(seconds)}`
+  }
+
+  return `${pad(minutes)}:${pad(seconds)}`
+}
+
+const formatDurationVerbose = (durationMs) => {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    return '0s'
+  }
+
+  const totalSeconds = Math.floor(durationMs / 1000)
+  const seconds = totalSeconds % 60
+  const totalMinutes = Math.floor(totalSeconds / 60)
+  const minutes = totalMinutes % 60
+  const hours = Math.floor(totalMinutes / 60)
+
+  const parts = []
+
+  if (hours > 0) {
+    parts.push(`${hours}h`)
+  }
+
+  if (minutes > 0) {
+    parts.push(`${minutes}m`)
+  }
+
+  parts.push(`${seconds}s`)
+
+  return parts.join(' ')
+}
+
+const computeCombatStats = (history) => {
+  if (!Array.isArray(history) || history.length === 0) {
+    return {
+      totalDuration: 0,
+      totalTurns: 0,
+      averageTurnDuration: 0,
+      longestTurnEntry: null,
+      fastestTurnEntry: null,
+      slowestAverage: null,
+      quickestAverage: null,
+      combatantStats: [],
+    }
+  }
+
+  const summaryByCombatant = new Map()
+  let totalDuration = 0
+  let longestTurnEntry = null
+  let fastestTurnEntry = null
+
+  history.forEach((entry) => {
+    const duration = entry.duration ?? 0
+    totalDuration += duration
+
+    if (!longestTurnEntry || duration > longestTurnEntry.duration) {
+      longestTurnEntry = entry
+    }
+
+    if (!fastestTurnEntry || duration < fastestTurnEntry.duration) {
+      fastestTurnEntry = entry
+    }
+
+    const current = summaryByCombatant.get(entry.combatantId) || {
+      combatantId: entry.combatantId,
+      name: entry.combatantName,
+      totalDuration: 0,
+      turnCount: 0,
+      longestTurn: 0,
+    }
+
+    const nextTotal = current.totalDuration + duration
+    const nextTurnCount = current.turnCount + 1
+    const nextLongest = Math.max(current.longestTurn, duration)
+
+    summaryByCombatant.set(entry.combatantId, {
+      ...current,
+      totalDuration: nextTotal,
+      turnCount: nextTurnCount,
+      longestTurn: nextLongest,
+    })
+  })
+
+  const combatantStats = Array.from(summaryByCombatant.values()).map((entry) => ({
+    ...entry,
+    averageDuration: entry.turnCount > 0 ? entry.totalDuration / entry.turnCount : 0,
+  }))
+
+  const slowestAverage = combatantStats.reduce((accumulator, entry) => {
+    if (!accumulator || entry.averageDuration > accumulator.averageDuration) {
+      return entry
+    }
+    return accumulator
+  }, null)
+
+  const quickestAverage = combatantStats.reduce((accumulator, entry) => {
+    if (!accumulator || entry.averageDuration < accumulator.averageDuration) {
+      return entry
+    }
+    return accumulator
+  }, null)
+
+  combatantStats.sort((a, b) => b.totalDuration - a.totalDuration)
+
+  return {
+    totalDuration,
+    totalTurns: history.length,
+    averageTurnDuration: totalDuration / history.length,
+    longestTurnEntry,
+    fastestTurnEntry,
+    slowestAverage,
+    quickestAverage,
+    combatantStats,
+  }
+}
+
 function App() {
   const dispatch = useDispatch()
   const store = useStore()
@@ -27,7 +157,13 @@ function App() {
   const [adjustments, setAdjustments] = useState({})
   const [initiativeDrafts, setInitiativeDrafts] = useState({})
   const [activeCombatantId, setActiveCombatantId] = useState(null)
+  const [turnHistory, setTurnHistory] = useState([])
+  const [turnStartTime, setTurnStartTime] = useState(null)
+  const [currentTime, setCurrentTime] = useState(Date.now())
+  const [isStatsVisible, setIsStatsVisible] = useState(false)
+  const [lastCombatStats, setLastCombatStats] = useState(null)
   const fileInputRef = useRef(null)
+  const isCombatActive = activeCombatantId !== null
 
   const sortedCombatants = useMemo(() => {
     return [...combatants].sort((a, b) => {
@@ -280,12 +416,31 @@ function App() {
     })
   }, [combatants])
 
+  useEffect(() => {
+    if (!isCombatActive || turnStartTime === null) {
+      return
+    }
+
+    setCurrentTime(Date.now())
+
+    const intervalId = window.setInterval(() => {
+      setCurrentTime(Date.now())
+    }, 1000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [isCombatActive, turnStartTime])
+
   const hasMonsters = combatants.some((combatant) => combatant.type === 'monster')
 
   useEffect(() => {
     if (sortedCombatants.length === 0) {
       if (activeCombatantId !== null) {
         setActiveCombatantId(null)
+      }
+      if (turnStartTime !== null) {
+        setTurnStartTime(null)
       }
       return
     }
@@ -300,15 +455,47 @@ function App() {
 
     if (!isActivePresent) {
       setActiveCombatantId(sortedCombatants[0].id)
+      setTurnStartTime(Date.now())
     }
   }, [sortedCombatants, activeCombatantId])
+
+  const recordTurnDuration = (endTimestamp = Date.now()) => {
+    if (activeCombatantId === null || turnStartTime === null) {
+      return turnHistory
+    }
+
+    const combatant = combatants.find((entry) => entry.id === activeCombatantId)
+    const entry = {
+      combatantId: activeCombatantId,
+      combatantName: combatant ? combatant.name : 'Unknown combatant',
+      startedAt: turnStartTime,
+      endedAt: endTimestamp,
+      duration: Math.max(0, endTimestamp - turnStartTime),
+    }
+
+    let nextHistory = null
+
+    setTurnHistory((prev) => {
+      const updatedHistory = [...prev, entry]
+      nextHistory = updatedHistory
+      return updatedHistory
+    })
+
+    return nextHistory ?? [...turnHistory, entry]
+  }
 
   const handleStartCombat = () => {
     if (sortedCombatants.length === 0) {
       return
     }
 
-    setActiveCombatantId(sortedCombatants[0].id)
+    const firstCombatantId = sortedCombatants[0].id
+    const now = Date.now()
+
+    setTurnHistory([])
+    setTurnStartTime(now)
+    setIsStatsVisible(false)
+    setActiveCombatantId(firstCombatantId)
   }
 
   const handleAdvanceTurn = () => {
@@ -316,8 +503,8 @@ function App() {
       return
     }
 
-    if (activeCombatantId === null) {
-      setActiveCombatantId(sortedCombatants[0].id)
+    if (!isCombatActive) {
+      handleStartCombat()
       return
     }
 
@@ -329,10 +516,32 @@ function App() {
         ? 0
         : currentIndex + 1
 
+    recordTurnDuration()
+
+    setTurnStartTime(Date.now())
     setActiveCombatantId(sortedCombatants[nextIndex].id)
   }
 
-  const isCombatActive = activeCombatantId !== null
+  const handleEndCombat = () => {
+    if (!isCombatActive) {
+      return
+    }
+
+    const finalHistory = recordTurnDuration()
+    const stats = computeCombatStats(finalHistory)
+
+    setActiveCombatantId(null)
+    setTurnStartTime(null)
+    setTurnHistory([])
+    setLastCombatStats(stats)
+    setIsStatsVisible(true)
+  }
+
+  const currentTurnElapsed =
+    isCombatActive && turnStartTime !== null ? currentTime - turnStartTime : 0
+  const turnsRecorded = turnHistory.length
+  const shouldShowStats = isStatsVisible && lastCombatStats
+  const hasStatsToShow = Boolean(lastCombatStats)
 
   const handleDownloadState = () => {
     const state = store.getState()
@@ -388,6 +597,9 @@ function App() {
         if (parsed && typeof parsed === 'object' && parsed.combat) {
           dispatch(loadState(parsed.combat))
           setActiveCombatantId(null)
+          setTurnStartTime(null)
+          setTurnHistory([])
+          setIsStatsVisible(false)
           setLoadError('')
         } else {
           setLoadError('The selected file does not contain combat data.')
@@ -468,15 +680,152 @@ function App() {
                 onChange={handleFileInputChange}
               />
             </div>
+            {hasStatsToShow && !shouldShowStats && (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setIsStatsVisible(true)}
+              >
+                View last combat stats
+              </button>
+            )}
           </div>
         </section>
 
-        <section className="tracker">
-          <form className="tracker__form" onSubmit={handleAddCombatant}>
-            <h3>Add a combatant</h3>
-            <div className="form-grid">
-              <label>
-                <span>Name</span>
+        {shouldShowStats ? (
+          <section className="combat-stats">
+            <header className="combat-stats__header">
+              <div>
+                <h3>Combat statistics</h3>
+                <p>Review timing insights from the last initiative.</p>
+              </div>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setIsStatsVisible(false)}
+              >
+                Back to tracker
+              </button>
+            </header>
+            {lastCombatStats.totalTurns === 0 ? (
+              <div className="combat-stats__empty">
+                <p>No turn timing data was captured for the last combat.</p>
+              </div>
+            ) : (
+              <>
+                <div className="combat-stats__summary">
+                  <div className="combat-stats__summary-card">
+                    <span className="combat-stats__summary-label">
+                      Total combat time
+                    </span>
+                    <span className="combat-stats__summary-value">
+                      {formatDurationClock(lastCombatStats.totalDuration)}
+                    </span>
+                  </div>
+                  <div className="combat-stats__summary-card">
+                    <span className="combat-stats__summary-label">Average turn</span>
+                    <span className="combat-stats__summary-value">
+                      {formatDurationVerbose(lastCombatStats.averageTurnDuration)}
+                    </span>
+                    <span className="combat-stats__summary-hint">
+                      {lastCombatStats.totalTurns} turns
+                    </span>
+                  </div>
+                  {lastCombatStats.longestTurnEntry && (
+                    <div className="combat-stats__summary-card">
+                      <span className="combat-stats__summary-label">
+                        Longest turn
+                      </span>
+                      <span className="combat-stats__summary-value">
+                        {formatDurationVerbose(
+                          lastCombatStats.longestTurnEntry.duration,
+                        )}
+                      </span>
+                      <span className="combat-stats__summary-hint">
+                        {lastCombatStats.longestTurnEntry.combatantName}
+                      </span>
+                    </div>
+                  )}
+                  {lastCombatStats.fastestTurnEntry && (
+                    <div className="combat-stats__summary-card">
+                      <span className="combat-stats__summary-label">
+                        Quickest turn
+                      </span>
+                      <span className="combat-stats__summary-value">
+                        {formatDurationVerbose(
+                          lastCombatStats.fastestTurnEntry.duration,
+                        )}
+                      </span>
+                      <span className="combat-stats__summary-hint">
+                        {lastCombatStats.fastestTurnEntry.combatantName}
+                      </span>
+                    </div>
+                  )}
+                  {lastCombatStats.slowestAverage && (
+                    <div className="combat-stats__summary-card">
+                      <span className="combat-stats__summary-label">
+                        Slowest average
+                      </span>
+                      <span className="combat-stats__summary-value">
+                        {formatDurationVerbose(
+                          lastCombatStats.slowestAverage.averageDuration,
+                        )}
+                      </span>
+                      <span className="combat-stats__summary-hint">
+                        {lastCombatStats.slowestAverage.name}
+                      </span>
+                    </div>
+                  )}
+                  {lastCombatStats.quickestAverage && (
+                    <div className="combat-stats__summary-card">
+                      <span className="combat-stats__summary-label">
+                        Quickest average
+                      </span>
+                      <span className="combat-stats__summary-value">
+                        {formatDurationVerbose(
+                          lastCombatStats.quickestAverage.averageDuration,
+                        )}
+                      </span>
+                      <span className="combat-stats__summary-hint">
+                        {lastCombatStats.quickestAverage.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="combat-stats__table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">Combatant</th>
+                        <th scope="col">Turns</th>
+                        <th scope="col">Avg turn</th>
+                        <th scope="col">Longest</th>
+                        <th scope="col">Total time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lastCombatStats.combatantStats.map((entry) => (
+                        <tr key={entry.combatantId}>
+                          <td>{entry.name}</td>
+                          <td>{entry.turnCount}</td>
+                          <td>{formatDurationClock(entry.averageDuration)}</td>
+                          <td>{formatDurationClock(entry.longestTurn)}</td>
+                          <td>{formatDurationClock(entry.totalDuration)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
+        ) : (
+          <section className="tracker">
+            <form className="tracker__form" onSubmit={handleAddCombatant}>
+              <h3>Add a combatant</h3>
+              <div className="form-grid">
+                <label>
+                  <span>Name</span>
                 <input
                   value={formData.name}
                   onChange={(event) => handleFormChange('name', event.target.value)}
@@ -519,43 +868,67 @@ function App() {
             <button type="submit" className="primary-button">
               Add to order
             </button>
-          </form>
+            </form>
 
-          <div className="tracker__list">
-            <div className="list-controls">
-              <h3>Initiative order</h3>
-              <div className="list-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={handleStartCombat}
-                  disabled={sortedCombatants.length === 0}
-                >
-                  Start combat
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={handleAdvanceTurn}
-                  disabled={sortedCombatants.length === 0 || !isCombatActive}
-                >
-                  Next turn
-                </button>
-                <button
-                  type="button"
-                  className="danger-button"
-                  onClick={handleClearMonsters}
-                  disabled={!hasMonsters}
-                >
-                  Clear monsters
-                </button>
+            <div className="tracker__list">
+              <div className="list-controls">
+                <div className="list-controls__info">
+                  <h3>Initiative order</h3>
+                  <div className="turn-tracking">
+                    <div className="turn-timer" aria-live="polite">
+                      <span className="turn-timer__label">
+                        {isCombatActive ? 'Current turn' : 'Turn timer'}
+                      </span>
+                      <span className="turn-timer__value">
+                        {formatDurationClock(currentTurnElapsed)}
+                      </span>
+                    </div>
+                    <div className="turn-counter">
+                      <span className="turn-counter__label">Turns logged</span>
+                      <span className="turn-counter__value">{turnsRecorded}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="list-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleStartCombat}
+                    disabled={sortedCombatants.length === 0}
+                  >
+                    Start combat
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleAdvanceTurn}
+                    disabled={sortedCombatants.length === 0 || !isCombatActive}
+                  >
+                    Next turn
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={handleEndCombat}
+                    disabled={!isCombatActive}
+                  >
+                    End combat
+                  </button>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={handleClearMonsters}
+                    disabled={!hasMonsters}
+                  >
+                    Clear monsters
+                  </button>
+                </div>
               </div>
-            </div>
-            {sortedCombatants.length === 0 ? (
-              <div className="empty-state">
-                <h3>No combatants yet</h3>
-                <p>
-                  Gather your adventurers and foes above. They will march into
+              {sortedCombatants.length === 0 ? (
+                <div className="empty-state">
+                  <h3>No combatants yet</h3>
+                  <p>
+                    Gather your adventurers and foes above. They will march into
                   the initiative order as soon as you add them.
                 </p>
               </div>
@@ -716,6 +1089,7 @@ function App() {
             )}
           </div>
         </section>
+        )}
       </main>
     </div>
   )
