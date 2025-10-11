@@ -8,6 +8,7 @@ import {
   clearMonsters,
   removeCombatant as removeCombatantAction,
   resetCombatant as resetCombatantAction,
+  updateInitiative as updateInitiativeAction,
 } from './store/combatSlice'
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
   })
   const [formError, setFormError] = useState('')
   const [adjustments, setAdjustments] = useState({})
+  const [initiativeDrafts, setInitiativeDrafts] = useState({})
 
   const sortedCombatants = useMemo(() => {
     return [...combatants].sort((a, b) => {
@@ -79,6 +81,11 @@ function App() {
       [id]: '',
     }))
 
+    setInitiativeDrafts((prev) => ({
+      ...prev,
+      [id]: { value: String(initiative), isDirty: false },
+    }))
+
     setFormError('')
     resetForm()
   }
@@ -114,9 +121,79 @@ function App() {
     }))
   }
 
+  const handleInitiativeDraftChange = (id, value) => {
+    setInitiativeDrafts((prev) => ({
+      ...prev,
+      [id]: { value, isDirty: true },
+    }))
+  }
+
+  const revertInitiativeDraft = (id) => {
+    const combatant = combatants.find((entry) => entry.id === id)
+
+    if (!combatant) {
+      setInitiativeDrafts((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      return
+    }
+
+    setInitiativeDrafts((prev) => ({
+      ...prev,
+      [id]: { value: String(combatant.initiative), isDirty: false },
+    }))
+  }
+
+  const commitInitiativeChange = (id) => {
+    const combatant = combatants.find((entry) => entry.id === id)
+
+    if (!combatant) return
+
+    const draftEntry = initiativeDrafts[id]
+    const rawValue = draftEntry ? draftEntry.value.trim() : ''
+    const parsedInitiative = Number.parseInt(rawValue, 10)
+
+    if (!Number.isFinite(parsedInitiative)) {
+      revertInitiativeDraft(id)
+      return
+    }
+
+    if (parsedInitiative === combatant.initiative) {
+      setInitiativeDrafts((prev) => ({
+        ...prev,
+        [id]: { value: String(parsedInitiative), isDirty: false },
+      }))
+      return
+    }
+
+    dispatch(updateInitiativeAction({ id, initiative: parsedInitiative }))
+
+    setInitiativeDrafts((prev) => ({
+      ...prev,
+      [id]: { value: String(parsedInitiative), isDirty: false },
+    }))
+  }
+
+  const handleInitiativeKeyDown = (event, id) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      commitInitiativeChange(id)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      revertInitiativeDraft(id)
+    }
+  }
+
   const handleRemoveCombatant = (id) => {
     dispatch(removeCombatantAction(id))
     setAdjustments((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+    setInitiativeDrafts((prev) => {
       const next = { ...prev }
       delete next[id]
       return next
@@ -144,6 +221,13 @@ function App() {
       })
       return next
     })
+    setInitiativeDrafts((prev) => {
+      const next = { ...prev }
+      monsterIds.forEach((id) => {
+        delete next[id]
+      })
+      return next
+    })
   }
 
   useEffect(() => {
@@ -161,6 +245,29 @@ function App() {
       validIds.forEach((id) => {
         if (prev[id] !== undefined) {
           next[id] = prev[id]
+        }
+      })
+
+      return next
+    })
+  }, [combatants])
+
+  useEffect(() => {
+    setInitiativeDrafts((prev) => {
+      const next = {}
+
+      combatants.forEach((combatant) => {
+        const previousEntry = prev[combatant.id]
+
+        if (previousEntry) {
+          next[combatant.id] = previousEntry.isDirty
+            ? previousEntry
+            : { value: String(combatant.initiative), isDirty: false }
+        } else {
+          next[combatant.id] = {
+            value: String(combatant.initiative),
+            isDirty: false,
+          }
         }
       })
 
@@ -276,6 +383,9 @@ function App() {
               <ul className="combatant-list">
                 {sortedCombatants.map((combatant, index) => {
                   const adjustment = adjustments[combatant.id] ?? ''
+                  const initiativeEntry = initiativeDrafts[combatant.id]
+                  const initiativeValue =
+                    initiativeEntry?.value ?? String(combatant.initiative)
                   const isDown = combatant.currentHp === 0
                   const hpPercent = Math.round(
                     (combatant.currentHp / combatant.maxHp) * 100,
@@ -297,9 +407,27 @@ function App() {
                       <header className="combatant-card__header">
                         <div className="combatant-card__initiative">
                           <span className="initiative-rank">#{index + 1}</span>
-                          <span className="initiative-score">
-                            Init {combatant.initiative}
-                          </span>
+                          <label className="initiative-editor">
+                            <span className="initiative-editor__caption">
+                              Initiative
+                            </span>
+                            <input
+                              className="initiative-editor__input"
+                              value={initiativeValue}
+                              onChange={(event) =>
+                                handleInitiativeDraftChange(
+                                  combatant.id,
+                                  event.target.value,
+                                )
+                              }
+                              onBlur={() => commitInitiativeChange(combatant.id)}
+                              onKeyDown={(event) =>
+                                handleInitiativeKeyDown(event, combatant.id)
+                              }
+                              placeholder="0"
+                              inputMode="numeric"
+                            />
+                          </label>
                         </div>
                         <button
                           type="button"

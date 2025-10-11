@@ -333,7 +333,7 @@ select:focus {
 .combatant-card__initiative {
   display: flex;
   gap: 1rem;
-  align-items: baseline;
+  align-items: center;
 }
 
 .initiative-rank {
@@ -342,12 +342,35 @@ select:focus {
   color: #ffb36d;
 }
 
-.initiative-score {
-  font-size: 1.2rem;
+.initiative-editor {
+  gap: 0.25rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 239, 213, 0.6);
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.initiative-editor__caption {
+  font-weight: 600;
+  letter-spacing: 0.22em;
+}
+
+.initiative-editor__input {
+  font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 239, 213, 0.85);
+  padding: 0.4rem 0.6rem;
+  min-width: 4.5rem;
+  text-align: center;
+  background: rgba(30, 23, 33, 0.92);
+  border: 1px solid rgba(244, 241, 234, 0.2);
+}
+
+.initiative-editor__input:focus {
+  border-color: rgba(255, 189, 115, 0.8);
+  box-shadow: 0 0 0 2px rgba(255, 189, 115, 0.2);
 }
 
 .combatant-card__body {

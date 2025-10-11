@@ -58,6 +58,14 @@ const combatSlice = createSlice({
 
       combatant.currentHp = combatant.maxHp
     },
+    updateInitiative(state, action) {
+      const { id, initiative } = action.payload
+      const combatant = state.combatants.find((entry) => entry.id === id)
+
+      if (!combatant || !Number.isFinite(initiative)) return
+
+      combatant.initiative = initiative
+    },
     clearMonsters(state) {
       state.combatants = state.combatants.filter(
         (combatant) => combatant.type !== 'monster',
@@ -72,6 +80,7 @@ export const {
   applyDamage,
   applyHealing,
   resetCombatant,
+  updateInitiative,
   clearMonsters,
 } = combatSlice.actions
 
