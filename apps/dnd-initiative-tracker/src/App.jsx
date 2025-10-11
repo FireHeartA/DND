@@ -1,8 +1,17 @@
 import { useMemo, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import './App.css'
+import {
+  addCombatant,
+  applyDamage,
+  applyHealing,
+  removeCombatant as removeCombatantAction,
+  resetCombatant as resetCombatantAction,
+} from './store/combatSlice'
 
 function App() {
-  const [combatants, setCombatants] = useState([])
+  const dispatch = useDispatch()
+  const combatants = useSelector((state) => state.combat.combatants)
   const [formData, setFormData] = useState({
     name: '',
     maxHp: '',
@@ -52,19 +61,14 @@ function App() {
       return
     }
 
-    const id = crypto.randomUUID()
-
-    setCombatants((prev) => [
-      ...prev,
-      {
-        id,
+    const action = dispatch(
+      addCombatant({
         name,
         maxHp,
-        currentHp: maxHp,
         initiative,
-        createdAt: Date.now(),
-      },
-    ])
+      }),
+    )
+    const { id } = action.payload
 
     setAdjustments((prev) => ({
       ...prev,
@@ -94,22 +98,11 @@ function App() {
       return
     }
 
-    setCombatants((prev) =>
-      prev.map((combatant) => {
-        if (combatant.id !== id) return combatant
-
-        const delta = direction === 'damage' ? -amount : amount
-        const nextHp = Math.min(
-          combatant.maxHp,
-          Math.max(0, combatant.currentHp + delta),
-        )
-
-        return {
-          ...combatant,
-          currentHp: nextHp,
-        }
-      }),
-    )
+    if (direction === 'damage') {
+      dispatch(applyDamage({ id, amount }))
+    } else {
+      dispatch(applyHealing({ id, amount }))
+    }
 
     setAdjustments((prev) => ({
       ...prev,
@@ -117,8 +110,8 @@ function App() {
     }))
   }
 
-  const removeCombatant = (id) => {
-    setCombatants((prev) => prev.filter((combatant) => combatant.id !== id))
+  const handleRemoveCombatant = (id) => {
+    dispatch(removeCombatantAction(id))
     setAdjustments((prev) => {
       const next = { ...prev }
       delete next[id]
@@ -126,17 +119,8 @@ function App() {
     })
   }
 
-  const resetCombatant = (id) => {
-    setCombatants((prev) =>
-      prev.map((combatant) =>
-        combatant.id === id
-          ? {
-              ...combatant,
-              currentHp: combatant.maxHp,
-            }
-          : combatant,
-      ),
-    )
+  const handleResetCombatant = (id) => {
+    dispatch(resetCombatantAction(id))
   }
 
   return (
@@ -241,7 +225,7 @@ function App() {
                         <button
                           type="button"
                           className="ghost-button"
-                          onClick={() => removeCombatant(combatant.id)}
+                          onClick={() => handleRemoveCombatant(combatant.id)}
                         >
                           Remove
                         </button>
@@ -304,7 +288,7 @@ function App() {
                           <button
                             type="button"
                             className="ghost-button"
-                            onClick={() => resetCombatant(combatant.id)}
+                            onClick={() => handleResetCombatant(combatant.id)}
                           >
                             Reset HP
                           </button>
