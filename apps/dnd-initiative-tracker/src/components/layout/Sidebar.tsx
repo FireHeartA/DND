@@ -8,7 +8,7 @@ interface SidebarProps {
   onDownloadState: () => void
   onUploadClick: () => void
   loadError: string
-  fileInputRef: RefObject<HTMLInputElement>
+  fileInputRef: RefObject<HTMLInputElement | null>
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void
 }
 

@@ -5,7 +5,13 @@ import './index.css'
 import App from './App'
 import { store } from './store'
 
-createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root')
+
+if (!rootElement) {
+  throw new Error('Root container missing in index.html')
+}
+
+createRoot(rootElement).render(
   <StrictMode>
     <Provider store={store}>
       <App />

@@ -660,8 +660,11 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
         return
       }
 
+      const hitPoints = monster.hitPoints
       const maxHp =
-        Number.isFinite(monster.hitPoints) && monster.hitPoints > 0 ? monster.hitPoints : 1
+        typeof hitPoints === 'number' && Number.isFinite(hitPoints) && hitPoints > 0
+          ? hitPoints
+          : 1
 
       dispatch(
         addCombatantAction({
