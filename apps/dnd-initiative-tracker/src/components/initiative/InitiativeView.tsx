@@ -1205,6 +1205,10 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   {sortedCombatants.map((combatant) => {
                     const draft = initiativeDrafts[combatant.id]
                     const adjustment = adjustments[combatant.id] ?? ''
+                    const sourceMonster =
+                      combatant.type === 'monster' && combatant.sourceMonsterId
+                        ? monsterLibrary.monsters[combatant.sourceMonsterId] || null
+                        : null
                     const isBloodied = combatant.currentHp <= Math.max(1, combatant.maxHp / 2)
                     const isDown = combatant.currentHp === 0
                     const hpPercent = combatant.maxHp > 0 ? (combatant.currentHp / combatant.maxHp) * 100 : 0
@@ -1301,6 +1305,16 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                                 </span>
                               ))}
                             </div>
+                            {sourceMonster?.sourceUrl && (
+                              <a
+                                href={sourceMonster.sourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="combatant-card__link"
+                              >
+                                View on D&D Beyond
+                              </a>
+                            )}
                             {isDown && <p className="status status--down">Unconscious</p>}
                           </div>
 
@@ -1509,6 +1523,16 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                           Add monster
                         </button>
                       </div>
+                      {monster.sourceUrl && (
+                        <a
+                          href={monster.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="monster-card__link monster-card__link--standalone"
+                        >
+                          View on D&D Beyond
+                        </a>
+                      )}
                       {monsterErrors[monster.id] && (
                         <p className="template-card__error">{monsterErrors[monster.id]}</p>
                       )}
@@ -1577,6 +1601,16 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                           Add monster
                         </button>
                       </div>
+                      {monster.sourceUrl && (
+                        <a
+                          href={monster.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="monster-card__link monster-card__link--standalone"
+                        >
+                          View on D&D Beyond
+                        </a>
+                      )}
                       {monsterErrors[monster.id] && (
                         <p className="template-card__error">{monsterErrors[monster.id]}</p>
                       )}

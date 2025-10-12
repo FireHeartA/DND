@@ -854,6 +854,11 @@
   text-decoration: underline;
 }
 
+.monster-card__link--standalone {
+  display: inline-block;
+  margin-top: 0.75rem;
+}
+
 .monster-card--compact {
   padding: 1rem;
   gap: 0.75rem;
@@ -1341,6 +1346,18 @@ textarea:focus {
 .combatant-card__meta-item--tag {
   background: rgba(255, 179, 109, 0.24);
   color: rgba(255, 239, 213, 0.92);
+}
+
+.combatant-card__link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  color: rgba(255, 210, 160, 0.95);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.combatant-card__link:hover {
+  text-decoration: underline;
 }
 
 .combatant-card__notes {
