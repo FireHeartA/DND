@@ -673,6 +673,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
           initiative: Math.trunc(initiative),
           type: 'player',
           armorClass: template.armorClass,
+          profileUrl: template.profileUrl,
           notes: template.notes,
           sourceTemplateId: template.id,
           sourceCampaignId: activeCampaign.id,
@@ -1326,6 +1327,16 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                             Remove
                           </button>
                         </header>
+                        {template.profileUrl && (
+                          <a
+                            href={template.profileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="template-card__link"
+                          >
+                            Open character profile
+                          </a>
+                        )}
                         {template.notes && (
                           <p className="template-card__notes">{template.notes}</p>
                         )}

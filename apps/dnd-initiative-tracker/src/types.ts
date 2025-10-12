@@ -14,6 +14,7 @@ export interface Combatant {
   createdAt: number
   type: CombatantType
   armorClass: number | null
+  profileUrl: string
   notes: string
   tags: CombatantTag[]
   sourceTemplateId: string | null
@@ -26,6 +27,7 @@ export interface PlayerTemplate {
   name: string
   maxHp: number
   armorClass: number | null
+  profileUrl: string
   notes: string
   createdAt: number
 }
@@ -40,6 +42,7 @@ export interface CampaignCharacter {
   name: string
   maxHp: number
   armorClass: number | null
+  profileUrl: string
   notes: string
   createdAt: number
 }

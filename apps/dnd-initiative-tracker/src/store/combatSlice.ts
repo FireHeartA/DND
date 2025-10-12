@@ -19,6 +19,20 @@ const normalizeArmorClass = (value: unknown): number | null => {
 }
 
 /**
+ * Normalizes a character profile link to an http(s) URL or clears it.
+ */
+const sanitizeProfileUrl = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return ''
+  }
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+  return /^https?:\/\//i.test(trimmed) ? trimmed : ''
+}
+
+/**
  * Creates a combatant record with the base fields required by the tracker.
  */
 const createCombatant = (
@@ -36,6 +50,7 @@ const createCombatant = (
   createdAt: fields.createdAt ?? Date.now(),
   type: fields.type,
   armorClass: fields.armorClass,
+  profileUrl: fields.profileUrl ?? '',
   notes: fields.notes,
   tags: Array.isArray(fields.tags) ? fields.tags : [],
   sourceTemplateId: fields.sourceTemplateId,
@@ -99,6 +114,7 @@ const sanitizeCombatant = (value: unknown): Combatant | null => {
     initiative: Math.trunc(initiative),
     type: candidate.type === 'monster' ? 'monster' : 'player',
     armorClass: normalizeArmorClass(candidate.armorClass),
+    profileUrl: sanitizeProfileUrl(candidate.profileUrl),
     notes: typeof candidate.notes === 'string' ? candidate.notes : '',
     tags: sanitizeCombatantTags((candidate as { tags?: unknown }).tags),
     sourceTemplateId:
@@ -140,6 +156,7 @@ const sanitizeTemplate = (value: unknown): PlayerTemplate | null => {
     name,
     maxHp: Math.max(1, Math.trunc(maxHp)),
     armorClass: normalizeArmorClass(candidate.armorClass),
+    profileUrl: sanitizeProfileUrl(candidate.profileUrl),
     notes: typeof candidate.notes === 'string' ? candidate.notes : '',
     createdAt: Number.isFinite(candidate.createdAt)
       ? Math.trunc(Number(candidate.createdAt))
@@ -158,6 +175,7 @@ export interface AddCombatantArgs {
   initiative: number
   type: CombatantType
   armorClass?: number | null
+  profileUrl?: string | null
   notes?: string
   tags?: CombatantTag[]
   sourceTemplateId?: string | null
@@ -198,6 +216,7 @@ const combatSlice = createSlice({
           initiative,
           type,
           armorClass = null,
+          profileUrl = null,
           notes = '',
           tags = [],
           sourceTemplateId = null,
@@ -211,6 +230,7 @@ const combatSlice = createSlice({
           initiative: Math.trunc(initiative),
           type,
           armorClass: armorClass === null ? null : normalizeArmorClass(armorClass),
+          profileUrl: sanitizeProfileUrl(profileUrl),
           notes,
           tags,
           sourceTemplateId,
@@ -321,6 +341,7 @@ const combatSlice = createSlice({
           name: name.trim(),
           maxHp: Math.max(1, Math.trunc(maxHp)),
           armorClass: armorClass === null ? null : normalizeArmorClass(armorClass),
+          profileUrl: sanitizeProfileUrl(action.payload.profileUrl),
           notes,
           createdAt: Date.now(),
         }
