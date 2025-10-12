@@ -21,6 +21,8 @@ import {
 import { formatDurationClock, formatDurationVerbose, computeCombatStats } from '../../utils/combatStats'
 import { getMonsterDisplayTags } from '../../utils/monsterTags'
 import { generateFantasyName } from '../../utils/nameGenerator'
+import { CombatantList } from './CombatantList'
+import type { AdjustmentDraft, DamageModifier, ValueDraft } from './types'
 import type {
   Campaign,
   CampaignCharacter,
@@ -43,18 +45,6 @@ interface FormDataState {
   maxHp: string
   initiative: string
   type: 'player' | 'monster'
-}
-
-interface ValueDraft {
-  value: string
-  isDirty: boolean
-}
-
-type DamageModifier = 'normal' | 'resistant' | 'vulnerable'
-
-interface AdjustmentDraft {
-  value: string
-  damageModifier: DamageModifier
 }
 
 const createDefaultAdjustmentDraft = (): AdjustmentDraft => ({
@@ -865,10 +855,11 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
         return prev
       }
 
-      const next: Record<string, string> = {}
+      const next: Record<string, AdjustmentDraft> = {}
       validIds.forEach((id) => {
-        if (prev[id] !== undefined) {
-          next[id] = prev[id]
+        const draft = prev[id]
+        if (draft) {
+          next[id] = draft
         }
       })
 
@@ -1256,191 +1247,22 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   <p>Add combatants to begin managing the initiative order.</p>
                 </div>
               ) : (
-                <ul className="combatant-list">
-                  {sortedCombatants.map((combatant) => {
-                    const draft = initiativeDrafts[combatant.id]
-                    const adjustmentDraft = adjustments[combatant.id]
-                    const adjustment = adjustmentDraft?.value ?? ''
-                    const damageModifier = adjustmentDraft?.damageModifier ?? 'normal'
-                    const sourceMonster =
-                      combatant.type === 'monster' && combatant.sourceMonsterId
-                        ? monsterLibrary.monsters[combatant.sourceMonsterId] || null
-                        : null
-                    const isBloodied = combatant.currentHp <= Math.max(1, combatant.maxHp / 2)
-                    const isDown = combatant.currentHp === 0
-                    const hpPercent = combatant.maxHp > 0 ? (combatant.currentHp / combatant.maxHp) * 100 : 0
-                    const nicknameTag = combatant.tags.find(
-                      (tag) => tag.title.toLowerCase() === 'nickname',
-                    )
-
-                    return (
-                      <li key={combatant.id} className={`combatant-card${combatant.id === activeCombatantId ? ' combatant-card--active' : ''}`}>
-                        <header className="combatant-card__header">
-                          <div className="combatant-card__header-info">
-                            <label>
-                              <span>Initiative</span>
-                              <input
-                                value={draft ? draft.value : ''}
-                                onChange={(event) =>
-                                  handleInitiativeDraftChange(combatant.id, event.target.value)
-                                }
-                                onBlur={() => commitInitiativeChange(combatant.id)}
-                                onKeyDown={(event) => handleInitiativeKeyDown(event, combatant.id)}
-                                placeholder="0"
-                                inputMode="numeric"
-                              />
-                            </label>
-                          </div>
-                          <button
-                            type="button"
-                            className="ghost-button"
-                            onClick={() => handleRemoveCombatant(combatant.id)}
-                          >
-                            Remove
-                          </button>
-                        </header>
-
-                        <div className="combatant-card__body">
-                          <div className="combatant-card__details">
-                            <div className="combatant-card__title">
-                              <h4 className="combatant-name">
-                                {combatant.name}
-                                {nicknameTag && (
-                                  <span className="combatant-nickname"> ({nicknameTag.value})</span>
-                                )}
-                              </h4>
-                              <span
-                                className={`combatant-type-badge combatant-type-badge--${combatant.type}`}
-                              >
-                                {combatant.type === 'player' ? 'Player' : 'Monster'}
-                              </span>
-                              {combatant.type === 'monster' && (
-                                <button
-                                  type="button"
-                                  className="ghost-button ghost-button--compact generate-nickname-button"
-                                  onClick={() => handleGenerateMonsterNickname(combatant.id)}
-                                >
-                                  Generate nickname
-                                </button>
-                              )}
-                              {isBloodied && (
-                                <span className="bloodied-indicator" title="Bloodied" aria-label="Bloodied">
-                                  <span aria-hidden="true">🩸</span>
-                                </span>
-                              )}
-                            </div>
-                            <div className="hp-track">
-                              <div className="hp-track__bar">
-                                <span className="hp-track__fill" style={{ width: `${hpPercent}%` }} />
-                              </div>
-                              <span
-                                className={`hp-track__value ${isDown ? 'hp-track__value--down' : ''}`}
-                              >
-                                {combatant.currentHp} / {combatant.maxHp} HP
-                              </span>
-                            </div>
-                            <div className="combatant-card__meta">
-                              {combatant.armorClass !== null && (
-                                <span className="combatant-card__meta-item">AC {combatant.armorClass}</span>
-                              )}
-                              {combatant.sourceTemplateId && (
-                                <span className="combatant-card__meta-item combatant-card__meta-item--tag">
-                                  Roster
-                                </span>
-                              )}
-                              {combatant.sourceMonsterId && (
-                                <span className="combatant-card__meta-item combatant-card__meta-item--tag">
-                                  Monster
-                                </span>
-                              )}
-                              {combatant.tags.map((tag) => (
-                                <span
-                                  key={`${combatant.id}-${tag.title}-${tag.value}`}
-                                  className="combatant-card__meta-item combatant-card__meta-item--tag"
-                                >
-                                  {tag.title}: {tag.value}
-                                </span>
-                              ))}
-                            </div>
-                            {sourceMonster?.sourceUrl && (
-                              <a
-                                href={sourceMonster.sourceUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="combatant-card__link"
-                              >
-                                View on D&D Beyond
-                              </a>
-                            )}
-                            {isDown && <p className="status status--down">Unconscious</p>}
-                          </div>
-
-                          <div className="combatant-card__actions">
-                            <label>
-                              <span>Adjust HP</span>
-                              <input
-                                value={adjustment}
-                                onChange={(event) => handleAdjustmentChange(combatant.id, event.target.value)}
-                                placeholder="5 8 12"
-                                inputMode="text"
-                              />
-                            </label>
-                            <div className="damage-modifier-controls">
-                              <span className="damage-modifier-controls__label">Damage modifier</span>
-                              <div className="damage-modifier-controls__buttons">
-                                <button
-                                  type="button"
-                                  className={`ghost-button ghost-button--compact damage-modifier-button${
-                                    damageModifier === 'resistant' ? ' damage-modifier-button--active' : ''
-                                  }`}
-                                  onClick={() => toggleDamageModifier(combatant.id, 'resistant')}
-                                  aria-pressed={damageModifier === 'resistant'}
-                                  title="Halve incoming damage (rounded down)"
-                                >
-                                  Resistant
-                                </button>
-                                <button
-                                  type="button"
-                                  className={`ghost-button ghost-button--compact damage-modifier-button${
-                                    damageModifier === 'vulnerable' ? ' damage-modifier-button--active' : ''
-                                  }`}
-                                  onClick={() => toggleDamageModifier(combatant.id, 'vulnerable')}
-                                  aria-pressed={damageModifier === 'vulnerable'}
-                                  title="Double incoming damage"
-                                >
-                                  Vulnerable
-                                </button>
-                              </div>
-                            </div>
-                            <div className="action-buttons">
-                              <button
-                                type="button"
-                                className="danger-button"
-                                onClick={() => applyAdjustment(combatant.id, 'damage')}
-                              >
-                                Apply damage
-                              </button>
-                              <button
-                                type="button"
-                                className="secondary-button"
-                                onClick={() => applyAdjustment(combatant.id, 'heal')}
-                              >
-                                Apply healing
-                              </button>
-                            </div>
-                            <button
-                              type="button"
-                              className="ghost-button"
-                              onClick={() => handleResetCombatant(combatant.id)}
-                            >
-                              Reset HP
-                            </button>
-                          </div>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
+                <CombatantList
+                  combatants={sortedCombatants}
+                  activeCombatantId={activeCombatantId}
+                  initiativeDrafts={initiativeDrafts}
+                  adjustments={adjustments}
+                  monstersById={monsterLibrary.monsters}
+                  onInitiativeDraftChange={handleInitiativeDraftChange}
+                  onInitiativeCommit={commitInitiativeChange}
+                  onInitiativeKeyDown={handleInitiativeKeyDown}
+                  onRemoveCombatant={handleRemoveCombatant}
+                  onGenerateMonsterNickname={handleGenerateMonsterNickname}
+                  onAdjustmentChange={handleAdjustmentChange}
+                  onToggleDamageModifier={toggleDamageModifier}
+                  onApplyAdjustment={applyAdjustment}
+                  onResetCombatant={handleResetCombatant}
+                />
               )}
             </div>
           </section>
