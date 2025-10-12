@@ -30,6 +30,31 @@ const stripFormatting = (text) => {
   return withoutLinks.replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim()
 }
 
+const normalizeTagValue = (value) =>
+  typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
+
+const createTagCollector = () => {
+  const entries = []
+  const seen = new Set()
+
+  const add = (value) => {
+    const normalized = normalizeTagValue(value)
+    if (!normalized) {
+      return
+    }
+    const key = normalized.toLowerCase()
+    if (seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    entries.push(normalized)
+  }
+
+  const values = () => entries.slice()
+
+  return { add, values }
+}
+
 const isImageLine = (line) => {
   const trimmed = line.trim()
   return trimmed.startsWith('![') || trimmed.startsWith('[![')
@@ -226,6 +251,78 @@ export const buildMonsterNotes = (monster) => {
   return parts.join('\n')
 }
 
+export const buildMonsterTags = (monster) => {
+  if (!monster || typeof monster !== 'object') {
+    return []
+  }
+
+  const collector = createTagCollector()
+
+  if (monster.hitPoints !== null) {
+    const hitPointsTag = monster.hitDice
+      ? `HP ${monster.hitPoints} (${monster.hitDice})`
+      : `HP ${monster.hitPoints}`
+    collector.add(hitPointsTag)
+  }
+
+  if (monster.armorClass !== null) {
+    const armorClassTag = monster.armorNotes
+      ? `AC ${monster.armorClass} (${monster.armorNotes})`
+      : `AC ${monster.armorClass}`
+    collector.add(armorClassTag)
+  }
+
+  if (monster.challengeRating) {
+    collector.add(`CR ${monster.challengeRating}`)
+  }
+
+  if (monster.proficiencyBonus) {
+    collector.add(`PB ${monster.proficiencyBonus}`)
+  }
+
+  if (monster.typeLine) {
+    collector.add(monster.typeLine)
+  }
+
+  if (monster.speed) {
+    collector.add(`Speed ${monster.speed}`)
+  }
+
+  if (monster.savingThrows) {
+    collector.add(`Saves ${monster.savingThrows}`)
+  }
+
+  if (monster.skills) {
+    collector.add(`Skills ${monster.skills}`)
+  }
+
+  if (monster.damageVulnerabilities) {
+    collector.add(`Vulnerable ${monster.damageVulnerabilities}`)
+  }
+
+  if (monster.damageResistances) {
+    collector.add(`Resist ${monster.damageResistances}`)
+  }
+
+  if (monster.damageImmunities) {
+    collector.add(`Immune ${monster.damageImmunities}`)
+  }
+
+  if (monster.conditionImmunities) {
+    collector.add(`Condition Immune ${monster.conditionImmunities}`)
+  }
+
+  if (monster.senses) {
+    collector.add(`Senses ${monster.senses}`)
+  }
+
+  if (monster.languages) {
+    collector.add(`Languages ${monster.languages}`)
+  }
+
+  return collector.values()
+}
+
 export const normalizeDndBeyondUrl = (rawUrl) => {
   if (typeof rawUrl !== 'string') {
     throw new Error('Enter a valid D&D Beyond monster URL.')
@@ -285,6 +382,19 @@ export const parseDndBeyondMonster = (markdown, sourceUrl) => {
     const trimmed = relevantLines[index].trim()
     if (!trimmed) {
       continue
+    }
+
+    if (!name) {
+      const titleMatch = trimmed.match(/^title\s*:\s*(.+)$/i)
+      if (titleMatch) {
+        const candidate = stripFormatting(titleMatch[1])
+        if (candidate) {
+          name = candidate
+          nameIndex = index
+          break
+        }
+        continue
+      }
     }
 
     const match = trimmed.match(/\[([^\]]+)\]\(https:\/\/www\.dndbeyond\.com\/monsters\//i)
@@ -579,10 +689,12 @@ export const parseDndBeyondMonster = (markdown, sourceUrl) => {
     source,
   }
 
+  const tags = buildMonsterTags(monster)
   const notes = buildMonsterNotes(monster)
 
   return {
     ...monster,
+    tags,
     notes,
   }
 }

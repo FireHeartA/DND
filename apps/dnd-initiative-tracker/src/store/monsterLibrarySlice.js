@@ -1,6 +1,6 @@
 import { createSlice, nanoid } from '@reduxjs/toolkit'
 
-import { buildMonsterNotes } from '../utils/dndBeyondMonsterParser'
+import { buildMonsterNotes, buildMonsterTags } from '../utils/dndBeyondMonsterParser'
 
 const initialState = {
   monsters: {},
@@ -130,6 +130,7 @@ const sanitizeMonster = (monster) => {
   const description = sanitizeStringArray(monster.description)
   const habitat = sanitizeOptionalString(monster.habitat)
   const source = sanitizeOptionalString(monster.source)
+  const tags = sanitizeStringArray(monster.tags)
   const notes = sanitizeOptionalString(monster.notes)
 
   const importedAt = sanitizeTimestamp(monster.importedAt)
@@ -137,7 +138,7 @@ const sanitizeMonster = (monster) => {
   const totalUsageCount = sanitizeNonNegativeNumber(monster.totalUsageCount)
   const lastUsedAt = sanitizeNullableTimestamp(monster.lastUsedAt)
 
-  return {
+  const sanitizedMonster = {
     id:
       typeof monster.id === 'string' && monster.id.trim().length > 0
         ? monster.id.trim()
@@ -175,12 +176,19 @@ const sanitizeMonster = (monster) => {
     description,
     habitat,
     source,
+    tags,
     notes,
     importedAt,
     updatedAt,
     totalUsageCount,
     lastUsedAt,
   }
+
+  if (sanitizedMonster.tags.length === 0) {
+    sanitizedMonster.tags = buildMonsterTags(sanitizedMonster)
+  }
+
+  return sanitizedMonster
 }
 
 const sanitizeLibraryEntry = (entry, monsters) => {
@@ -311,17 +319,18 @@ const monsterLibrarySlice = createSlice({
       },
     },
     updateMonsterDetails: {
-      prepare({ monsterId, name, description }) {
+      prepare({ monsterId, name, description, tags }) {
         return {
           payload: {
             monsterId: sanitizeString(monsterId),
             name,
             description,
+            tags,
           },
         }
       },
       reducer(state, action) {
-        const { monsterId, name, description } = action.payload || {}
+        const { monsterId, name, description, tags } = action.payload || {}
         if (!monsterId) {
           return
         }
@@ -354,6 +363,16 @@ const monsterLibrarySlice = createSlice({
           updates.description = normalizedDescription
         }
 
+        if (typeof tags !== 'undefined') {
+          let normalizedTags = []
+          if (Array.isArray(tags)) {
+            normalizedTags = sanitizeStringArray(tags)
+          } else if (typeof tags === 'string') {
+            normalizedTags = sanitizeStringArray([tags])
+          }
+          updates.tags = normalizedTags
+        }
+
         const merged = {
           ...existing,
           ...updates,
@@ -364,6 +383,15 @@ const monsterLibrarySlice = createSlice({
           merged.description = Array.isArray(existing.description)
             ? existing.description
             : []
+        }
+
+        if (!('tags' in updates)) {
+          merged.tags = Array.isArray(existing.tags) ? existing.tags : []
+          if (merged.tags.length === 0) {
+            merged.tags = buildMonsterTags(merged)
+          }
+        } else {
+          merged.tags = Array.isArray(merged.tags) ? merged.tags : []
         }
 
         merged.notes = sanitizeOptionalString(buildMonsterNotes(merged))

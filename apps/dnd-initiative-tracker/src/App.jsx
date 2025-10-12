@@ -28,7 +28,11 @@ import {
   updateMonsterDetails as updateMonsterDetailsAction,
   loadState as loadMonsterLibraryStateAction,
 } from './store/monsterLibrarySlice'
-import { parseDndBeyondMonster, normalizeDndBeyondUrl } from './utils/dndBeyondMonsterParser'
+import {
+  parseDndBeyondMonster,
+  normalizeDndBeyondUrl,
+  buildMonsterTags,
+} from './utils/dndBeyondMonsterParser'
 
 const formatDurationClock = (durationMs) => {
   if (!Number.isFinite(durationMs) || durationMs <= 0) {
@@ -158,6 +162,77 @@ const computeCombatStats = (history) => {
     quickestAverage,
     combatantStats,
   }
+}
+
+const normalizeMonsterTag = (value) =>
+  typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
+
+const dedupeMonsterTags = (tags) => {
+  if (!Array.isArray(tags)) {
+    return []
+  }
+
+  const seen = new Set()
+  const result = []
+
+  tags.forEach((tag) => {
+    const normalized = normalizeMonsterTag(tag)
+    if (!normalized) {
+      return
+    }
+    const key = normalized.toLowerCase()
+    if (seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    result.push(normalized)
+  })
+
+  return result
+}
+
+const prioritizeMonsterTags = (tags) => {
+  if (!Array.isArray(tags)) {
+    return []
+  }
+
+  const groups = {
+    hp: [],
+    ac: [],
+    cr: [],
+    pb: [],
+    other: [],
+  }
+
+  tags.forEach((tag) => {
+    const normalized = tag.toUpperCase()
+    if (normalized.startsWith('HP ')) {
+      groups.hp.push(tag)
+    } else if (normalized.startsWith('AC ')) {
+      groups.ac.push(tag)
+    } else if (normalized.startsWith('CR ')) {
+      groups.cr.push(tag)
+    } else if (normalized.startsWith('PB ')) {
+      groups.pb.push(tag)
+    } else {
+      groups.other.push(tag)
+    }
+  })
+
+  return [...groups.hp, ...groups.ac, ...groups.cr, ...groups.pb, ...groups.other]
+}
+
+const prepareMonsterTags = (tags) => prioritizeMonsterTags(dedupeMonsterTags(tags))
+
+const getMonsterDisplayTags = (monster) => {
+  if (!monster || typeof monster !== 'object') {
+    return []
+  }
+
+  const sourceTags = Array.isArray(monster.tags) ? monster.tags : []
+  const fallback = sourceTags.length > 0 ? sourceTags : buildMonsterTags(monster)
+
+  return prepareMonsterTags(fallback)
 }
 
 function App() {
@@ -425,6 +500,8 @@ function App() {
           Array.isArray(monster.description) && monster.description.length > 0
             ? monster.description.join('\n\n')
             : '',
+        tags: getMonsterDisplayTags(monster),
+        tagDraft: '',
         error: '',
       },
     }))
@@ -459,6 +536,84 @@ function App() {
     })
   }
 
+  const handleMonsterTagDraftChange = (monsterId, value) => {
+    handleMonsterEditFieldChange(monsterId, 'tagDraft', value)
+  }
+
+  const handleMonsterTagAdd = (monsterId) => {
+    setMonsterEdits((prev) => {
+      const existing = prev[monsterId]
+      if (!existing) {
+        return prev
+      }
+
+      const draftValue = normalizeMonsterTag(existing.tagDraft)
+      if (!draftValue) {
+        return {
+          ...prev,
+          [monsterId]: {
+            ...existing,
+            tagDraft: '',
+          },
+        }
+      }
+
+      const currentTags = Array.isArray(existing.tags) ? existing.tags : []
+      const nextTags = prepareMonsterTags([...currentTags, draftValue])
+
+      return {
+        ...prev,
+        [monsterId]: {
+          ...existing,
+          tags: nextTags,
+          tagDraft: '',
+          error: '',
+        },
+      }
+    })
+  }
+
+  const handleMonsterTagRemove = (monsterId, tagValue = null) => {
+    setMonsterEdits((prev) => {
+      const existing = prev[monsterId]
+      if (!existing) {
+        return prev
+      }
+
+      const currentTags = Array.isArray(existing.tags) ? existing.tags : []
+      if (currentTags.length === 0) {
+        return prev
+      }
+
+      let nextTags
+      if (typeof tagValue === 'string') {
+        const key = tagValue.toLowerCase()
+        nextTags = currentTags.filter((tag) => tag.toLowerCase() !== key)
+      } else {
+        nextTags = currentTags.slice(0, currentTags.length - 1)
+      }
+
+      return {
+        ...prev,
+        [monsterId]: {
+          ...existing,
+          tags: prepareMonsterTags(nextTags),
+          error: '',
+        },
+      }
+    })
+  }
+
+  const handleMonsterTagInputKeyDown = (event, monsterId) => {
+    if (event.key === 'Enter' || event.key === ',') {
+      event.preventDefault()
+      handleMonsterTagAdd(monsterId)
+    } else if (event.key === 'Backspace' && !event.currentTarget.value) {
+      event.preventDefault()
+      handleMonsterTagRemove(monsterId)
+    }
+  }
+
   const handleSaveMonsterEdit = (monsterId) => {
     const draft = monsterEdits[monsterId]
     if (!draft) {
@@ -478,12 +633,14 @@ function App() {
     }
 
     const description = typeof draft.description === 'string' ? draft.description : ''
+    const tags = prepareMonsterTags(Array.isArray(draft.tags) ? draft.tags : [])
 
     dispatch(
       updateMonsterDetailsAction({
         monsterId,
         name,
         description,
+        tags,
       }),
     )
 
@@ -1762,29 +1919,7 @@ function App() {
                         <ul className="monster-library__list">
                           {campaignMonsterList.map(({ monster, entry, isFavorite }) => {
                             const initiativeValue = monsterInitiatives[monster.id] ?? ''
-                            const statChips = [
-                              `HP ${
-                                monster.hitPoints !== null ? monster.hitPoints : '—'
-                              }${monster.hitDice ? ` (${monster.hitDice})` : ''}`,
-                              monster.armorClass !== null ? `AC ${monster.armorClass}` : null,
-                              monster.challengeRating ? `CR ${monster.challengeRating}` : null,
-                              monster.proficiencyBonus ? `PB ${monster.proficiencyBonus}` : null,
-                            ]
-                              .filter(Boolean)
-                              .slice(0, 4)
-
-                            const infoItems = []
-                            if (monster.speed) {
-                              infoItems.push(`Speed ${monster.speed}`)
-                            }
-                            if (monster.savingThrows) {
-                              infoItems.push(`Saves ${monster.savingThrows}`)
-                            }
-                            if (monster.damageResistances) {
-                              infoItems.push(`Resist ${monster.damageResistances}`)
-                            } else if (monster.damageImmunities) {
-                              infoItems.push(`Immune ${monster.damageImmunities}`)
-                            }
+                            const displayTags = getMonsterDisplayTags(monster)
 
                             const lastUsedLabel = entry.lastUsedAt
                               ? new Date(entry.lastUsedAt).toLocaleString()
@@ -1800,13 +1935,10 @@ function App() {
                                 <header className="template-card__header monster-card__header">
                                   <div>
                                     <h5>{monster.name}</h5>
-                                    {monster.typeLine && (
-                                      <p className="monster-card__type">{monster.typeLine}</p>
-                                    )}
                                     <div className="template-card__stats monster-card__stats">
-                                      {statChips.map((chip) => (
-                                        <span key={chip} className="stat-chip">
-                                          {chip}
+                                      {displayTags.map((tag) => (
+                                        <span key={tag} className="stat-chip">
+                                          {tag}
                                         </span>
                                       ))}
                                     </div>
@@ -1837,15 +1969,6 @@ function App() {
                                     </button>
                                   </div>
                                 </header>
-                                {infoItems.length > 0 && (
-                                  <div className="monster-card__info">
-                                    {infoItems.slice(0, 3).map((item) => (
-                                      <span key={item} className="monster-card__info-item">
-                                        {item}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
                                 {isEditing ? (
                                   <form
                                     className="monster-card__edit-form"
@@ -1883,6 +2006,48 @@ function App() {
                                         placeholder="Background lore, lair notes, or encounter reminders."
                                         rows={4}
                                       />
+                                    </label>
+                                    <label className="monster-card__edit-tags">
+                                      <span>Tags</span>
+                                      <div className="monster-card__edit-tags-list">
+                                        {Array.isArray(editDraft.tags) && editDraft.tags.length > 0 ? (
+                                          editDraft.tags.map((tag) => (
+                                            <span key={tag} className="monster-card__edit-tag stat-chip">
+                                              {tag}
+                                              <button
+                                                type="button"
+                                                onClick={() => handleMonsterTagRemove(monster.id, tag)}
+                                                aria-label={`Remove tag ${tag}`}
+                                              >
+                                                ×
+                                              </button>
+                                            </span>
+                                          ))
+                                        ) : (
+                                          <span className="monster-card__edit-tags-empty">No tags yet.</span>
+                                        )}
+                                      </div>
+                                      <div className="monster-card__edit-tags-input">
+                                        <input
+                                          value={typeof editDraft.tagDraft === 'string' ? editDraft.tagDraft : ''}
+                                          onChange={(event) =>
+                                            handleMonsterTagDraftChange(
+                                              monster.id,
+                                              event.target.value,
+                                            )
+                                          }
+                                          onKeyDown={(event) => handleMonsterTagInputKeyDown(event, monster.id)}
+                                          placeholder="Add a tag and press Enter"
+                                        />
+                                        <button
+                                          type="button"
+                                          className="ghost-button"
+                                          onClick={() => handleMonsterTagAdd(monster.id)}
+                                          disabled={!normalizeMonsterTag(editDraft.tagDraft)}
+                                        >
+                                          Add tag
+                                        </button>
+                                      </div>
                                     </label>
                                     {editDraft.error && (
                                       <p className="template-card__error">{editDraft.error}</p>
@@ -2515,27 +2680,17 @@ function App() {
             <ul className="monster-quick-list">
               {campaignMonsterList.map(({ monster, isFavorite }) => {
                 const initiativeValue = monsterInitiatives[monster.id] ?? ''
-                const statChips = [
-                  monster.armorClass !== null ? `AC ${monster.armorClass}` : null,
-                  monster.hitPoints !== null ? `HP ${monster.hitPoints}` : null,
-                  monster.challengeRating ? `CR ${monster.challengeRating}` : null,
-                  monster.proficiencyBonus ? `PB ${monster.proficiencyBonus}` : null,
-                ]
-                  .filter(Boolean)
-                  .slice(0, 4)
+                const displayTags = getMonsterDisplayTags(monster)
 
                 return (
                   <li key={monster.id} className="template-card monster-card monster-card--compact">
                     <header className="template-card__header monster-card__header">
                       <div>
                         <h5>{monster.name}</h5>
-                        {monster.typeLine && (
-                          <p className="monster-card__type">{monster.typeLine}</p>
-                        )}
                         <div className="template-card__stats monster-card__stats">
-                          {statChips.map((chip) => (
-                            <span key={chip} className="stat-chip">
-                              {chip}
+                          {displayTags.map((tag) => (
+                            <span key={tag} className="stat-chip">
+                              {tag}
                             </span>
                           ))}
                         </div>
@@ -2595,27 +2750,17 @@ function App() {
             <ul className="monster-quick-list">
               {favoriteMonsterList.map(({ monster }) => {
                 const initiativeValue = monsterInitiatives[monster.id] ?? ''
-                const statChips = [
-                  monster.armorClass !== null ? `AC ${monster.armorClass}` : null,
-                  monster.hitPoints !== null ? `HP ${monster.hitPoints}` : null,
-                  monster.challengeRating ? `CR ${monster.challengeRating}` : null,
-                  monster.proficiencyBonus ? `PB ${monster.proficiencyBonus}` : null,
-                ]
-                  .filter(Boolean)
-                  .slice(0, 4)
+                const displayTags = getMonsterDisplayTags(monster)
 
                 return (
                   <li key={monster.id} className="template-card monster-card monster-card--compact">
                     <header className="template-card__header monster-card__header">
                       <div>
                         <h5>{monster.name}</h5>
-                        {monster.typeLine && (
-                          <p className="monster-card__type">{monster.typeLine}</p>
-                        )}
                         <div className="template-card__stats monster-card__stats">
-                          {statChips.map((chip) => (
-                            <span key={chip} className="stat-chip">
-                              {chip}
+                          {displayTags.map((tag) => (
+                            <span key={tag} className="stat-chip">
+                              {tag}
                             </span>
                           ))}
                         </div>

@@ -733,6 +733,51 @@
   color: rgba(244, 241, 234, 0.82);
 }
 
+.monster-card__edit-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-height: 1.6rem;
+}
+
+.monster-card__edit-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-right: 0.5rem;
+}
+
+.monster-card__edit-tag button {
+  border: none;
+  background: none;
+  color: rgba(244, 241, 234, 0.75);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.monster-card__edit-tag button:hover {
+  color: rgba(255, 210, 160, 0.95);
+}
+
+.monster-card__edit-tags-empty {
+  font-size: 0.8rem;
+  color: rgba(244, 241, 234, 0.6);
+}
+
+.monster-card__edit-tags-input {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.monster-card__edit-tags-input .ghost-button {
+  white-space: nowrap;
+}
+
 .monster-card__edit-form input,
 .monster-card__edit-form textarea {
   width: 100%;
