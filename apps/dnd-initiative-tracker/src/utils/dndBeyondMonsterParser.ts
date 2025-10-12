@@ -41,6 +41,10 @@ const SECTION_DEFINITIONS: SectionDefinition[] = [
   { key: 'description', label: 'description' },
 ]
 
+const SECTION_LABEL_SET = new Set(SECTION_DEFINITIONS.map((entry) => entry.label))
+
+const TYPE_LINE_PATTERN = /^(?:tiny|small|medium|large|huge|gargantuan)\b.*$/i
+
 /**
  * Removes lightweight markdown characters from a string.
  */
@@ -100,6 +104,17 @@ const isImageLine = (line: string): boolean => {
  * Removes markdown heading symbols and lowercases the text for comparisons.
  */
 const normalizeHeading = (line: string): string => line.trim().replace(/^#+\s*/, '').toLowerCase()
+
+const abilityLabelMap: Record<string, keyof MonsterDetails['abilityScores']> = {
+  STR: 'str',
+  DEX: 'dex',
+  CON: 'con',
+  INT: 'int',
+  WIS: 'wis',
+  CHA: 'cha',
+}
+
+const cleanStatLine = (line: string): string => stripFormatting(line).replace(/\s+/g, ' ').trim()
 
 /**
  * Converts a slug string into a URL-safe format.
@@ -548,38 +563,55 @@ export const parseDndBeyondMonster = (markdown: string, sourceUrl: string): Pars
 
   const dataStart = nameIndex + 1
   const dataLines = relevantLines.slice(dataStart).map((line) => stripMarkdownLinks(line))
+  const filteredDataLines = dataLines.filter((line) => !isImageLine(line))
 
-  const headerLines: string[] = []
-  const bodyLines: string[] = []
-  let encounteredBlank = false
+  const sectionStartIndex = filteredDataLines.findIndex((line) =>
+    SECTION_LABEL_SET.has(normalizeHeading(line)),
+  )
 
-  dataLines.forEach((line) => {
-    if (!line.trim()) {
-      encounteredBlank = true
-      return
+  const statBlockLines =
+    sectionStartIndex === -1
+      ? filteredDataLines
+      : filteredDataLines.slice(0, sectionStartIndex)
+
+  const bodyLines =
+    sectionStartIndex === -1 ? [] : filteredDataLines.slice(sectionStartIndex)
+
+  const cleanedStatLines = statBlockLines.map((line) => cleanStatLine(line)).filter(Boolean)
+
+
+  const candidateTypeLine =
+    cleanedStatLines.find((line) => TYPE_LINE_PATTERN.test(line)) ||
+    cleanedStatLines.find((line) => {
+      const lowered = line.toLowerCase()
+      return !lowered.startsWith('legacy ') && line !== name
+    }) ||
+    ''
+
+  const typeLine = candidateTypeLine
+
+  const buildLabelPattern = (label: string) => new RegExp(`^${label}(?:\\s|$)`, 'i')
+
+  const findStatLine = (label: string): string => {
+    const pattern = buildLabelPattern(label)
+    const entry = cleanedStatLines.find((line) => pattern.test(line))
+    if (!entry) {
+      return ''
     }
+    return entry.replace(pattern, '').replace(/^[\\s:]+/, '').trim()
+  }
 
-    if (!encounteredBlank) {
-      headerLines.push(stripFormatting(line))
-    } else {
-      bodyLines.push(line)
-    }
-  })
-
-  const header = headerLines.join(' ')
-  const typeMatch = header.match(/^(.*?)\s*\(([^)]+)\)/)
-  const typeLine = typeMatch ? stripFormatting(typeMatch[1]) : ''
-
-  const armorMatch = header.match(/Armor Class\s*(\d+)(?:\s*\(([^)]+)\))?/i)
+  const armorLine = findStatLine('Armor Class')
+  const armorMatch = armorLine.match(/^(\d+)(?:\s*\(([^)]+)\))?/i)
   const armorClass = armorMatch ? parseNumeric(armorMatch[1]) : null
-  const armorNotes = armorMatch && armorMatch[2] ? stripFormatting(armorMatch[2]) : ''
+  const armorNotes = armorMatch && armorMatch[2] ? armorMatch[2].trim() : ''
 
-  const hitPointsMatch = header.match(/Hit Points\s*(\d+)(?:\s*\(([^)]+)\))?/i)
+  const hitPointsLine = findStatLine('Hit Points')
+  const hitPointsMatch = hitPointsLine.match(/^(\d+)(?:\s*\(([^)]+)\))?/i)
   const hitPoints = hitPointsMatch ? parseNumeric(hitPointsMatch[1]) : null
-  const hitDice = hitPointsMatch && hitPointsMatch[2] ? stripFormatting(hitPointsMatch[2]) : ''
+  const hitDice = hitPointsMatch && hitPointsMatch[2] ? hitPointsMatch[2].trim() : ''
 
-  const speedMatch = header.match(/Speed\s*([^\n]+?)(?:\s{2,}|$)/i)
-  const speed = speedMatch ? stripFormatting(speedMatch[1]) : ''
+  const speed = findStatLine('Speed')
 
   const abilityScores: MonsterDetails['abilityScores'] = {
     str: null,
@@ -590,39 +622,109 @@ export const parseDndBeyondMonster = (markdown: string, sourceUrl: string): Pars
     cha: null,
   }
 
-  const abilityPattern = /\b(STR|DEX|CON|INT|WIS|CHA)\s*(\d+)/gi
-  let abilityMatch: RegExpExecArray | null
-  while ((abilityMatch = abilityPattern.exec(header)) !== null) {
-    const [, scoreKey, scoreValue] = abilityMatch
-    const ability = scoreKey.toLowerCase() as keyof MonsterDetails['abilityScores']
-    abilityScores[ability] = parseNumeric(scoreValue)
+  cleanedStatLines.forEach((line, index) => {
+    const trimmed = line.trim()
+    const upper = trimmed.toUpperCase()
+    const abilityKey = abilityLabelMap[upper]
+    if (abilityKey) {
+      const inlineMatch = trimmed.match(/^(STR|DEX|CON|INT|WIS|CHA)\s*(\d+)/i)
+      if (inlineMatch && inlineMatch[2]) {
+        const parsed = parseNumeric(inlineMatch[2])
+        if (parsed !== null) {
+          abilityScores[abilityKey] = parsed
+        }
+        return
+      }
+      const nextLine = cleanedStatLines[index + 1] || ''
+      const valueMatch = nextLine.match(/(\d+)/)
+      if (valueMatch) {
+        const parsed = parseNumeric(valueMatch[1])
+        if (parsed !== null) {
+          abilityScores[abilityKey] = parsed
+        }
+      }
+      return
+    }
+
+    const inlineMatch = trimmed.match(/^(STR|DEX|CON|INT|WIS|CHA)\s*(\d+)/i)
+    if (inlineMatch) {
+      const key = abilityLabelMap[inlineMatch[1].toUpperCase()]
+      const parsed = parseNumeric(inlineMatch[2])
+      if (key && parsed !== null) {
+        abilityScores[key] = parsed
+      }
+    }
+  })
+
+  const savingThrows = findStatLine('Saving Throws')
+  const skills = findStatLine('Skills')
+  const damageVulnerabilities = findStatLine('Damage Vulnerabilities')
+  const damageResistances = findStatLine('Damage Resistances')
+  const damageImmunities = findStatLine('Damage Immunities')
+  const conditionImmunities = findStatLine('Condition Immunities')
+  const senses = findStatLine('Senses')
+  const languages = findStatLine('Languages')
+  const challengeLine = findStatLine('Challenge')
+
+  let challengeRating = ''
+  let challengeXp = ''
+  if (challengeLine) {
+    const match = challengeLine.match(/^(.*?)(?:\s*\(([^)]+)\))?$/)
+    if (match) {
+      challengeRating = match[1].trim()
+      challengeXp = match[2] ? match[2].trim() : ''
+    } else {
+      challengeRating = challengeLine
+    }
   }
 
-  const findLineValue = (label: string): string => {
-    const match = header.match(new RegExp(`${label}\\s*([^\n]+?)(?:\\s{2,}|$)`, 'i'))
-    return match ? stripFormatting(match[1]) : ''
-  }
-
-  const savingThrows = findLineValue('Saving Throws')
-  const skills = findLineValue('Skills')
-  const damageVulnerabilities = findLineValue('Damage Vulnerabilities')
-  const damageResistances = findLineValue('Damage Resistances')
-  const damageImmunities = findLineValue('Damage Immunities')
-  const conditionImmunities = findLineValue('Condition Immunities')
-  const senses = findLineValue('Senses')
-  const languages = findLineValue('Languages')
-  const challengeRating = findLineValue('Challenge')
-  const challengeXpMatch = challengeRating.match(/\(([^)]+)\)$/)
-  const challengeXp = challengeXpMatch ? challengeXpMatch[1] : ''
-  const proficiencyBonus = findLineValue('Proficiency Bonus')
+  const proficiencyBonus = findStatLine('Proficiency Bonus')
 
   const sections = buildSections(bodyLines)
 
   const description = sections.description
-  const habitatLine = description.find((line) => line.toLowerCase().startsWith('habitat:')) || ''
+  const habitatLineFromDescription = description.find((line) =>
+    line.toLowerCase().startsWith('habitat:'),
+  )
+  const sourceLineFromDescription = description.find((line) =>
+    line.toLowerCase().startsWith('source:'),
+  )
+
+  const normalizedDataLines = filteredDataLines.map((line) => cleanStatLine(line))
+  const habitatLine =
+    habitatLineFromDescription ||
+    normalizedDataLines.find((line) => line.toLowerCase().startsWith('habitat:')) ||
+    ''
+  const sourceLine =
+    sourceLineFromDescription ||
+    normalizedDataLines.find((line) => line.toLowerCase().startsWith('source:')) ||
+    ''
+
   const habitat = habitatLine ? habitatLine.replace(/^habitat:\s*/i, '') : ''
-  const sourceLine = description.find((line) => line.toLowerCase().startsWith('source:')) || ''
-  const source = sourceLine ? sourceLine.replace(/^source:\s*/i, '') : ''
+  let source = sourceLine ? sourceLine.replace(/^source:\s*/i, '') : ''
+
+  if (!source) {
+    const habitatIndex = normalizedDataLines.findIndex((line) => line === habitatLine)
+    if (habitatIndex !== -1) {
+      for (let index = habitatIndex + 1; index < normalizedDataLines.length; index += 1) {
+        const candidate = normalizedDataLines[index]
+        if (!candidate) {
+          continue
+        }
+        const loweredCandidate = candidate.toLowerCase()
+        if (loweredCandidate.startsWith('monster tags')) {
+          continue
+        }
+        if (loweredCandidate.startsWith('habitat:')) {
+          continue
+        }
+        source = loweredCandidate.startsWith('source:')
+          ? candidate.replace(/^source:\s*/i, '')
+          : candidate
+        break
+      }
+    }
+  }
 
   const tagsCollector = createTagCollector()
   tagsCollector.add(typeLine)
