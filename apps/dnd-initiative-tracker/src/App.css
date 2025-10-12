@@ -18,6 +18,10 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .sidebar__header h1 {
@@ -181,13 +185,31 @@
 .save-load-controls {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  align-items: flex-end;
+  gap: 0.75rem;
+  align-items: stretch;
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(244, 241, 234, 0.08);
+  background: rgba(14, 10, 16, 0.55);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.save-load-controls--dirty {
+  border-color: rgba(220, 128, 69, 0.6);
+  box-shadow: 0 0 0 2px rgba(220, 128, 69, 0.25);
+  background: rgba(220, 128, 69, 0.18);
 }
 
 .save-load-actions {
   display: flex;
   gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.save-load-indicator {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #ffe2b0;
 }
 
 .load-error {
