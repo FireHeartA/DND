@@ -1,4 +1,5 @@
-import type { KeyboardEvent } from 'react'
+import { useState } from 'react'
+import type { DragEvent, KeyboardEvent } from 'react'
 import type { Combatant, MonsterDetails } from '../../types'
 import type { AdjustmentDraft, DamageModifier, ValueDraft } from './types'
 
@@ -17,6 +18,7 @@ interface CombatantListProps {
   onToggleDamageModifier: (id: string, modifier: DamageModifier) => void
   onApplyAdjustment: (id: string, direction: 'damage' | 'heal') => void
   onResetCombatant: (id: string) => void
+  onReorder: (sourceId: string, targetId: string, position: 'before' | 'after') => void
 }
 
 export const CombatantList: React.FC<CombatantListProps> = ({
@@ -34,7 +36,66 @@ export const CombatantList: React.FC<CombatantListProps> = ({
   onToggleDamageModifier,
   onApplyAdjustment,
   onResetCombatant,
+  onReorder,
 }) => {
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState<{ id: string; position: 'before' | 'after' } | null>(null)
+
+  const handleDragStart = (event: DragEvent<HTMLLIElement>, id: string) => {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', id)
+    setDraggedId(id)
+  }
+
+  const handleDragOver = (event: DragEvent<HTMLLIElement>, id: string) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+
+    const boundingRect = event.currentTarget.getBoundingClientRect()
+    const offset = event.clientY - boundingRect.top
+    const position: 'before' | 'after' = offset < boundingRect.height / 2 ? 'before' : 'after'
+
+    setDragOver((previous) => {
+      if (previous && previous.id === id && previous.position === position) {
+        return previous
+      }
+      return { id, position }
+    })
+  }
+
+  const handleDragLeave = (event: DragEvent<HTMLLIElement>, id: string) => {
+    event.preventDefault()
+
+    setDragOver((previous) => {
+      if (!previous || previous.id !== id) {
+        return previous
+      }
+      return null
+    })
+  }
+
+  const handleDrop = (event: DragEvent<HTMLLIElement>, id: string) => {
+    event.preventDefault()
+
+    const sourceId = draggedId ?? event.dataTransfer.getData('text/plain')
+    if (!sourceId || sourceId === id) {
+      setDraggedId(null)
+      setDragOver(null)
+      return
+    }
+
+    const position = dragOver?.id === id ? dragOver.position : 'before'
+    onReorder(sourceId, id, position)
+
+    setDraggedId(null)
+    setDragOver(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedId(null)
+    setDragOver(null)
+  }
+
   return (
     <ul className="combatant-list">
       {combatants.map((combatant) => {
@@ -54,7 +115,17 @@ export const CombatantList: React.FC<CombatantListProps> = ({
         return (
           <li
             key={combatant.id}
-            className={`combatant-card${combatant.id === activeCombatantId ? ' combatant-card--active' : ''}`}
+            className={`combatant-card${
+              combatant.id === activeCombatantId ? ' combatant-card--active' : ''
+            }${draggedId === combatant.id ? ' combatant-card--dragging' : ''}${
+              dragOver?.id === combatant.id ? ` combatant-card--drop-${dragOver.position}` : ''
+            }`}
+            draggable
+            onDragStart={(event) => handleDragStart(event, combatant.id)}
+            onDragOver={(event) => handleDragOver(event, combatant.id)}
+            onDragLeave={(event) => handleDragLeave(event, combatant.id)}
+            onDrop={(event) => handleDrop(event, combatant.id)}
+            onDragEnd={handleDragEnd}
           >
             <header className="combatant-card__header">
               <div className="combatant-card__header-info">

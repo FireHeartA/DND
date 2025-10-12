@@ -82,6 +82,11 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const [templateErrors, setTemplateErrors] = useState<Record<string, string>>({})
   const [monsterInitiatives, setMonsterInitiatives] = useState<Record<string, string>>({})
   const [monsterErrors, setMonsterErrors] = useState<Record<string, string>>({})
+  const [isAddPanelCollapsed, setIsAddPanelCollapsed] = useState(false)
+  const [manualOrder, setManualOrder] = useState<string[] | null>(null)
+  const [bulkDamageValue, setBulkDamageValue] = useState('')
+  const [bulkDamageTargets, setBulkDamageTargets] = useState<Record<string, 'full' | 'half'>>({})
+  const [bulkDamageError, setBulkDamageError] = useState('')
 
   /**
    * Provides access to the currently active campaign object.
@@ -110,7 +115,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   /**
    * Orders combatants by initiative and creation time for turn sequencing.
    */
-  const sortedCombatants = useMemo(() => {
+  const initiativeSortedCombatants = useMemo(() => {
     return [...combatants].sort((a, b) => {
       if (b.initiative === a.initiative) {
         return a.createdAt - b.createdAt
@@ -119,13 +124,44 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
     })
   }, [combatants])
 
+  const orderedCombatants = useMemo(() => {
+    if (!manualOrder) {
+      return initiativeSortedCombatants
+    }
+
+    const lookup = new Map(initiativeSortedCombatants.map((combatant) => [combatant.id, combatant]))
+    const ordered: Combatant[] = []
+    const seen = new Set<string>()
+
+    manualOrder.forEach((id) => {
+      const entry = lookup.get(id)
+      if (entry) {
+        ordered.push(entry)
+        seen.add(id)
+      }
+    })
+
+    initiativeSortedCombatants.forEach((combatant) => {
+      if (!seen.has(combatant.id)) {
+        ordered.push(combatant)
+      }
+    })
+
+    return ordered
+  }, [initiativeSortedCombatants, manualOrder])
+
   const hasMonsterCombatants = useMemo(() => {
-    return sortedCombatants.some((combatant) => combatant.type === 'monster')
-  }, [sortedCombatants])
+    return orderedCombatants.some((combatant) => combatant.type === 'monster')
+  }, [orderedCombatants])
 
   const hasPlayerCombatants = useMemo(() => {
-    return sortedCombatants.some((combatant) => combatant.type === 'player')
-  }, [sortedCombatants])
+    return orderedCombatants.some((combatant) => combatant.type === 'player')
+  }, [orderedCombatants])
+
+  const hasCombatants = orderedCombatants.length > 0
+  const isManualOrderActive = manualOrder !== null
+  const bulkSelectionCount = useMemo(() => Object.keys(bulkDamageTargets).length, [bulkDamageTargets])
+  const hasBulkDamageInput = bulkDamageValue.trim().length > 0
 
   /**
    * Builds a list of campaign monsters with metadata used in the UI.
@@ -438,6 +474,107 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
     [adjustments, dispatch],
   )
 
+  const handleManualReorder = useCallback(
+    (sourceId: string, targetId: string, position: 'before' | 'after') => {
+      if (sourceId === targetId) {
+        return
+      }
+
+      setManualOrder((previous) => {
+        const canonicalIds = initiativeSortedCombatants.map((combatant) => combatant.id)
+        const canonicalSet = new Set(canonicalIds)
+        const baseOrder: string[] = []
+        const seen = new Set<string>()
+        const startingOrder = previous ?? canonicalIds
+
+        startingOrder.forEach((id) => {
+          if (canonicalSet.has(id) && !seen.has(id)) {
+            baseOrder.push(id)
+            seen.add(id)
+          }
+        })
+
+        if (!canonicalSet.has(sourceId) || !canonicalSet.has(targetId)) {
+          return baseOrder
+        }
+
+        const withoutSource = baseOrder.filter((id) => id !== sourceId)
+        const targetIndex = withoutSource.indexOf(targetId)
+
+        if (targetIndex === -1) {
+          return baseOrder
+        }
+
+        const insertionIndex = position === 'before' ? targetIndex : targetIndex + 1
+        withoutSource.splice(insertionIndex, 0, sourceId)
+        return withoutSource
+      })
+    },
+    [initiativeSortedCombatants],
+  )
+
+  const handleResetManualOrder = useCallback(() => {
+    setManualOrder(null)
+  }, [])
+
+  const handleCollapseAddPanel = useCallback(() => {
+    setIsAddPanelCollapsed(true)
+  }, [])
+
+  const handleExpandAddPanel = useCallback(() => {
+    setIsAddPanelCollapsed(false)
+  }, [])
+
+  const handleBulkTargetToggle = useCallback((id: string) => {
+    setBulkDamageTargets((prev) => {
+      const current = prev[id]
+      const next: Record<string, 'full' | 'half'> = { ...prev }
+
+      if (!current) {
+        next[id] = 'full'
+      } else if (current === 'full') {
+        next[id] = 'half'
+      } else {
+        delete next[id]
+      }
+
+      return next
+    })
+    setBulkDamageError('')
+  }, [])
+
+  const handleClearBulkSelection = useCallback(() => {
+    setBulkDamageTargets({})
+    setBulkDamageValue('')
+    setBulkDamageError('')
+  }, [])
+
+  const handleBulkDamageApply = useCallback(() => {
+    const amount = Number.parseInt(bulkDamageValue, 10)
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setBulkDamageError('Enter a positive damage value before applying the effect.')
+      return
+    }
+
+    const entries = Object.entries(bulkDamageTargets)
+
+    if (entries.length === 0) {
+      setBulkDamageError('Select at least one combatant to receive damage.')
+      return
+    }
+
+    entries.forEach(([id, mode]) => {
+      const adjustedAmount = mode === 'half' ? Math.floor(amount / 2) : amount
+      if (adjustedAmount > 0) {
+        dispatch(applyDamageAction({ id, amount: adjustedAmount }))
+      }
+    })
+
+    setBulkDamageValue('')
+    setBulkDamageError('')
+  }, [bulkDamageTargets, bulkDamageValue, dispatch])
+
   /**
    * Updates the initiative draft for a combatant when the user edits the input.
    */
@@ -593,24 +730,24 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
    * Starts combat by selecting the first combatant and resetting timers.
    */
   const handleStartCombat = useCallback(() => {
-    if (sortedCombatants.length === 0) {
+    if (orderedCombatants.length === 0) {
       return
     }
 
-    const firstCombatantId = sortedCombatants[0].id
+    const firstCombatantId = orderedCombatants[0].id
     const now = Date.now()
 
     setTurnHistory([])
     setTurnStartTime(now)
     setIsStatsVisible(false)
     setActiveCombatantId(firstCombatantId)
-  }, [sortedCombatants])
+  }, [orderedCombatants])
 
   /**
    * Advances the initiative order to the next combatant.
    */
   const handleAdvanceTurn = useCallback(() => {
-    if (sortedCombatants.length === 0) {
+    if (orderedCombatants.length === 0) {
       return
     }
 
@@ -619,15 +756,15 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       return
     }
 
-    const currentIndex = sortedCombatants.findIndex((combatant) => combatant.id === activeCombatantId)
+    const currentIndex = orderedCombatants.findIndex((combatant) => combatant.id === activeCombatantId)
     const nextIndex =
-      currentIndex === -1 || currentIndex === sortedCombatants.length - 1 ? 0 : currentIndex + 1
+      currentIndex === -1 || currentIndex === orderedCombatants.length - 1 ? 0 : currentIndex + 1
 
     recordTurnDuration()
 
     setTurnStartTime(Date.now())
-    setActiveCombatantId(sortedCombatants[nextIndex].id)
-  }, [activeCombatantId, handleStartCombat, isCombatActive, recordTurnDuration, sortedCombatants])
+    setActiveCombatantId(orderedCombatants[nextIndex].id)
+  }, [activeCombatantId, handleStartCombat, isCombatActive, orderedCombatants, recordTurnDuration])
 
   /**
    * Ends combat, captures statistics, and resets timers.
@@ -858,6 +995,11 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
     setTemplateErrors({})
     setMonsterInitiatives({})
     setMonsterErrors({})
+    setIsAddPanelCollapsed(false)
+    setManualOrder(null)
+    setBulkDamageTargets({})
+    setBulkDamageValue('')
+    setBulkDamageError('')
   }, [resetKey])
 
   /**
@@ -883,6 +1025,65 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       return next
     })
   }, [combatants])
+
+  useEffect(() => {
+    if (!manualOrder) {
+      return
+    }
+
+    const canonicalIds = initiativeSortedCombatants.map((combatant) => combatant.id)
+
+    if (canonicalIds.length === 0) {
+      setManualOrder(null)
+      return
+    }
+
+    const canonicalSet = new Set(canonicalIds)
+    const sanitized: string[] = []
+    const seen = new Set<string>()
+
+    manualOrder.forEach((id) => {
+      if (canonicalSet.has(id) && !seen.has(id)) {
+        sanitized.push(id)
+        seen.add(id)
+      }
+    })
+
+    const missing = canonicalIds.filter((id) => !seen.has(id))
+    const nextOrder = [...sanitized, ...missing]
+
+    if (nextOrder.length === canonicalIds.length && nextOrder.every((id, index) => id === canonicalIds[index])) {
+      setManualOrder(null)
+      return
+    }
+
+    if (nextOrder.length !== manualOrder.length || nextOrder.some((id, index) => id !== manualOrder[index])) {
+      setManualOrder(nextOrder)
+    }
+  }, [initiativeSortedCombatants, manualOrder])
+
+  useEffect(() => {
+    setBulkDamageTargets((prev) => {
+      if (Object.keys(prev).length === 0) {
+        return prev
+      }
+
+      const validIds = new Set(orderedCombatants.map((combatant) => combatant.id))
+      let changed = false
+      const next: Record<string, 'full' | 'half'> = {}
+
+      Object.entries(prev).forEach(([id, mode]) => {
+        if (validIds.has(id)) {
+          next[id] = mode
+        } else {
+          changed = true
+        }
+      })
+
+      return changed ? next : prev
+    })
+  }, [orderedCombatants])
+
 
   /**
    * Syncs initiative drafts with the authoritative values from Redux.
@@ -1009,7 +1210,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
    * Ensures the active combatant remains valid when the roster changes.
    */
   useEffect(() => {
-    if (sortedCombatants.length === 0) {
+    if (orderedCombatants.length === 0) {
       if (activeCombatantId !== null) {
         setActiveCombatantId(null)
       }
@@ -1023,13 +1224,13 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       return
     }
 
-    const isActivePresent = sortedCombatants.some((combatant) => combatant.id === activeCombatantId)
+    const isActivePresent = orderedCombatants.some((combatant) => combatant.id === activeCombatantId)
 
     if (!isActivePresent) {
-      setActiveCombatantId(sortedCombatants[0].id)
+      setActiveCombatantId(orderedCombatants[0].id)
       setTurnStartTime(Date.now())
     }
-  }, [sortedCombatants, activeCombatantId, turnStartTime])
+  }, [orderedCombatants, activeCombatantId, turnStartTime])
 
   return (
     <>
@@ -1159,57 +1360,70 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       ) : (
         <>
           <section className="tracker">
-            <form className="tracker__form" onSubmit={handleAddCombatant}>
-              <h3>Add a combatant</h3>
-              <div className="form-grid">
-                <label>
-                  <span>Name</span>
-                  <input
-                    value={formData.name}
-                    onChange={(event) => handleFormChange('name', event.target.value)}
-                    placeholder="Goblin Sentry"
-                    autoComplete="off"
-                  />
-                </label>
-                <label>
-                  <span>Type</span>
-                  <select
-                    value={formData.type}
-                    onChange={(event) => handleFormChange('type', event.target.value as 'player' | 'monster')}
+            {!isAddPanelCollapsed ? (
+              <form className="tracker__form" onSubmit={handleAddCombatant}>
+                <div className="tracker__form-header">
+                  <h3>Add a combatant</h3>
+                  <button
+                    type="button"
+                    className="ghost-button ghost-button--compact"
+                    onClick={handleCollapseAddPanel}
+                    aria-expanded={!isAddPanelCollapsed}
                   >
-                    <option value="player">Player</option>
-                    <option value="monster">Monster</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Max HP</span>
-                  <input
-                    value={formData.maxHp}
-                    onChange={(event) => handleFormChange('maxHp', event.target.value)}
-                    placeholder="12"
-                    inputMode="numeric"
-                  />
-                </label>
-                <label>
-                  <span>Initiative</span>
-                  <input
-                    value={formData.initiative}
-                    onChange={(event) => handleFormChange('initiative', event.target.value)}
-                    placeholder="15"
-                    inputMode="numeric"
-                  />
-                </label>
-              </div>
-              {formError && <p className="form-error">{formError}</p>}
-              <button type="submit" className="primary-button">
-                Add to order
-              </button>
-            </form>
+                    Hide form
+                  </button>
+                </div>
+                <div className="form-grid">
+                  <label>
+                    <span>Name</span>
+                    <input
+                      value={formData.name}
+                      onChange={(event) => handleFormChange('name', event.target.value)}
+                      placeholder="Goblin Sentry"
+                      autoComplete="off"
+                    />
+                  </label>
+                  <label>
+                    <span>Type</span>
+                    <select
+                      value={formData.type}
+                      onChange={(event) => handleFormChange('type', event.target.value as 'player' | 'monster')}
+                    >
+                      <option value="player">Player</option>
+                      <option value="monster">Monster</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Max HP</span>
+                    <input
+                      value={formData.maxHp}
+                      onChange={(event) => handleFormChange('maxHp', event.target.value)}
+                      placeholder="12"
+                      inputMode="numeric"
+                    />
+                  </label>
+                  <label>
+                    <span>Initiative</span>
+                    <input
+                      value={formData.initiative}
+                      onChange={(event) => handleFormChange('initiative', event.target.value)}
+                      placeholder="15"
+                      inputMode="numeric"
+                    />
+                  </label>
+                </div>
+                {formError && <p className="form-error">{formError}</p>}
+                <button type="submit" className="primary-button">
+                  Add to order
+                </button>
+              </form>
+            ) : null}
 
-            <div className="tracker__list">
+            <div className={`tracker__list${isAddPanelCollapsed ? ' tracker__list--expanded' : ''}`}>
               <div className="list-controls">
                 <div className="list-controls__info">
                   <h3>Initiative order</h3>
+                  {isManualOrderActive && <span className="manual-order-indicator">Manual order active</span>}
                   <div className="turn-tracking">
                     <div className="turn-timer" aria-live="polite">
                       <span className="turn-timer__label">
@@ -1226,11 +1440,21 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   </div>
                 </div>
                 <div className="list-actions">
+                  {isAddPanelCollapsed && (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={handleExpandAddPanel}
+                      aria-expanded={!isAddPanelCollapsed}
+                    >
+                      Add combatant
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="secondary-button"
                     onClick={handleStartCombat}
-                    disabled={sortedCombatants.length === 0}
+                    disabled={!hasCombatants}
                   >
                     Start combat
                   </button>
@@ -1238,7 +1462,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                     type="button"
                     className="secondary-button"
                     onClick={handleAdvanceTurn}
-                    disabled={sortedCombatants.length === 0 || !isCombatActive}
+                    disabled={!hasCombatants || !isCombatActive}
                   >
                     Next turn
                   </button>
@@ -1266,15 +1490,83 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   >
                     Clear players
                   </button>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={handleResetManualOrder}
+                    disabled={!isManualOrderActive}
+                  >
+                    Reset order
+                  </button>
                 </div>
               </div>
-              {sortedCombatants.length === 0 ? (
-                <div className="tracker__empty">
-                  <p>Add combatants to begin managing the initiative order.</p>
+
+              {hasCombatants ? (
+                <div className="bulk-damage-panel">
+                  <div className="bulk-damage-panel__header">
+                    <h4>Area damage helper</h4>
+                    <p>Select combatants and apply a shared damage roll in one click.</p>
+                  </div>
+                  <div className="bulk-damage-panel__controls">
+                    <label>
+                      <span>Base damage</span>
+                      <input
+                        value={bulkDamageValue}
+                        onChange={(event) => {
+                          setBulkDamageValue(event.target.value)
+                          setBulkDamageError('')
+                        }}
+                        placeholder="12"
+                        inputMode="numeric"
+                      />
+                    </label>
+                    <div className="bulk-damage-panel__actions">
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={handleBulkDamageApply}
+                        disabled={!hasBulkDamageInput || bulkSelectionCount === 0}
+                      >
+                        Apply damage
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={handleClearBulkSelection}
+                        disabled={bulkSelectionCount === 0 && !hasBulkDamageInput}
+                      >
+                        Clear selection
+                      </button>
+                    </div>
+                  </div>
+                  {bulkDamageError && <p className="form-error bulk-damage-panel__error">{bulkDamageError}</p>}
+                  <p className="bulk-damage-panel__hint">Click a combatant to cycle between full and half damage.</p>
+                  <div className="bulk-damage-panel__targets">
+                    {orderedCombatants.map((combatant) => {
+                      const mode = bulkDamageTargets[combatant.id] ?? null
+                      return (
+                        <button
+                          key={combatant.id}
+                          type="button"
+                          className={`bulk-target-chip${mode ? ' bulk-target-chip--active' : ''}${
+                            mode === 'half' ? ' bulk-target-chip--half' : ''
+                          }`}
+                          onClick={() => handleBulkTargetToggle(combatant.id)}
+                        >
+                          <span className="bulk-target-chip__name">{combatant.name}</span>
+                          {mode && (
+                            <span className="bulk-target-chip__badge">{mode === 'half' ? 'Half' : 'Full'}</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-              ) : (
+              ) : null}
+
+              {hasCombatants ? (
                 <CombatantList
-                  combatants={sortedCombatants}
+                  combatants={orderedCombatants}
                   activeCombatantId={activeCombatantId}
                   initiativeDrafts={initiativeDrafts}
                   adjustments={adjustments}
@@ -1288,7 +1580,12 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   onToggleDamageModifier={toggleDamageModifier}
                   onApplyAdjustment={applyAdjustment}
                   onResetCombatant={handleResetCombatant}
+                  onReorder={handleManualReorder}
                 />
+              ) : (
+                <div className="tracker__empty">
+                  <p>Add combatants to begin managing the initiative order.</p>
+                </div>
               )}
             </div>
           </section>
