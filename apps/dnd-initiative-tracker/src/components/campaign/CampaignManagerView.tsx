@@ -919,6 +919,9 @@ export const CampaignManagerView: React.FC = () => {
                             <header className="template-card__header monster-card__header">
                               <div>
                                 <h5>{monster.name}</h5>
+                                <p> {monster.description}
+                        
+                                </p>
                                 <div className="template-card__stats monster-card__stats">
                                   {displayTags.map((tag) => (
                                     <span key={tag} className="stat-chip">
