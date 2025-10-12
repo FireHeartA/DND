@@ -114,6 +114,11 @@ export const CombatantList: React.FC<CombatantListProps> = ({
         const hpPercent = combatant.maxHp > 0 ? (combatant.currentHp / combatant.maxHp) * 100 : 0
         const nicknameTag = combatant.tags.find((tag) => tag.title.toLowerCase() === 'nickname')
         const displayName = displayNames[combatant.id] ?? combatant.name
+        const monsterTags =
+          combatant.type === 'monster'
+            ? combatant.tags.filter((tag) => tag.title.toLowerCase() !== 'nickname')
+            : []
+        const metaTags = combatant.type === 'monster' ? [] : combatant.tags
 
         return (
           <li
@@ -173,6 +178,18 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                       <span aria-hidden="true">🩸</span>
                     </span>
                   )}
+                  {combatant.type === 'monster' && monsterTags.length > 0 && (
+                    <div className="combatant-card__monster-tags">
+                      {monsterTags.map((tag) => (
+                        <span
+                          key={`${combatant.id}-${tag.title}-${tag.value}`}
+                          className="stat-chip combatant-card__monster-tag"
+                        >
+                          {tag.title}: {tag.value}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="hp-track">
                   <div className="hp-track__bar">
@@ -192,7 +209,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                   {combatant.sourceMonsterId && (
                     <span className="combatant-card__meta-item combatant-card__meta-item--tag">Monster</span>
                   )}
-                  {combatant.tags.map((tag) => (
+                  {metaTags.map((tag) => (
                     <span
                       key={`${combatant.id}-${tag.title}-${tag.value}`}
                       className="combatant-card__meta-item combatant-card__meta-item--tag"

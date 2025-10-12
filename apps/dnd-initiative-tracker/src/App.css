@@ -1446,6 +1446,18 @@ textarea:focus {
   gap: 0.65rem;
 }
 
+.combatant-card__monster-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.combatant-card__monster-tag {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
 .combatant-name {
   margin: 0;
   font-size: 1.4rem;
