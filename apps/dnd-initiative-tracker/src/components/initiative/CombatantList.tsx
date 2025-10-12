@@ -9,6 +9,7 @@ interface CombatantListProps {
   initiativeDrafts: Record<string, ValueDraft>
   adjustments: Record<string, AdjustmentDraft>
   monstersById: Record<string, MonsterDetails>
+  displayNames: Record<string, string>
   onInitiativeDraftChange: (id: string, value: string) => void
   onInitiativeCommit: (id: string) => void
   onInitiativeKeyDown: (event: KeyboardEvent<HTMLInputElement>, id: string) => void
@@ -27,6 +28,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
   initiativeDrafts,
   adjustments,
   monstersById,
+  displayNames,
   onInitiativeDraftChange,
   onInitiativeCommit,
   onInitiativeKeyDown,
@@ -111,6 +113,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
         const isDown = combatant.currentHp === 0
         const hpPercent = combatant.maxHp > 0 ? (combatant.currentHp / combatant.maxHp) * 100 : 0
         const nicknameTag = combatant.tags.find((tag) => tag.title.toLowerCase() === 'nickname')
+        const displayName = displayNames[combatant.id] ?? combatant.name
 
         return (
           <li
@@ -150,7 +153,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
               <div className="combatant-card__details">
                 <div className="combatant-card__title">
                   <h4 className="combatant-name">
-                    {combatant.name}
+                    {displayName}
                     {nicknameTag && <span className="combatant-nickname"> ({nicknameTag.value})</span>}
                   </h4>
                   <span className={`combatant-type-badge combatant-type-badge--${combatant.type}`}>

@@ -87,6 +87,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const [bulkDamageValue, setBulkDamageValue] = useState('')
   const [bulkDamageTargets, setBulkDamageTargets] = useState<Record<string, 'full' | 'half'>>({})
   const [bulkDamageError, setBulkDamageError] = useState('')
+  const [isBulkDamageVisible, setIsBulkDamageVisible] = useState(false)
 
   /**
    * Provides access to the currently active campaign object.
@@ -162,6 +163,46 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const isManualOrderActive = manualOrder !== null
   const bulkSelectionCount = useMemo(() => Object.keys(bulkDamageTargets).length, [bulkDamageTargets])
   const hasBulkDamageInput = bulkDamageValue.trim().length > 0
+
+  const combatantDisplayNames = useMemo(() => {
+    const totals = new Map<string, number>()
+    const running = new Map<string, number>()
+    const names: Record<string, string> = {}
+
+    orderedCombatants.forEach((combatant) => {
+      if (combatant.type !== 'monster') {
+        return
+      }
+
+      const current = totals.get(combatant.name) ?? 0
+      totals.set(combatant.name, current + 1)
+    })
+
+    orderedCombatants.forEach((combatant) => {
+      if (combatant.type === 'monster') {
+        const total = totals.get(combatant.name) ?? 0
+        if (total > 1) {
+          const index = (running.get(combatant.name) ?? 0) + 1
+          running.set(combatant.name, index)
+          names[combatant.id] = `${combatant.name} (${index})`
+          return
+        }
+      }
+
+      names[combatant.id] = combatant.name
+    })
+
+    return names
+  }, [orderedCombatants])
+
+  useEffect(() => {
+    if (!hasCombatants) {
+      setIsBulkDamageVisible(false)
+      setBulkDamageTargets({})
+      setBulkDamageValue('')
+      setBulkDamageError('')
+    }
+  }, [hasCombatants])
 
   /**
    * Builds a list of campaign monsters with metadata used in the UI.
@@ -523,6 +564,15 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
 
   const handleExpandAddPanel = useCallback(() => {
     setIsAddPanelCollapsed(false)
+  }, [])
+
+  const handleToggleBulkDamagePanel = useCallback(() => {
+    setIsBulkDamageVisible((previous) => !previous)
+    setBulkDamageError('')
+  }, [])
+
+  const handleHideBulkDamagePanel = useCallback(() => {
+    setIsBulkDamageVisible(false)
   }, [])
 
   const handleBulkTargetToggle = useCallback((id: string) => {
@@ -1359,7 +1409,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
         </section>
       ) : (
         <>
-          <section className="tracker">
+          <section className={`tracker${isAddPanelCollapsed ? ' tracker--collapsed' : ''}`}>
             {!isAddPanelCollapsed ? (
               <form className="tracker__form" onSubmit={handleAddCombatant}>
                 <div className="tracker__form-header">
@@ -1452,6 +1502,15 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   )}
                   <button
                     type="button"
+                    className={`ghost-button${isBulkDamageVisible ? ' ghost-button--toggled' : ''}`}
+                    onClick={handleToggleBulkDamagePanel}
+                    disabled={!hasCombatants}
+                    aria-pressed={isBulkDamageVisible}
+                  >
+                    {isBulkDamageVisible ? 'Hide AoE helper' : 'AoE damage'}
+                  </button>
+                  <button
+                    type="button"
                     className="secondary-button"
                     onClick={handleStartCombat}
                     disabled={!hasCombatants}
@@ -1501,11 +1560,20 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                 </div>
               </div>
 
-              {hasCombatants ? (
+              {isBulkDamageVisible && hasCombatants ? (
                 <div className="bulk-damage-panel">
                   <div className="bulk-damage-panel__header">
-                    <h4>Area damage helper</h4>
-                    <p>Select combatants and apply a shared damage roll in one click.</p>
+                    <div className="bulk-damage-panel__intro">
+                      <h4>Area damage helper</h4>
+                      <p>Select combatants and apply a shared damage roll in one click.</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="ghost-button ghost-button--compact"
+                      onClick={handleHideBulkDamagePanel}
+                    >
+                      Close
+                    </button>
                   </div>
                   <div className="bulk-damage-panel__controls">
                     <label>
@@ -1544,6 +1612,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   <div className="bulk-damage-panel__targets">
                     {orderedCombatants.map((combatant) => {
                       const mode = bulkDamageTargets[combatant.id] ?? null
+                      const displayName = combatantDisplayNames[combatant.id] ?? combatant.name
                       return (
                         <button
                           key={combatant.id}
@@ -1553,7 +1622,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                           }`}
                           onClick={() => handleBulkTargetToggle(combatant.id)}
                         >
-                          <span className="bulk-target-chip__name">{combatant.name}</span>
+                          <span className="bulk-target-chip__name">{displayName}</span>
                           {mode && (
                             <span className="bulk-target-chip__badge">{mode === 'half' ? 'Half' : 'Full'}</span>
                           )}
@@ -1571,6 +1640,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   initiativeDrafts={initiativeDrafts}
                   adjustments={adjustments}
                   monstersById={monsterLibrary.monsters}
+                  displayNames={combatantDisplayNames}
                   onInitiativeDraftChange={handleInitiativeDraftChange}
                   onInitiativeCommit={commitInitiativeChange}
                   onInitiativeKeyDown={handleInitiativeKeyDown}
