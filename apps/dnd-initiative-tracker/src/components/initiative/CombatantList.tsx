@@ -137,6 +137,16 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                     View on D&D Beyond
                   </a>
                 )}
+                {combatant.profileUrl && (
+                  <a
+                    href={combatant.profileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="combatant-card__link"
+                  >
+                    Open character profile
+                  </a>
+                )}
                 {isDown && <p className="status status--down">Unconscious</p>}
               </div>
 

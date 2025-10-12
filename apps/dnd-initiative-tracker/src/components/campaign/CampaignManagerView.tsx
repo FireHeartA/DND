@@ -55,6 +55,7 @@ export const CampaignManagerView: React.FC = () => {
     name: '',
     maxHp: '',
     armorClass: '',
+    profileUrl: '',
     notes: '',
   })
   const [playerTemplateError, setPlayerTemplateError] = useState('')
@@ -256,7 +257,7 @@ export const CampaignManagerView: React.FC = () => {
    * Handles updates to the roster form inputs.
    */
   const handlePlayerTemplateFormChange = useCallback(
-    (field: 'name' | 'maxHp' | 'armorClass' | 'notes', value: string) => {
+    (field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes', value: string) => {
       setPlayerTemplateForm((prev) => ({
         ...prev,
         [field]: value,
@@ -273,6 +274,7 @@ export const CampaignManagerView: React.FC = () => {
       name: '',
       maxHp: '',
       armorClass: '',
+      profileUrl: '',
       notes: '',
     })
   }, [])
@@ -305,6 +307,12 @@ export const CampaignManagerView: React.FC = () => {
         ? Math.max(0, Math.trunc(armorClassValue))
         : null
 
+      const profileUrl = playerTemplateForm.profileUrl.trim()
+      if (profileUrl && !/^https?:\/\//i.test(profileUrl)) {
+        setPlayerTemplateError('Profile links should start with http:// or https:// to open correctly.')
+        return
+      }
+
       dispatch(
         addPlayerCharacterAction({
           campaignId: activeCampaignId,
@@ -312,6 +320,7 @@ export const CampaignManagerView: React.FC = () => {
             name,
             maxHp: Math.trunc(maxHpValue),
             armorClass,
+            profileUrl,
             notes: playerTemplateForm.notes,
           },
         }),
@@ -327,6 +336,7 @@ export const CampaignManagerView: React.FC = () => {
       playerTemplateForm.maxHp,
       playerTemplateForm.name,
       playerTemplateForm.notes,
+      playerTemplateForm.profileUrl,
       resetPlayerTemplateForm,
     ],
   )
@@ -799,6 +809,17 @@ export const CampaignManagerView: React.FC = () => {
                         inputMode="numeric"
                       />
                     </label>
+                    <label>
+                      <span>Character link</span>
+                      <input
+                        value={playerTemplateForm.profileUrl}
+                        onChange={(event) =>
+                          handlePlayerTemplateFormChange('profileUrl', event.target.value)
+                        }
+                        placeholder="https://dndbeyond.com/profile/..."
+                        inputMode="url"
+                      />
+                    </label>
                     <label className="campaign-form__notes">
                       <span>Notes</span>
                       <textarea
@@ -852,10 +873,20 @@ export const CampaignManagerView: React.FC = () => {
                             >
                               Remove
                             </button>
-                          </header>
-                          {template.notes && <p className="template-card__notes">{template.notes}</p>}
-                        </li>
-                      ))}
+                        </header>
+                        {template.profileUrl && (
+                          <a
+                            href={template.profileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="template-card__link"
+                          >
+                            Open character profile
+                          </a>
+                        )}
+                        {template.notes && <p className="template-card__notes">{template.notes}</p>}
+                      </li>
+                    ))}
                     </ul>
                   )}
                 </div>

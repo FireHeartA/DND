@@ -668,6 +668,18 @@
   line-height: 1.4;
 }
 
+.template-card__link {
+  display: inline-block;
+  color: rgba(255, 210, 160, 0.95);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.template-card__link:hover {
+  text-decoration: underline;
+}
+
 .monster-card__header {
   display: flex;
   justify-content: space-between;

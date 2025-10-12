@@ -23,6 +23,20 @@ const sanitizeNotes = (value: unknown): string => {
 }
 
 /**
+ * Ensures profile links are safe to render by restricting to http(s) URLs.
+ */
+const sanitizeProfileUrl = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return ''
+  }
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+  return /^https?:\/\//i.test(trimmed) ? trimmed : ''
+}
+
+/**
  * Converts untrusted campaign character data into a safe template entry.
  */
 const sanitizeCharacter = (character: unknown): CampaignCharacter | null => {
@@ -47,6 +61,7 @@ const sanitizeCharacter = (character: unknown): CampaignCharacter | null => {
     name,
     maxHp,
     armorClass: Number.isFinite(armorClassValue) ? Math.max(0, Math.trunc(armorClassValue)) : null,
+    profileUrl: sanitizeProfileUrl(candidate.profileUrl),
     notes: typeof candidate.notes === 'string' ? candidate.notes : '',
     createdAt: Number.isFinite(createdAtValue) ? createdAtValue : Date.now(),
   }
@@ -192,6 +207,7 @@ const campaignsSlice = createSlice({
               name: character.name,
               maxHp: character.maxHp,
               armorClass: character.armorClass,
+              profileUrl: sanitizeProfileUrl(character.profileUrl),
               notes: character.notes,
               createdAt: Date.now(),
             } satisfies CampaignCharacter,
