@@ -34,6 +34,9 @@ import type { AppDispatch } from '../../store'
 interface MonsterEditDraft {
   name: string
   description: string
+  armorClass: string
+  hitPoints: string
+  challengeRating: string
   tags: string[]
   tagDraft: string
   error: string
@@ -559,6 +562,9 @@ export const CampaignManagerView: React.FC = () => {
           Array.isArray(monster.description) && monster.description.length > 0
             ? monster.description.join('\n\n')
             : '',
+        armorClass: monster.armorClass !== null ? String(monster.armorClass) : '',
+        hitPoints: monster.hitPoints !== null ? String(monster.hitPoints) : '',
+        challengeRating: monster.challengeRating || '',
         tags: getMonsterDisplayTags(monster),
         tagDraft: '',
         error: '',
@@ -722,7 +728,68 @@ export const CampaignManagerView: React.FC = () => {
       }
 
       const description = typeof draft.description === 'string' ? draft.description : ''
-      const tags = prepareMonsterTags(Array.isArray(draft.tags) ? draft.tags : [])
+      const armorClassInput = typeof draft.armorClass === 'string' ? draft.armorClass.trim() : ''
+      const hitPointsInput = typeof draft.hitPoints === 'string' ? draft.hitPoints.trim() : ''
+      const challengeRatingInput =
+        typeof draft.challengeRating === 'string' ? draft.challengeRating.trim() : ''
+
+      let armorClassValue: number | null = null
+      if (armorClassInput) {
+        const parsedAc = Number.parseInt(armorClassInput, 10)
+        if (!Number.isFinite(parsedAc) || parsedAc < 0) {
+          setMonsterEdits((prev) => ({
+            ...prev,
+            [monsterId]: {
+              ...draft,
+              error: 'Armor Class must be a whole number or left blank.',
+            },
+          }))
+          return
+        }
+        armorClassValue = Math.max(0, Math.trunc(parsedAc))
+      }
+
+      let hitPointsValue: number | null = null
+      if (hitPointsInput) {
+        const parsedHp = Number.parseInt(hitPointsInput, 10)
+        if (!Number.isFinite(parsedHp) || parsedHp <= 0) {
+          setMonsterEdits((prev) => ({
+            ...prev,
+            [monsterId]: {
+              ...draft,
+              error: 'Hit points must be a positive whole number or left blank.',
+            },
+          }))
+          return
+        }
+        hitPointsValue = Math.max(1, Math.trunc(parsedHp))
+      }
+
+      const baseTags = prepareMonsterTags(Array.isArray(draft.tags) ? draft.tags : [])
+      const filteredTags = baseTags.filter((tag) => {
+        const normalized = tag.toUpperCase()
+        return (
+          !normalized.startsWith('HP ') &&
+          !normalized.startsWith('AC ') &&
+          !normalized.startsWith('CR ')
+        )
+      })
+
+      const monster = monsterLibrary.monsters[monsterId]
+      const autoTags: string[] = []
+      if (hitPointsValue !== null) {
+        const hitDiceSuffix = monster?.hitDice ? ` (${monster.hitDice})` : ''
+        autoTags.push(`HP ${hitPointsValue}${hitDiceSuffix}`)
+      }
+      if (armorClassValue !== null) {
+        const armorNotesSuffix = monster?.armorNotes ? ` (${monster.armorNotes})` : ''
+        autoTags.push(`AC ${armorClassValue}${armorNotesSuffix}`)
+      }
+      if (challengeRatingInput) {
+        autoTags.push(`CR ${challengeRatingInput}`)
+      }
+
+      const tags = prepareMonsterTags([...filteredTags, ...autoTags])
 
       dispatch(
         updateMonsterDetailsAction({
@@ -730,6 +797,9 @@ export const CampaignManagerView: React.FC = () => {
           name,
           description,
           tags,
+          armorClass: armorClassValue,
+          hitPoints: hitPointsValue,
+          challengeRating: challengeRatingInput,
         }),
       )
 
@@ -739,7 +809,7 @@ export const CampaignManagerView: React.FC = () => {
         return next
       })
     },
-    [dispatch, monsterEdits],
+    [dispatch, monsterEdits, monsterLibrary],
   )
 
   /**
@@ -1313,39 +1383,86 @@ export const CampaignManagerView: React.FC = () => {
                               >
                                 <label>
                                   <span>Monster name</span>
-                                  <input
-                                    value={editDraft.name}
-                                    onChange={(event) =>
-                                      handleMonsterEditFieldChange(
-                                        monster.id,
-                                        'name',
-                                        event.target.value,
-                                      )
-                                    }
-                                    placeholder="Gray Ooze"
-                                    autoComplete="off"
-                                  />
-                                </label>
-                                <label className="monster-card__edit-description">
-                                  <span>Description</span>
-                                  <textarea
-                                    value={editDraft.description}
-                                    onChange={(event) =>
-                                      handleMonsterEditFieldChange(
-                                        monster.id,
-                                        'description',
-                                        event.target.value,
-                                      )
-                                    }
-                                    placeholder="Background lore, lair notes, or encounter reminders."
-                                    rows={4}
-                                  />
-                                </label>
-                                <label className="monster-card__edit-tags">
-                                  <span>Tags</span>
-                                  <div className="monster-card__edit-tags-list">
-                                    {Array.isArray(editDraft.tags) && editDraft.tags.length > 0 ? (
-                                      editDraft.tags.map((tag) => (
+                              <input
+                                value={editDraft.name}
+                                onChange={(event) =>
+                                  handleMonsterEditFieldChange(
+                                    monster.id,
+                                    'name',
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder="Gray Ooze"
+                                autoComplete="off"
+                              />
+                            </label>
+                            <label className="monster-card__edit-description">
+                              <span>Description</span>
+                              <textarea
+                                value={editDraft.description}
+                                onChange={(event) =>
+                                  handleMonsterEditFieldChange(
+                                    monster.id,
+                                    'description',
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder="Background lore, lair notes, or encounter reminders."
+                                rows={4}
+                              />
+                            </label>
+                            <div className="monster-card__edit-stats">
+                              <label>
+                                <span>Armor Class</span>
+                                <input
+                                  value={editDraft.armorClass}
+                                  onChange={(event) =>
+                                    handleMonsterEditFieldChange(
+                                      monster.id,
+                                      'armorClass',
+                                      event.target.value,
+                                    )
+                                  }
+                                  placeholder="15"
+                                  inputMode="numeric"
+                                />
+                              </label>
+                              <label>
+                                <span>Hit Points</span>
+                                <input
+                                  value={editDraft.hitPoints}
+                                  onChange={(event) =>
+                                    handleMonsterEditFieldChange(
+                                      monster.id,
+                                      'hitPoints',
+                                      event.target.value,
+                                    )
+                                  }
+                                  placeholder="99"
+                                  inputMode="numeric"
+                                />
+                              </label>
+                              <label>
+                                <span>Challenge Rating</span>
+                                <input
+                                  value={editDraft.challengeRating}
+                                  onChange={(event) =>
+                                    handleMonsterEditFieldChange(
+                                      monster.id,
+                                      'challengeRating',
+                                      event.target.value,
+                                    )
+                                  }
+                                  placeholder="5"
+                                  autoComplete="off"
+                                />
+                              </label>
+                            </div>
+                            <label className="monster-card__edit-tags">
+                              <span>Tags</span>
+                              <div className="monster-card__edit-tags-list">
+                                {Array.isArray(editDraft.tags) && editDraft.tags.length > 0 ? (
+                                  editDraft.tags.map((tag) => (
                                         <span key={tag} className="monster-card__edit-tag stat-chip">
                                           {tag}
                                           <button

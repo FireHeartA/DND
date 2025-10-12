@@ -20,7 +20,7 @@ import {
   toggleMonsterFavorite as toggleMonsterFavoriteAction,
 } from '../../store/monsterLibrarySlice'
 import { formatDurationClock, formatDurationVerbose, computeCombatStats } from '../../utils/combatStats'
-import { getMonsterDisplayTags } from '../../utils/monsterTags'
+import { getMonsterCombatantTags, getMonsterDisplayTags } from '../../utils/monsterTags'
 import { generateFantasyName } from '../../utils/nameGenerator'
 import { CombatantList } from './CombatantList'
 import type { AdjustmentDraft, DamageModifier, ValueDraft } from './types'
@@ -939,6 +939,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
         typeof hitPoints === 'number' && Number.isFinite(hitPoints) && hitPoints > 0
           ? hitPoints
           : 1
+      const tags = getMonsterCombatantTags(monster)
 
       dispatch(
         addCombatantAction({
@@ -948,6 +949,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
           type: 'monster',
           armorClass: monster.armorClass,
           notes: monster.notes,
+          tags,
           sourceMonsterId: monsterId,
           sourceCampaignId: sourceCampaignId || (activeCampaign ? activeCampaign.id : null),
         }),

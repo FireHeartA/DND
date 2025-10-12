@@ -359,6 +359,9 @@ export interface UpdateMonsterDetailsArgs {
   name?: string
   description?: string | string[]
   tags?: string | string[]
+  armorClass?: number | string | null
+  hitPoints?: number | string | null
+  challengeRating?: string | null
 }
 
 export interface RemoveMonsterFromCampaignArgs {
@@ -448,18 +451,30 @@ const monsterLibrarySlice = createSlice({
      * Updates editable fields for a stored monster entry.
      */
     updateMonsterDetails: {
-      prepare({ monsterId, name, description, tags }: UpdateMonsterDetailsArgs) {
+      prepare({
+        monsterId,
+        name,
+        description,
+        tags,
+        armorClass,
+        hitPoints,
+        challengeRating,
+      }: UpdateMonsterDetailsArgs) {
         return {
           payload: {
             monsterId: sanitizeString(monsterId),
             name,
             description,
             tags,
+            armorClass,
+            hitPoints,
+            challengeRating,
           },
         }
       },
       reducer(state, action: PayloadAction<UpdateMonsterDetailsArgs>) {
-        const { monsterId, name, description, tags } = action.payload
+        const { monsterId, name, description, tags, armorClass, hitPoints, challengeRating } =
+          action.payload
         if (!monsterId) {
           return
         }
@@ -500,6 +515,18 @@ const monsterLibrarySlice = createSlice({
             normalizedTags = sanitizeStringArray([tags])
           }
           updates.tags = normalizedTags
+        }
+
+        if (typeof armorClass !== 'undefined') {
+          updates.armorClass = sanitizeNumber(armorClass)
+        }
+
+        if (typeof hitPoints !== 'undefined') {
+          updates.hitPoints = sanitizeNumber(hitPoints)
+        }
+
+        if (typeof challengeRating !== 'undefined') {
+          updates.challengeRating = sanitizeOptionalString(challengeRating)
         }
 
         const merged: MonsterDetails = {
