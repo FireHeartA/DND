@@ -50,6 +50,18 @@ interface ValueDraft {
   isDirty: boolean
 }
 
+type DamageModifier = 'normal' | 'resistant' | 'vulnerable'
+
+interface AdjustmentDraft {
+  value: string
+  damageModifier: DamageModifier
+}
+
+const createDefaultAdjustmentDraft = (): AdjustmentDraft => ({
+  value: '',
+  damageModifier: 'normal',
+})
+
 /**
  * Hosts the initiative tracker workflow, including combat timing and quick-add helpers.
  */
@@ -67,7 +79,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
     type: 'player',
   })
   const [formError, setFormError] = useState('')
-  const [adjustments, setAdjustments] = useState<Record<string, string>>({})
+  const [adjustments, setAdjustments] = useState<Record<string, AdjustmentDraft>>({})
   const [initiativeDrafts, setInitiativeDrafts] = useState<Record<string, ValueDraft>>({})
   const [activeCombatantId, setActiveCombatantId] = useState<string | null>(null)
   const [turnHistory, setTurnHistory] = useState<TurnHistoryEntry[]>([])
@@ -348,10 +360,32 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
    * Updates the adjustment draft value for a specific combatant.
    */
   const handleAdjustmentChange = useCallback((id: string, value: string) => {
-    setAdjustments((prev) => ({
-      ...prev,
-      [id]: value,
-    }))
+    setAdjustments((prev) => {
+      const previous = prev[id] ?? createDefaultAdjustmentDraft()
+
+      return {
+        ...prev,
+        [id]: {
+          ...previous,
+          value,
+        },
+      }
+    })
+  }, [])
+
+  const toggleDamageModifier = useCallback((id: string, modifier: DamageModifier) => {
+    setAdjustments((prev) => {
+      const previous = prev[id] ?? createDefaultAdjustmentDraft()
+      const nextModifier = previous.damageModifier === modifier ? 'normal' : modifier
+
+      return {
+        ...prev,
+        [id]: {
+          ...previous,
+          damageModifier: nextModifier,
+        },
+      }
+    })
   }, [])
 
   /**
@@ -359,26 +393,47 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
    */
   const applyAdjustment = useCallback(
     (id: string, direction: 'damage' | 'heal') => {
-      const rawValue = adjustments[id]
-      const amount = Number.parseInt(rawValue, 10)
+      const draft = adjustments[id]
+      const rawValue = draft?.value ?? ''
+      const segments = rawValue
+        .split(/[,+\s]+/)
+        .map((segment) => Number.parseInt(segment, 10))
+        .filter((value) => Number.isFinite(value) && value > 0)
+
+      const amount = segments.reduce((total, value) => total + value, 0)
 
       if (!Number.isFinite(amount) || amount <= 0) {
         setAdjustments((prev) => ({
           ...prev,
-          [id]: '',
+          [id]: {
+            value: '',
+            damageModifier: draft?.damageModifier ?? 'normal',
+          },
         }))
         return
       }
 
       if (direction === 'damage') {
-        dispatch(applyDamageAction({ id, amount }))
+        let adjustedAmount = amount
+        const modifier = draft?.damageModifier ?? 'normal'
+
+        if (modifier === 'resistant') {
+          adjustedAmount = Math.floor(amount / 2)
+        } else if (modifier === 'vulnerable') {
+          adjustedAmount = amount * 2
+        }
+
+        dispatch(applyDamageAction({ id, amount: adjustedAmount }))
       } else {
         dispatch(applyHealingAction({ id, amount }))
       }
 
       setAdjustments((prev) => ({
         ...prev,
-        [id]: '',
+        [id]: {
+          value: '',
+          damageModifier: draft?.damageModifier ?? 'normal',
+        },
       }))
     },
     [adjustments, dispatch],
@@ -1204,7 +1259,9 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                 <ul className="combatant-list">
                   {sortedCombatants.map((combatant) => {
                     const draft = initiativeDrafts[combatant.id]
-                    const adjustment = adjustments[combatant.id] ?? ''
+                    const adjustmentDraft = adjustments[combatant.id]
+                    const adjustment = adjustmentDraft?.value ?? ''
+                    const damageModifier = adjustmentDraft?.damageModifier ?? 'normal'
                     const sourceMonster =
                       combatant.type === 'monster' && combatant.sourceMonsterId
                         ? monsterLibrary.monsters[combatant.sourceMonsterId] || null
@@ -1324,10 +1381,37 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                               <input
                                 value={adjustment}
                                 onChange={(event) => handleAdjustmentChange(combatant.id, event.target.value)}
-                                placeholder="5"
-                                inputMode="numeric"
+                                placeholder="5 8 12"
+                                inputMode="text"
                               />
                             </label>
+                            <div className="damage-modifier-controls">
+                              <span className="damage-modifier-controls__label">Damage modifier</span>
+                              <div className="damage-modifier-controls__buttons">
+                                <button
+                                  type="button"
+                                  className={`ghost-button ghost-button--compact damage-modifier-button${
+                                    damageModifier === 'resistant' ? ' damage-modifier-button--active' : ''
+                                  }`}
+                                  onClick={() => toggleDamageModifier(combatant.id, 'resistant')}
+                                  aria-pressed={damageModifier === 'resistant'}
+                                  title="Halve incoming damage (rounded down)"
+                                >
+                                  Resistant
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`ghost-button ghost-button--compact damage-modifier-button${
+                                    damageModifier === 'vulnerable' ? ' damage-modifier-button--active' : ''
+                                  }`}
+                                  onClick={() => toggleDamageModifier(combatant.id, 'vulnerable')}
+                                  aria-pressed={damageModifier === 'vulnerable'}
+                                  title="Double incoming damage"
+                                >
+                                  Vulnerable
+                                </button>
+                              </div>
+                            </div>
                             <div className="action-buttons">
                               <button
                                 type="button"
