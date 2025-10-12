@@ -988,6 +988,28 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   }, [])
 
   /**
+   * Rolls initiative for a monster and stores the generated value.
+   */
+  const handleMonsterAutoInitiative = useCallback((monsterId: string) => {
+    const roll = Math.floor(Math.random() * 20) + 1
+
+    setMonsterInitiatives((prev) => ({
+      ...prev,
+      [monsterId]: String(roll),
+    }))
+
+    setMonsterErrors((prev) => {
+      if (!prev[monsterId]) {
+        return prev
+      }
+
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
+  }, [])
+
+  /**
    * Toggles a monster's favorite status from the initiative view.
    */
   const handleToggleMonsterFavoriteClick = useCallback(
@@ -1828,6 +1850,13 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                         </label>
                         <button
                           type="button"
+                          className="ghost-button ghost-button--compact"
+                          onClick={() => handleMonsterAutoInitiative(monster.id)}
+                        >
+                          Auto Initiative
+                        </button>
+                        <button
+                          type="button"
                           className="secondary-button"
                           onClick={() => handleQuickAddMonster(monster.id, activeCampaign.id)}
                         >
@@ -1902,6 +1931,13 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                             inputMode="numeric"
                           />
                         </label>
+                        <button
+                          type="button"
+                          className="ghost-button ghost-button--compact"
+                          onClick={() => handleMonsterAutoInitiative(monster.id)}
+                        >
+                          Auto Initiative
+                        </button>
                         <button
                           type="button"
                           className="secondary-button"
