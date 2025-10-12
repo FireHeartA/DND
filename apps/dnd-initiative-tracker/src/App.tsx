@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useDispatch, useStore } from 'react-redux'
 import './App.css'
@@ -28,7 +28,36 @@ function App() {
   const [activeView, setActiveView] = useState<ViewMode>('initiative')
   const [loadError, setLoadError] = useState('')
   const [resetKey, setResetKey] = useState<number>(0)
+  const [isDirty, setIsDirty] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const initialStateRef = useRef<string>('')
+
+  const getComparableState = useCallback(() => {
+    const state = store.getState()
+    return {
+      combat: state.combat,
+      campaigns: state.campaigns,
+      monsterLibrary: state.monsterLibrary,
+    }
+  }, [store])
+
+  const updateBaselineState = useCallback(() => {
+    initialStateRef.current = JSON.stringify(getComparableState())
+    setIsDirty(false)
+  }, [getComparableState])
+
+  useEffect(() => {
+    updateBaselineState()
+  }, [updateBaselineState])
+
+  useEffect(() => {
+    const unsubscribe = store.subscribe(() => {
+      const snapshot = JSON.stringify(getComparableState())
+      setIsDirty(snapshot !== initialStateRef.current)
+    })
+
+    return unsubscribe
+  }, [getComparableState, store])
 
   /**
    * Switches between the initiative tracker and campaign manager views.
@@ -58,7 +87,8 @@ function App() {
     anchor.download = 'dnd-initiative-tracker-data.json'
     anchor.click()
     URL.revokeObjectURL(url)
-  }, [store])
+    updateBaselineState()
+  }, [store, updateBaselineState])
 
   /**
    * Focuses the hidden file input so the user can select a saved state file.
@@ -129,6 +159,7 @@ function App() {
 
           if (hasValidData) {
             setLoadError('')
+            updateBaselineState()
             setResetKey(Date.now())
           } else {
             setLoadError('The selected file does not contain recognizable assistant data.')
@@ -152,7 +183,7 @@ function App() {
 
       reader.readAsText(file)
     },
-    [dispatch],
+    [dispatch, updateBaselineState],
   )
 
   /**
@@ -178,6 +209,7 @@ function App() {
         loadError={loadError}
         fileInputRef={fileInputRef}
         onFileChange={handleFileInputChange}
+        isDirty={isDirty}
       />
       <main className="main">
         {activeView === 'campaigns' ? campaignView : initiativeView}
