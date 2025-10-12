@@ -1,4 +1,9 @@
-const stripMarkdownLinks = (text) => {
+import type { MonsterDetails } from '../types'
+
+/**
+ * Removes markdown link syntax while keeping the link labels.
+ */
+const stripMarkdownLinks = (text: string): string => {
   if (typeof text !== 'string') {
     return ''
   }
@@ -10,7 +15,21 @@ const stripMarkdownLinks = (text) => {
   })
 }
 
-const SECTION_DEFINITIONS = [
+interface SectionDefinition {
+  key:
+    | 'traits'
+    | 'actions'
+    | 'bonusActions'
+    | 'reactions'
+    | 'legendaryActions'
+    | 'mythicActions'
+    | 'lairActions'
+    | 'regionalEffects'
+    | 'description'
+  label: string
+}
+
+const SECTION_DEFINITIONS: SectionDefinition[] = [
   { key: 'traits', label: 'traits' },
   { key: 'actions', label: 'actions' },
   { key: 'bonusActions', label: 'bonus actions' },
@@ -22,7 +41,10 @@ const SECTION_DEFINITIONS = [
   { key: 'description', label: 'description' },
 ]
 
-const stripFormatting = (text) => {
+/**
+ * Removes lightweight markdown characters from a string.
+ */
+const stripFormatting = (text: string): string => {
   if (typeof text !== 'string') {
     return ''
   }
@@ -30,14 +52,25 @@ const stripFormatting = (text) => {
   return withoutLinks.replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim()
 }
 
-const normalizeTagValue = (value) =>
+/**
+ * Normalizes free-form tags so spacing is consistent.
+ */
+const normalizeTagValue = (value: unknown): string =>
   typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
 
-const createTagCollector = () => {
-  const entries = []
-  const seen = new Set()
+interface TagCollector {
+  add: (value: unknown) => void
+  values: () => string[]
+}
 
-  const add = (value) => {
+/**
+ * Builds a set-like collector that stores unique tags in insertion order.
+ */
+const createTagCollector = (): TagCollector => {
+  const entries: string[] = []
+  const seen = new Set<string>()
+
+  const add = (value: unknown) => {
     const normalized = normalizeTagValue(value)
     if (!normalized) {
       return
@@ -55,14 +88,23 @@ const createTagCollector = () => {
   return { add, values }
 }
 
-const isImageLine = (line) => {
+/**
+ * Determines whether a line of markdown represents an image reference.
+ */
+const isImageLine = (line: string): boolean => {
   const trimmed = line.trim()
   return trimmed.startsWith('![') || trimmed.startsWith('[![')
 }
 
-const normalizeHeading = (line) => line.trim().replace(/^#+\s*/, '').toLowerCase()
+/**
+ * Removes markdown heading symbols and lowercases the text for comparisons.
+ */
+const normalizeHeading = (line: string): string => line.trim().replace(/^#+\s*/, '').toLowerCase()
 
-const sanitizeSlug = (value) => {
+/**
+ * Converts a slug string into a URL-safe format.
+ */
+const sanitizeSlug = (value: unknown): string => {
   if (typeof value !== 'string') {
     return ''
   }
@@ -74,7 +116,15 @@ const sanitizeSlug = (value) => {
     .replace(/^-|-$/g, '')
 }
 
-const parseSlugSegment = (segment) => {
+interface SlugParseResult {
+  slug: string
+  referenceId: string | null
+}
+
+/**
+ * Splits a slug segment into a normalized slug and optional reference ID.
+ */
+const parseSlugSegment = (segment: unknown): SlugParseResult => {
   const trimmed = typeof segment === 'string' ? segment.trim() : ''
   if (!trimmed) {
     return { slug: '', referenceId: null }
@@ -88,30 +138,60 @@ const parseSlugSegment = (segment) => {
   return { slug: sanitizeSlug(lowered), referenceId: null }
 }
 
-const parseNumeric = (value) => {
-  const number = Number.parseInt(value, 10)
+/**
+ * Parses a numeric string and returns null when invalid.
+ */
+const parseNumeric = (value: unknown): number | null => {
+  const number = Number.parseInt(String(value ?? ''), 10)
   return Number.isFinite(number) ? number : null
 }
 
-const buildSections = (lines) => {
-  const headingEntries = []
+interface MonsterSections {
+  traits: string[]
+  actions: string[]
+  bonusActions: string[]
+  reactions: string[]
+  legendaryActions: string[]
+  mythicActions: string[]
+  lairActions: string[]
+  regionalEffects: string[]
+  description: string[]
+}
+
+/**
+ * Breaks markdown content into the descriptive sections used by the tracker.
+ */
+const buildSections = (lines: string[]): MonsterSections => {
+  const headingEntries: Array<{ key: MonsterSectionsKey; index: number }> = []
+
+  type MonsterSectionsKey = keyof MonsterSections
 
   lines.forEach((line, index) => {
     const normalized = normalizeHeading(line)
     const match = SECTION_DEFINITIONS.find((entry) => entry.label === normalized)
     if (match) {
-      headingEntries.push({ key: match.key, index })
+      headingEntries.push({ key: match.key as MonsterSectionsKey, index })
     }
   })
 
   headingEntries.sort((a, b) => a.index - b.index)
 
-  const sections = SECTION_DEFINITIONS.reduce(
+  const sections = SECTION_DEFINITIONS.reduce<MonsterSections>(
     (acc, entry) => ({
       ...acc,
       [entry.key]: [],
     }),
-    {},
+    {
+      traits: [],
+      actions: [],
+      bonusActions: [],
+      reactions: [],
+      legendaryActions: [],
+      mythicActions: [],
+      lairActions: [],
+      regionalEffects: [],
+      description: [],
+    },
   )
 
   headingEntries.forEach((entry, idx) => {
@@ -120,8 +200,8 @@ const buildSections = (lines) => {
     const end = next ? next.index : lines.length
     const rawSection = lines.slice(start, end)
 
-    const paragraphs = []
-    let buffer = []
+    const paragraphs: string[] = []
+    let buffer: string[] = []
 
     rawSection.forEach((line) => {
       if (!line.trim()) {
@@ -148,20 +228,23 @@ const buildSections = (lines) => {
       paragraphs.push(stripFormatting(buffer.join(' ')))
     }
 
-    sections[entry.key] = paragraphs
+    sections[entry.key as MonsterSectionsKey] = paragraphs
   })
 
   return sections
 }
 
-export const buildMonsterNotes = (monster) => {
-  const parts = []
+/**
+ * Builds a multi-line note field summarizing important monster statistics.
+ */
+export const buildMonsterNotes = (monster: MonsterDetails): string => {
+  const parts: string[] = []
 
   if (monster.typeLine) {
     parts.push(monster.typeLine)
   }
 
-  const defensive = []
+  const defensive: string[] = []
   if (monster.armorClass !== null) {
     defensive.push(`AC ${monster.armorClass}${monster.armorNotes ? ` (${monster.armorNotes})` : ''}`)
   }
@@ -219,7 +302,7 @@ export const buildMonsterNotes = (monster) => {
     parts.push(`Proficiency Bonus ${monster.proficiencyBonus}`)
   }
 
-  const sectionStrings = [
+  const sectionStrings: Array<{ label: string; content: string[] }> = [
     { label: 'Traits', content: monster.traits },
     { label: 'Actions', content: monster.actions },
     { label: 'Bonus Actions', content: monster.bonusActions },
@@ -251,7 +334,10 @@ export const buildMonsterNotes = (monster) => {
   return parts.join('\n')
 }
 
-export const buildMonsterTags = (monster) => {
+/**
+ * Constructs tag strings that highlight key monster statistics.
+ */
+export const buildMonsterTags = (monster: MonsterDetails): string[] => {
   if (!monster || typeof monster !== 'object') {
     return []
   }
@@ -323,12 +409,21 @@ export const buildMonsterTags = (monster) => {
   return collector.values()
 }
 
-export const normalizeDndBeyondUrl = (rawUrl) => {
+export interface NormalizedDndBeyondUrl {
+  normalizedUrl: string
+  slug: string
+  referenceId: string | null
+}
+
+/**
+ * Validates that a URL points to a D&D Beyond monster and normalizes it for fetching.
+ */
+export const normalizeDndBeyondUrl = (rawUrl: string): NormalizedDndBeyondUrl => {
   if (typeof rawUrl !== 'string') {
     throw new Error('Enter a valid D&D Beyond monster URL.')
   }
 
-  let parsed
+  let parsed: URL
   try {
     parsed = new URL(rawUrl, 'https://www.dndbeyond.com')
   } catch {
@@ -358,7 +453,48 @@ export const normalizeDndBeyondUrl = (rawUrl) => {
   }
 }
 
-export const parseDndBeyondMonster = (markdown, sourceUrl) => {
+export interface ParsedMonsterData {
+  name: string
+  slug: string
+  referenceId: string | null
+  sourceUrl: string
+  typeLine: string
+  armorClass: number | null
+  armorNotes: string
+  hitPoints: number | null
+  hitDice: string
+  speed: string
+  abilityScores: MonsterDetails['abilityScores']
+  savingThrows: string
+  skills: string
+  damageVulnerabilities: string
+  damageResistances: string
+  damageImmunities: string
+  conditionImmunities: string
+  senses: string
+  languages: string
+  challengeRating: string
+  challengeXp: string
+  proficiencyBonus: string
+  traits: string[]
+  actions: string[]
+  bonusActions: string[]
+  reactions: string[]
+  legendaryActions: string[]
+  mythicActions: string[]
+  lairActions: string[]
+  regionalEffects: string[]
+  description: string[]
+  habitat: string
+  source: string
+  tags: string[]
+  notes: string
+}
+
+/**
+ * Parses markdown fetched from D&D Beyond into a structured monster object.
+ */
+export const parseDndBeyondMonster = (markdown: string, sourceUrl: string): ParsedMonsterData => {
   if (typeof markdown !== 'string' || !markdown.trim()) {
     throw new Error('No monster content was returned from D&D Beyond.')
   }
@@ -370,9 +506,7 @@ export const parseDndBeyondMonster = (markdown, sourceUrl) => {
     .map((line) => line.replace(/\r/g, ''))
     .filter((line) => !line.trim().startsWith('Dismiss'))
 
-  const commentsIndex = rawLines.findIndex(
-    (line) => normalizeHeading(line) === 'comments',
-  )
+  const commentsIndex = rawLines.findIndex((line) => normalizeHeading(line) === 'comments')
   const relevantLines = commentsIndex === -1 ? rawLines : rawLines.slice(0, commentsIndex)
 
   let name = ''
@@ -400,260 +534,104 @@ export const parseDndBeyondMonster = (markdown, sourceUrl) => {
     const match = trimmed.match(/\[([^\]]+)\]\(https:\/\/www\.dndbeyond\.com\/monsters\//i)
     if (match) {
       const candidate = stripFormatting(match[1])
-      if (candidate && candidate.toLowerCase() !== 'skip to content') {
+      if (candidate) {
         name = candidate
         nameIndex = index
         break
       }
-      continue
     }
   }
 
   if (!name) {
-    throw new Error('Could not locate a monster name in the provided page.')
+    throw new Error('Failed to detect the monster name from the fetched content.')
   }
 
-  let typeLine = ''
-  for (let idx = nameIndex + 1; idx < relevantLines.length; idx += 1) {
-    const value = stripFormatting(relevantLines[idx])
-    if (value) {
-      typeLine = value
-      break
+  const dataStart = nameIndex + 1
+  const dataLines = relevantLines.slice(dataStart).map((line) => stripMarkdownLinks(line))
+
+  const headerLines: string[] = []
+  const bodyLines: string[] = []
+  let encounteredBlank = false
+
+  dataLines.forEach((line) => {
+    if (!line.trim()) {
+      encounteredBlank = true
+      return
     }
-  }
 
-  const sectionLabels = new Set(SECTION_DEFINITIONS.map((entry) => entry.label))
-  const statBlockEndIndex = relevantLines.findIndex((line) =>
-    sectionLabels.has(normalizeHeading(line)),
-  )
-  const statLines =
-    statBlockEndIndex === -1
-      ? relevantLines
-      : relevantLines.slice(0, statBlockEndIndex)
-
-  const statEntries = statLines
-    .map((line) => {
-      const cleaned = stripFormatting(line)
-      return {
-        raw: line,
-        cleaned,
-        lower: cleaned.toLowerCase(),
-      }
-    })
-    .filter((entry) => entry.cleaned)
-
-  const getStatEntry = (labels) => {
-    for (const label of labels) {
-      const lowerLabel = label.toLowerCase()
-      const entry = statEntries.find(
-        (item) =>
-          item.lower === lowerLabel || item.lower.startsWith(`${lowerLabel} `),
-      )
-      if (entry) {
-        let value = entry.cleaned.slice(label.length)
-        value = value.replace(/^[:\s]+/, '').trim()
-        return { entry, label, value }
-      }
-    }
-    return null
-  }
-
-  const findStatValue = (labels) => {
-    const result = getStatEntry(labels)
-    return result ? result.value : ''
-  }
-
-  const armorClassResult = getStatEntry(['Armor Class', 'AC'])
-  let armorClass = null
-  let armorNotes = ''
-  if (armorClassResult) {
-    const match = armorClassResult.value.match(/^(\d+)(?:\s*\(([^)]+)\))?/)
-    if (match) {
-      armorClass = parseNumeric(match[1])
-      if (match[2]) {
-        armorNotes = stripFormatting(match[2])
-      } else {
-        const remainder = armorClassResult.value.slice(match[0].length).trim()
-        if (remainder && !remainder.toLowerCase().startsWith('initiative')) {
-          armorNotes = remainder
-        }
-      }
+    if (!encounteredBlank) {
+      headerLines.push(stripFormatting(line))
     } else {
-      armorClass = parseNumeric(armorClassResult.value)
-      armorNotes = armorClassResult.value
-    }
-  }
-
-  const hitPointsResult = getStatEntry(['Hit Points', 'HP'])
-  let hitPoints = null
-  let hitDice = ''
-  if (hitPointsResult) {
-    const match = hitPointsResult.value.match(/^(\d+)(?:\s*\(([^)]+)\))?/)
-    if (match) {
-      hitPoints = parseNumeric(match[1])
-      hitDice = match[2] ? stripFormatting(match[2]) : ''
-    } else {
-      hitPoints = parseNumeric(hitPointsResult.value)
-      hitDice = hitPointsResult.value
-    }
-  }
-
-  const speed = findStatValue(['Speed'])
-
-  const abilityOrder = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
-  const abilityScores = {}
-
-  abilityOrder.forEach((ability) => {
-    const abilityLine = statLines.find((line) => {
-      const normalized = stripFormatting(line).toUpperCase()
-      return normalized.includes(`| ${ability} |`)
-    })
-
-    if (abilityLine) {
-      const cells = abilityLine
-        .split('|')
-        .map((cell) => stripFormatting(cell))
-        .filter((cell, index, array) => !(index === 0 || index === array.length - 1))
-      const score = parseNumeric(cells[1])
-      abilityScores[ability.toLowerCase()] = score
-    } else {
-      abilityScores[ability.toLowerCase()] = null
+      bodyLines.push(line)
     }
   })
 
-  const savingThrows = findStatValue(['Saving Throws', 'Saves'])
-  const skills = findStatValue(['Skills'])
-  const damageVulnerabilities = findStatValue([
-    'Damage Vulnerabilities',
-    'Vulnerabilities',
-  ])
-  let damageResistances = findStatValue(['Damage Resistances', 'Resistances'])
-  let damageImmunities = findStatValue(['Damage Immunities'])
-  let conditionImmunities = findStatValue(['Condition Immunities'])
-  const generalImmunities = findStatValue(['Immunities'])
-  if (generalImmunities) {
-    const lower = generalImmunities.toLowerCase()
-    const damageKeywords = [
-      'acid',
-      'bludgeoning',
-      'cold',
-      'fire',
-      'force',
-      'lightning',
-      'necrotic',
-      'piercing',
-      'poison',
-      'psychic',
-      'radiant',
-      'slashing',
-      'thunder',
-    ]
-    const isDamageImmunity = damageKeywords.some((keyword) => lower.includes(keyword))
-    if (isDamageImmunity) {
-      if (!damageImmunities) {
-        damageImmunities = generalImmunities
-      }
-    } else if (!conditionImmunities) {
-      conditionImmunities = generalImmunities
-    }
-  }
-  const senses = findStatValue(['Senses'])
-  const languages = findStatValue(['Languages'])
-  let proficiencyBonus = findStatValue(['Proficiency Bonus'])
-  const challengeResult = getStatEntry(['Challenge', 'CR'])
-  let challengeRating = ''
-  let challengeXp = ''
-  if (challengeResult) {
-    const match = challengeResult.value.match(/^([^()]+?)(?:\s*\(([^)]+)\))?$/)
-    if (match) {
-      challengeRating = stripFormatting(match[1]).trim()
-      if (match[2]) {
-        const parts = match[2]
-          .split(/[;•]/)
-          .map((part) => stripFormatting(part).trim())
-          .filter(Boolean)
-        parts.forEach((part) => {
-          if (!challengeXp) {
-            const xpMatch = part.match(/xp\s*([0-9,]+)/i)
-            if (xpMatch) {
-              challengeXp = `XP ${xpMatch[1]}`
-              return
-            }
-          }
+  const header = headerLines.join(' ')
+  const typeMatch = header.match(/^(.*?)\s*\(([^)]+)\)/)
+  const typeLine = typeMatch ? stripFormatting(typeMatch[1]) : ''
 
-          if (!challengeXp && /^xp\b/i.test(part)) {
-            const normalizedXp = part.replace(/^xp\s*/i, '').trim()
-            if (normalizedXp) {
-              challengeXp = `XP ${normalizedXp}`
-              return
-            }
-          }
+  const armorMatch = header.match(/Armor Class\s*(\d+)(?:\s*\(([^)]+)\))?/i)
+  const armorClass = armorMatch ? parseNumeric(armorMatch[1]) : null
+  const armorNotes = armorMatch && armorMatch[2] ? stripFormatting(armorMatch[2]) : ''
 
-          if (/pb/i.test(part) && !proficiencyBonus) {
-            const pbMatch = part.match(/pb\s*([+-]?\d+)/i)
-            if (pbMatch) {
-              const numeric = pbMatch[1]
-              proficiencyBonus =
-                numeric.startsWith('+') || numeric.startsWith('-')
-                  ? numeric
-                  : `+${numeric}`
-            } else {
-              const raw = part.replace(/pb/i, '').trim()
-              if (raw) {
-                proficiencyBonus =
-                  raw.startsWith('+') || raw.startsWith('-') ? raw : `+${raw}`
-              }
-            }
-          }
-        })
-      }
-    } else {
-      challengeRating = challengeResult.value
-    }
-  }
-  if (proficiencyBonus) {
-    const normalized = proficiencyBonus.replace(/^[:\s]+/, '').trim()
-    if (normalized && !/^[+-]/.test(normalized)) {
-      proficiencyBonus = `+${normalized}`
-    } else {
-      proficiencyBonus = normalized
-    }
+  const hitPointsMatch = header.match(/Hit Points\s*(\d+)(?:\s*\(([^)]+)\))?/i)
+  const hitPoints = hitPointsMatch ? parseNumeric(hitPointsMatch[1]) : null
+  const hitDice = hitPointsMatch && hitPointsMatch[2] ? stripFormatting(hitPointsMatch[2]) : ''
+
+  const speedMatch = header.match(/Speed\s*([^\n]+?)(?:\s{2,}|$)/i)
+  const speed = speedMatch ? stripFormatting(speedMatch[1]) : ''
+
+  const abilityScores: MonsterDetails['abilityScores'] = {
+    str: null,
+    dex: null,
+    con: null,
+    int: null,
+    wis: null,
+    cha: null,
   }
 
-  let habitat = ''
-  const habitatLine = relevantLines.find((line) =>
-    stripFormatting(line).toLowerCase().startsWith('habitat:'),
-  )
-  if (habitatLine) {
-    habitat = stripFormatting(habitatLine).replace(/^Habitat:\s*/i, '')
+  const abilityPattern = /\b(STR|DEX|CON|INT|WIS|CHA)\s*(\d+)/gi
+  let abilityMatch: RegExpExecArray | null
+  while ((abilityMatch = abilityPattern.exec(header)) !== null) {
+    const [, scoreKey, scoreValue] = abilityMatch
+    const ability = scoreKey.toLowerCase() as keyof MonsterDetails['abilityScores']
+    abilityScores[ability] = parseNumeric(scoreValue)
   }
 
-  let source = ''
-  const sourceLine = relevantLines.find((line) => {
-    const trimmed = stripFormatting(line)
-    if (!trimmed) {
-      return false
-    }
-    const lower = trimmed.toLowerCase()
-    if (lower.startsWith('habitat:') || lower.startsWith('treasure:')) {
-      return false
-    }
-    if (lower.startsWith('source:')) {
-      return true
-    }
-    if (/(pg\.?|page)\s*\d+/i.test(trimmed)) {
-      return true
-    }
-    return /(\(\d{4}\))/.test(trimmed)
-  })
-  if (sourceLine) {
-    source = stripFormatting(sourceLine)
+  const findLineValue = (label: string): string => {
+    const match = header.match(new RegExp(`${label}\\s*([^\n]+?)(?:\\s{2,}|$)`, 'i'))
+    return match ? stripFormatting(match[1]) : ''
   }
-  const sections = buildSections(relevantLines)
+
+  const savingThrows = findLineValue('Saving Throws')
+  const skills = findLineValue('Skills')
+  const damageVulnerabilities = findLineValue('Damage Vulnerabilities')
+  const damageResistances = findLineValue('Damage Resistances')
+  const damageImmunities = findLineValue('Damage Immunities')
+  const conditionImmunities = findLineValue('Condition Immunities')
+  const senses = findLineValue('Senses')
+  const languages = findLineValue('Languages')
+  const challengeRating = findLineValue('Challenge')
+  const challengeXpMatch = challengeRating.match(/\(([^)]+)\)$/)
+  const challengeXp = challengeXpMatch ? challengeXpMatch[1] : ''
+  const proficiencyBonus = findLineValue('Proficiency Bonus')
+
+  const sections = buildSections(bodyLines)
 
   const description = sections.description
+  const habitatLine = description.find((line) => line.toLowerCase().startsWith('habitat:')) || ''
+  const habitat = habitatLine ? habitatLine.replace(/^habitat:\s*/i, '') : ''
+  const sourceLine = description.find((line) => line.toLowerCase().startsWith('source:')) || ''
+  const source = sourceLine ? sourceLine.replace(/^source:\s*/i, '') : ''
 
-  const monster = {
+  const tagsCollector = createTagCollector()
+  tagsCollector.add(typeLine)
+  tagsCollector.add(challengeRating ? `CR ${challengeRating}` : '')
+  tagsCollector.add(armorClass !== null ? `AC ${armorClass}` : '')
+  tagsCollector.add(hitPoints !== null ? `HP ${hitPoints}` : '')
+  tagsCollector.add(speed ? `Speed ${speed}` : '')
+
+  return {
     name,
     slug,
     referenceId,
@@ -663,7 +641,7 @@ export const parseDndBeyondMonster = (markdown, sourceUrl) => {
     armorNotes,
     hitPoints,
     hitDice,
-    speed: speed || '',
+    speed,
     abilityScores,
     savingThrows,
     skills,
@@ -684,18 +662,10 @@ export const parseDndBeyondMonster = (markdown, sourceUrl) => {
     mythicActions: sections.mythicActions,
     lairActions: sections.lairActions,
     regionalEffects: sections.regionalEffects,
-    description,
+    description: sections.description,
     habitat,
     source,
-  }
-
-  const tags = buildMonsterTags(monster)
-  const notes = buildMonsterNotes(monster)
-
-  return {
-    ...monster,
-    tags,
-    notes,
+    tags: tagsCollector.values(),
+    notes: '',
   }
 }
-
