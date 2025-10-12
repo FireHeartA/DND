@@ -101,6 +101,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  align-items: stretch;
 }
 
 .sidebar__footer {
@@ -192,6 +193,8 @@
   border: 1px solid rgba(244, 241, 234, 0.08);
   background: rgba(14, 10, 16, 0.55);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .save-load-controls--dirty {
