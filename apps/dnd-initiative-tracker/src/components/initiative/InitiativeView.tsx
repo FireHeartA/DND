@@ -8,6 +8,7 @@ import {
   resetCombatant as resetCombatantAction,
   updateInitiative as updateInitiativeAction,
   clearMonsters as clearMonstersAction,
+  setCombatantTag as setCombatantTagAction,
 } from '../../store/combatSlice'
 import {
   removePlayerCharacter as removePlayerCharacterAction,
@@ -19,6 +20,7 @@ import {
 } from '../../store/monsterLibrarySlice'
 import { formatDurationClock, formatDurationVerbose, computeCombatStats } from '../../utils/combatStats'
 import { getMonsterDisplayTags } from '../../utils/monsterTags'
+import { generateFantasyName } from '../../utils/nameGenerator'
 import type {
   Campaign,
   CampaignCharacter,
@@ -471,6 +473,29 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const handleClearMonsters = useCallback(() => {
     dispatch(clearMonstersAction())
   }, [dispatch])
+
+  /**
+   * Generates and stores a whimsical nickname for a monster combatant.
+   */
+  const handleGenerateMonsterNickname = useCallback(
+    (combatantId: string) => {
+      const combatant = combatants.find((entry) => entry.id === combatantId)
+
+      if (!combatant || combatant.type !== 'monster') {
+        return
+      }
+
+      const nickname = generateFantasyName()
+      dispatch(
+        setCombatantTagAction({
+          id: combatantId,
+          title: 'Nickname',
+          value: nickname,
+        }),
+      )
+    },
+    [combatants, dispatch],
+  )
 
   /**
    * Records the duration of the active turn and appends it to the history log.
@@ -1183,6 +1208,9 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                     const isBloodied = combatant.currentHp <= Math.max(1, combatant.maxHp / 2)
                     const isDown = combatant.currentHp === 0
                     const hpPercent = combatant.maxHp > 0 ? (combatant.currentHp / combatant.maxHp) * 100 : 0
+                    const nicknameTag = combatant.tags.find(
+                      (tag) => tag.title.toLowerCase() === 'nickname',
+                    )
 
                     return (
                       <li key={combatant.id} className={`combatant-card${combatant.id === activeCombatantId ? ' combatant-card--active' : ''}`}>
@@ -1214,12 +1242,26 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                         <div className="combatant-card__body">
                           <div className="combatant-card__details">
                             <div className="combatant-card__title">
-                              <h4 className="combatant-name">{combatant.name}</h4>
+                              <h4 className="combatant-name">
+                                {combatant.name}
+                                {nicknameTag && (
+                                  <span className="combatant-nickname"> ({nicknameTag.value})</span>
+                                )}
+                              </h4>
                               <span
                                 className={`combatant-type-badge combatant-type-badge--${combatant.type}`}
                               >
                                 {combatant.type === 'player' ? 'Player' : 'Monster'}
                               </span>
+                              {combatant.type === 'monster' && (
+                                <button
+                                  type="button"
+                                  className="ghost-button ghost-button--compact generate-nickname-button"
+                                  onClick={() => handleGenerateMonsterNickname(combatant.id)}
+                                >
+                                  Generate nickname
+                                </button>
+                              )}
                               {isBloodied && (
                                 <span className="bloodied-indicator" title="Bloodied" aria-label="Bloodied">
                                   <span aria-hidden="true">🩸</span>
@@ -1250,10 +1292,15 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                                   Monster
                                 </span>
                               )}
+                              {combatant.tags.map((tag) => (
+                                <span
+                                  key={`${combatant.id}-${tag.title}-${tag.value}`}
+                                  className="combatant-card__meta-item combatant-card__meta-item--tag"
+                                >
+                                  {tag.title}: {tag.value}
+                                </span>
+                              ))}
                             </div>
-                            {combatant.notes && (
-                              <p className="combatant-card__notes">{combatant.notes}</p>
-                            )}
                             {isDown && <p className="status status--down">Unconscious</p>}
                           </div>
 
