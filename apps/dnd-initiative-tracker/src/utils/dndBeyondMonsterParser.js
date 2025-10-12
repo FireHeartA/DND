@@ -2,8 +2,25 @@ const stripMarkdownLinks = (text) => {
   if (typeof text !== 'string') {
     return ''
   }
-  return text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+
+  return text.replace(/\[([^\]]+)\]\([^)]*\)/g, (match, label, offset) => {
+    const previousChar = offset > 0 ? text[offset - 1] : ''
+    const needsSpace = previousChar && !/\s/.test(previousChar)
+    return `${needsSpace ? ' ' : ''}${label}`
+  })
 }
+
+const SECTION_DEFINITIONS = [
+  { key: 'traits', label: 'traits' },
+  { key: 'actions', label: 'actions' },
+  { key: 'bonusActions', label: 'bonus actions' },
+  { key: 'reactions', label: 'reactions' },
+  { key: 'legendaryActions', label: 'legendary actions' },
+  { key: 'mythicActions', label: 'mythic actions' },
+  { key: 'lairActions', label: 'lair actions' },
+  { key: 'regionalEffects', label: 'regional effects' },
+  { key: 'description', label: 'description' },
+]
 
 const stripFormatting = (text) => {
   if (typeof text !== 'string') {
@@ -52,23 +69,11 @@ const parseNumeric = (value) => {
 }
 
 const buildSections = (lines) => {
-  const sectionOrder = [
-    { key: 'traits', label: 'traits' },
-    { key: 'actions', label: 'actions' },
-    { key: 'bonusActions', label: 'bonus actions' },
-    { key: 'reactions', label: 'reactions' },
-    { key: 'legendaryActions', label: 'legendary actions' },
-    { key: 'mythicActions', label: 'mythic actions' },
-    { key: 'lairActions', label: 'lair actions' },
-    { key: 'regionalEffects', label: 'regional effects' },
-    { key: 'description', label: 'description' },
-  ]
-
   const headingEntries = []
 
   lines.forEach((line, index) => {
     const normalized = normalizeHeading(line)
-    const match = sectionOrder.find((entry) => entry.label === normalized)
+    const match = SECTION_DEFINITIONS.find((entry) => entry.label === normalized)
     if (match) {
       headingEntries.push({ key: match.key, index })
     }
@@ -76,17 +81,13 @@ const buildSections = (lines) => {
 
   headingEntries.sort((a, b) => a.index - b.index)
 
-  const sections = {
-    traits: [],
-    actions: [],
-    bonusActions: [],
-    reactions: [],
-    legendaryActions: [],
-    mythicActions: [],
-    lairActions: [],
-    regionalEffects: [],
-    description: [],
-  }
+  const sections = SECTION_DEFINITIONS.reduce(
+    (acc, entry) => ({
+      ...acc,
+      [entry.key]: [],
+    }),
+    {},
+  )
 
   headingEntries.forEach((entry, idx) => {
     const next = headingEntries[idx + 1]
@@ -304,85 +305,203 @@ export const parseDndBeyondMonster = (markdown, sourceUrl) => {
     }
   }
 
-  const findLineValue = (label) => {
-    const lowerLabel = label.toLowerCase()
-    const entry = relevantLines.find((line) => {
-      const trimmed = stripFormatting(line)
-      return trimmed.toLowerCase().startsWith(`${lowerLabel} `)
+  const sectionLabels = new Set(SECTION_DEFINITIONS.map((entry) => entry.label))
+  const statBlockEndIndex = relevantLines.findIndex((line) =>
+    sectionLabels.has(normalizeHeading(line)),
+  )
+  const statLines =
+    statBlockEndIndex === -1
+      ? relevantLines
+      : relevantLines.slice(0, statBlockEndIndex)
+
+  const statEntries = statLines
+    .map((line) => {
+      const cleaned = stripFormatting(line)
+      return {
+        raw: line,
+        cleaned,
+        lower: cleaned.toLowerCase(),
+      }
     })
+    .filter((entry) => entry.cleaned)
 
-    if (!entry) {
-      return ''
+  const getStatEntry = (labels) => {
+    for (const label of labels) {
+      const lowerLabel = label.toLowerCase()
+      const entry = statEntries.find(
+        (item) =>
+          item.lower === lowerLabel || item.lower.startsWith(`${lowerLabel} `),
+      )
+      if (entry) {
+        let value = entry.cleaned.slice(label.length)
+        value = value.replace(/^[:\s]+/, '').trim()
+        return { entry, label, value }
+      }
     }
-
-    return stripFormatting(entry).slice(label.length).trim()
+    return null
   }
 
-  const armorClassRaw = findLineValue('Armor Class')
+  const findStatValue = (labels) => {
+    const result = getStatEntry(labels)
+    return result ? result.value : ''
+  }
+
+  const armorClassResult = getStatEntry(['Armor Class', 'AC'])
   let armorClass = null
   let armorNotes = ''
-  if (armorClassRaw) {
-    const match = armorClassRaw.match(/^(\d+)(?:\s*\(([^)]+)\))?/)
+  if (armorClassResult) {
+    const match = armorClassResult.value.match(/^(\d+)(?:\s*\(([^)]+)\))?/)
     if (match) {
       armorClass = parseNumeric(match[1])
-      armorNotes = match[2] ? stripFormatting(match[2]) : ''
+      if (match[2]) {
+        armorNotes = stripFormatting(match[2])
+      } else {
+        const remainder = armorClassResult.value.slice(match[0].length).trim()
+        if (remainder && !remainder.toLowerCase().startsWith('initiative')) {
+          armorNotes = remainder
+        }
+      }
     } else {
-      armorClass = parseNumeric(armorClassRaw)
-      armorNotes = armorClassRaw
+      armorClass = parseNumeric(armorClassResult.value)
+      armorNotes = armorClassResult.value
     }
   }
 
-  const hitPointsRaw = findLineValue('Hit Points')
+  const hitPointsResult = getStatEntry(['Hit Points', 'HP'])
   let hitPoints = null
   let hitDice = ''
-  if (hitPointsRaw) {
-    const match = hitPointsRaw.match(/^(\d+)(?:\s*\(([^)]+)\))?/)
+  if (hitPointsResult) {
+    const match = hitPointsResult.value.match(/^(\d+)(?:\s*\(([^)]+)\))?/)
     if (match) {
       hitPoints = parseNumeric(match[1])
       hitDice = match[2] ? stripFormatting(match[2]) : ''
     } else {
-      hitPoints = parseNumeric(hitPointsRaw)
-      hitDice = hitPointsRaw
+      hitPoints = parseNumeric(hitPointsResult.value)
+      hitDice = hitPointsResult.value
     }
   }
 
-  const speed = findLineValue('Speed')
+  const speed = findStatValue(['Speed'])
 
   const abilityOrder = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
   const abilityScores = {}
 
   abilityOrder.forEach((ability) => {
-    const index = relevantLines.findIndex((line) => stripFormatting(line) === ability)
-    if (index !== -1 && index + 1 < relevantLines.length) {
-      const valueLine = stripFormatting(relevantLines[index + 1])
-      const match = valueLine.match(/^(\d+)/)
-      abilityScores[ability.toLowerCase()] = match ? parseNumeric(match[1]) : null
+    const abilityLine = statLines.find((line) => {
+      const normalized = stripFormatting(line).toUpperCase()
+      return normalized.includes(`| ${ability} |`)
+    })
+
+    if (abilityLine) {
+      const cells = abilityLine
+        .split('|')
+        .map((cell) => stripFormatting(cell))
+        .filter((cell, index, array) => !(index === 0 || index === array.length - 1))
+      const score = parseNumeric(cells[1])
+      abilityScores[ability.toLowerCase()] = score
     } else {
       abilityScores[ability.toLowerCase()] = null
     }
   })
 
-  const savingThrows = findLineValue('Saving Throws')
-  const skills = findLineValue('Skills')
-  const damageVulnerabilities = findLineValue('Damage Vulnerabilities')
-  const damageResistances = findLineValue('Damage Resistances')
-  const damageImmunities = findLineValue('Damage Immunities')
-  const conditionImmunities = findLineValue('Condition Immunities')
-  const senses = findLineValue('Senses')
-  const languages = findLineValue('Languages')
-  const challengeRaw = findLineValue('Challenge')
-  let challengeRating = ''
-  let challengeXp = ''
-  if (challengeRaw) {
-    const match = challengeRaw.match(/^([^()]+?)(?:\s*\(([^)]+)\))?$/)
-    if (match) {
-      challengeRating = stripFormatting(match[1])
-      challengeXp = match[2] ? stripFormatting(match[2]) : ''
-    } else {
-      challengeRating = challengeRaw
+  const savingThrows = findStatValue(['Saving Throws', 'Saves'])
+  const skills = findStatValue(['Skills'])
+  const damageVulnerabilities = findStatValue([
+    'Damage Vulnerabilities',
+    'Vulnerabilities',
+  ])
+  let damageResistances = findStatValue(['Damage Resistances', 'Resistances'])
+  let damageImmunities = findStatValue(['Damage Immunities'])
+  let conditionImmunities = findStatValue(['Condition Immunities'])
+  const generalImmunities = findStatValue(['Immunities'])
+  if (generalImmunities) {
+    const lower = generalImmunities.toLowerCase()
+    const damageKeywords = [
+      'acid',
+      'bludgeoning',
+      'cold',
+      'fire',
+      'force',
+      'lightning',
+      'necrotic',
+      'piercing',
+      'poison',
+      'psychic',
+      'radiant',
+      'slashing',
+      'thunder',
+    ]
+    const isDamageImmunity = damageKeywords.some((keyword) => lower.includes(keyword))
+    if (isDamageImmunity) {
+      if (!damageImmunities) {
+        damageImmunities = generalImmunities
+      }
+    } else if (!conditionImmunities) {
+      conditionImmunities = generalImmunities
     }
   }
-  const proficiencyBonus = findLineValue('Proficiency Bonus')
+  const senses = findStatValue(['Senses'])
+  const languages = findStatValue(['Languages'])
+  let proficiencyBonus = findStatValue(['Proficiency Bonus'])
+  const challengeResult = getStatEntry(['Challenge', 'CR'])
+  let challengeRating = ''
+  let challengeXp = ''
+  if (challengeResult) {
+    const match = challengeResult.value.match(/^([^()]+?)(?:\s*\(([^)]+)\))?$/)
+    if (match) {
+      challengeRating = stripFormatting(match[1]).trim()
+      if (match[2]) {
+        const parts = match[2]
+          .split(/[;•]/)
+          .map((part) => stripFormatting(part).trim())
+          .filter(Boolean)
+        parts.forEach((part) => {
+          if (!challengeXp) {
+            const xpMatch = part.match(/xp\s*([0-9,]+)/i)
+            if (xpMatch) {
+              challengeXp = `XP ${xpMatch[1]}`
+              return
+            }
+          }
+
+          if (!challengeXp && /^xp\b/i.test(part)) {
+            const normalizedXp = part.replace(/^xp\s*/i, '').trim()
+            if (normalizedXp) {
+              challengeXp = `XP ${normalizedXp}`
+              return
+            }
+          }
+
+          if (/pb/i.test(part) && !proficiencyBonus) {
+            const pbMatch = part.match(/pb\s*([+-]?\d+)/i)
+            if (pbMatch) {
+              const numeric = pbMatch[1]
+              proficiencyBonus =
+                numeric.startsWith('+') || numeric.startsWith('-')
+                  ? numeric
+                  : `+${numeric}`
+            } else {
+              const raw = part.replace(/pb/i, '').trim()
+              if (raw) {
+                proficiencyBonus =
+                  raw.startsWith('+') || raw.startsWith('-') ? raw : `+${raw}`
+              }
+            }
+          }
+        })
+      }
+    } else {
+      challengeRating = challengeResult.value
+    }
+  }
+  if (proficiencyBonus) {
+    const normalized = proficiencyBonus.replace(/^[:\s]+/, '').trim()
+    if (normalized && !/^[+-]/.test(normalized)) {
+      proficiencyBonus = `+${normalized}`
+    } else {
+      proficiencyBonus = normalized
+    }
+  }
 
   let habitat = ''
   const habitatLine = relevantLines.find((line) =>
@@ -398,15 +517,21 @@ export const parseDndBeyondMonster = (markdown, sourceUrl) => {
     if (!trimmed) {
       return false
     }
-    if (trimmed.toLowerCase().startsWith('habitat:')) {
+    const lower = trimmed.toLowerCase()
+    if (lower.startsWith('habitat:') || lower.startsWith('treasure:')) {
       return false
     }
-    return /\(\d{4}\)/.test(trimmed) && trimmed.includes('pg')
+    if (lower.startsWith('source:')) {
+      return true
+    }
+    if (/(pg\.?|page)\s*\d+/i.test(trimmed)) {
+      return true
+    }
+    return /(\(\d{4}\))/.test(trimmed)
   })
   if (sourceLine) {
     source = stripFormatting(sourceLine)
   }
-
   const sections = buildSections(relevantLines)
 
   const description = sections.description
