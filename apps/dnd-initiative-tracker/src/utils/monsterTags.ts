@@ -1,5 +1,5 @@
 import { buildMonsterTags } from './dndBeyondMonsterParser'
-import type { MonsterDetails } from '../types'
+import type { CombatantTag, MonsterDetails } from '../types'
 
 /**
  * Normalizes a monster tag by trimming whitespace and collapsing spaces.
@@ -86,4 +86,65 @@ export const getMonsterDisplayTags = (monster: MonsterDetails | null): string[] 
   const fallback = sourceTags.length > 0 ? sourceTags : buildMonsterTags(monster)
 
   return prepareMonsterTags(fallback)
+}
+
+const TYPE_TAG_PATTERN = /^(Tiny|Small|Medium|Large|Huge|Gargantuan|Swarm of)/i
+
+const parseMonsterTagForCombatant = (rawTag: unknown): CombatantTag | null => {
+  if (typeof rawTag !== 'string') {
+    return null
+  }
+
+  const normalized = rawTag.trim()
+  if (!normalized) {
+    return null
+  }
+
+  if (TYPE_TAG_PATTERN.test(normalized)) {
+    return {
+      title: 'Type',
+      value: normalized,
+    }
+  }
+
+  const colonIndex = normalized.indexOf(':')
+  if (colonIndex > 0) {
+    const title = normalized.slice(0, colonIndex).trim()
+    const value = normalized.slice(colonIndex + 1).trim()
+    if (title && value) {
+      return { title, value }
+    }
+  }
+
+  const spaceIndex = normalized.indexOf(' ')
+  if (spaceIndex > 0) {
+    const title = normalized.slice(0, spaceIndex).trim()
+    const value = normalized.slice(spaceIndex + 1).trim()
+    if (title && value) {
+      return { title, value }
+    }
+  }
+
+  return {
+    title: normalized,
+    value: normalized,
+  }
+}
+
+export const getMonsterCombatantTags = (monster: MonsterDetails | null): CombatantTag[] => {
+  if (!monster) {
+    return []
+  }
+
+  const displayTags = getMonsterDisplayTags(monster)
+  const parsed: CombatantTag[] = []
+
+  displayTags.forEach((tag) => {
+    const structured = parseMonsterTagForCombatant(tag)
+    if (structured) {
+      parsed.push(structured)
+    }
+  })
+
+  return parsed
 }

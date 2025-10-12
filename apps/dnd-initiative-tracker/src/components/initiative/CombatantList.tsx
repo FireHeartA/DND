@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { DragEvent, KeyboardEvent } from 'react'
-import type { Combatant, MonsterDetails } from '../../types'
+import type { Combatant, CombatantTag, MonsterDetails } from '../../types'
 import type { AdjustmentDraft, DamageModifier, ValueDraft } from './types'
 
 interface CombatantListProps {
@@ -98,6 +98,25 @@ export const CombatantList: React.FC<CombatantListProps> = ({
     setDragOver(null)
   }
 
+  const renderTagLabel = (tag: CombatantTag): string => {
+    const title = tag.title.trim()
+    const value = tag.value.trim()
+
+    if (!title && !value) {
+      return ''
+    }
+
+    if (!value) {
+      return title
+    }
+
+    if (!title) {
+      return value
+    }
+
+    return title.toLowerCase() === value.toLowerCase() ? title : `${title}: ${value}`
+  }
+
   return (
     <ul className="combatant-list">
       {combatants.map((combatant) => {
@@ -185,7 +204,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                           key={`${combatant.id}-${tag.title}-${tag.value}`}
                           className="stat-chip combatant-card__monster-tag"
                         >
-                          {tag.title}: {tag.value}
+                          {renderTagLabel(tag)}
                         </span>
                       ))}
                     </div>
