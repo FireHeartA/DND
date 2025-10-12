@@ -20,6 +20,15 @@ import {
   setActiveCampaign as setActiveCampaignAction,
   updateCampaignDetails as updateCampaignDetailsAction,
 } from './store/campaignSlice'
+import {
+  importMonster as importMonsterAction,
+  removeMonsterFromCampaign as removeMonsterFromCampaignAction,
+  toggleMonsterFavorite as toggleMonsterFavoriteAction,
+  recordMonsterUsage as recordMonsterUsageAction,
+  updateMonsterDetails as updateMonsterDetailsAction,
+  loadState as loadMonsterLibraryStateAction,
+} from './store/monsterLibrarySlice'
+import { parseDndBeyondMonster, normalizeDndBeyondUrl } from './utils/dndBeyondMonsterParser'
 
 const formatDurationClock = (durationMs) => {
   if (!Number.isFinite(durationMs) || durationMs <= 0) {
@@ -157,6 +166,7 @@ function App() {
   const combatants = useSelector((state) => state.combat.combatants)
   const campaigns = useSelector((state) => state.campaigns.campaigns)
   const activeCampaignId = useSelector((state) => state.campaigns.activeCampaignId)
+  const monsterLibrary = useSelector((state) => state.monsterLibrary)
   const [formData, setFormData] = useState({
     name: '',
     maxHp: '',
@@ -177,6 +187,9 @@ function App() {
   const [playerTemplateError, setPlayerTemplateError] = useState('')
   const [templateInitiatives, setTemplateInitiatives] = useState({})
   const [templateErrors, setTemplateErrors] = useState({})
+  const [monsterInitiatives, setMonsterInitiatives] = useState({})
+  const [monsterErrors, setMonsterErrors] = useState({})
+  const [monsterEdits, setMonsterEdits] = useState({})
   const [campaignForm, setCampaignForm] = useState({ name: '' })
   const [campaignFormError, setCampaignFormError] = useState('')
   const [campaignDetailsDraft, setCampaignDetailsDraft] = useState({
@@ -191,6 +204,10 @@ function App() {
   const [isStatsVisible, setIsStatsVisible] = useState(false)
   const [lastCombatStats, setLastCombatStats] = useState(null)
   const fileInputRef = useRef(null)
+  const [monsterImportUrl, setMonsterImportUrl] = useState('')
+  const [monsterImportError, setMonsterImportError] = useState('')
+  const [monsterImportSuccess, setMonsterImportSuccess] = useState('')
+  const [isMonsterImporting, setIsMonsterImporting] = useState(false)
   const isCombatActive = activeCombatantId !== null
 
   const sortedCombatants = useMemo(() => {
@@ -225,6 +242,103 @@ function App() {
     )
   }, [campaigns])
 
+  const campaignMonsterList = useMemo(() => {
+    if (!activeCampaign) {
+      return []
+    }
+
+    const libraryEntries = monsterLibrary.campaignLibraries[activeCampaign.id] || []
+    return libraryEntries
+      .map((entry) => {
+        const monster = monsterLibrary.monsters[entry.monsterId]
+        if (!monster) {
+          return null
+        }
+        return {
+          monster,
+          entry,
+          isFavorite: monsterLibrary.favorites.includes(entry.monsterId),
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const lastA = a.entry.lastUsedAt || 0
+        const lastB = b.entry.lastUsedAt || 0
+
+        if (lastA !== lastB) {
+          return lastB - lastA
+        }
+
+        if (a.entry.usageCount !== b.entry.usageCount) {
+          return b.entry.usageCount - a.entry.usageCount
+        }
+
+        return b.entry.addedAt - a.entry.addedAt
+      })
+  }, [activeCampaign, monsterLibrary])
+
+  const favoriteMonsterList = useMemo(() => {
+    if (!monsterLibrary || !Array.isArray(monsterLibrary.favorites)) {
+      return []
+    }
+
+    const activeLibrary =
+      activeCampaign && monsterLibrary.campaignLibraries[activeCampaign.id]
+        ? monsterLibrary.campaignLibraries[activeCampaign.id]
+        : []
+
+    return monsterLibrary.favorites
+      .map((monsterId) => {
+        const monster = monsterLibrary.monsters[monsterId]
+        if (!monster) {
+          return null
+        }
+
+        const isInActiveCampaign = activeLibrary.some(
+          (entry) => entry.monsterId === monsterId,
+        )
+
+        return {
+          monster,
+          isInActiveCampaign,
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const usageA = a.monster.totalUsageCount || 0
+        const usageB = b.monster.totalUsageCount || 0
+
+        if (usageA !== usageB) {
+          return usageB - usageA
+        }
+
+        const updatedA = a.monster.updatedAt || 0
+        const updatedB = b.monster.updatedAt || 0
+        return updatedB - updatedA
+      })
+  }, [monsterLibrary, activeCampaign])
+
+  const visibleMonsterIds = useMemo(() => {
+    const ids = []
+    const seen = new Set()
+
+    campaignMonsterList.forEach(({ monster }) => {
+      if (!seen.has(monster.id)) {
+        seen.add(monster.id)
+        ids.push(monster.id)
+      }
+    })
+
+    favoriteMonsterList.forEach(({ monster }) => {
+      if (!seen.has(monster.id)) {
+        seen.add(monster.id)
+        ids.push(monster.id)
+      }
+    })
+
+    return ids
+  }, [campaignMonsterList, favoriteMonsterList])
+
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
@@ -245,6 +359,258 @@ function App() {
 
   const resetPlayerTemplateForm = () => {
     setPlayerTemplateForm({ name: '', maxHp: '', armorClass: '', notes: '' })
+  }
+
+  const handleMonsterInitiativeChange = (monsterId, value) => {
+    setMonsterInitiatives((prev) => ({
+      ...prev,
+      [monsterId]: value,
+    }))
+  }
+
+  const handleRemoveMonsterTemplateEntry = (monsterId) => {
+    if (!activeCampaignId) {
+      return
+    }
+
+    dispatch(
+      removeMonsterFromCampaignAction({
+        campaignId: activeCampaignId,
+        monsterId,
+      }),
+    )
+
+    setMonsterInitiatives((prev) => {
+      if (!(monsterId in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
+
+    setMonsterErrors((prev) => {
+      if (!(monsterId in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
+
+    setMonsterEdits((prev) => {
+      if (!(monsterId in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
+  }
+
+  const handleToggleMonsterFavoriteClick = (monsterId) => {
+    dispatch(toggleMonsterFavoriteAction(monsterId))
+  }
+
+  const handleStartMonsterEdit = (monster) => {
+    if (!monster || !monster.id) {
+      return
+    }
+
+    setMonsterEdits((prev) => ({
+      ...prev,
+      [monster.id]: {
+        name: monster.name || '',
+        description:
+          Array.isArray(monster.description) && monster.description.length > 0
+            ? monster.description.join('\n\n')
+            : '',
+        error: '',
+      },
+    }))
+  }
+
+  const handleCancelMonsterEdit = (monsterId) => {
+    setMonsterEdits((prev) => {
+      if (!(monsterId in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
+  }
+
+  const handleMonsterEditFieldChange = (monsterId, field, value) => {
+    setMonsterEdits((prev) => {
+      const existing = prev[monsterId]
+      if (!existing) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [monsterId]: {
+          ...existing,
+          [field]: value,
+          error: '',
+        },
+      }
+    })
+  }
+
+  const handleSaveMonsterEdit = (monsterId) => {
+    const draft = monsterEdits[monsterId]
+    if (!draft) {
+      return
+    }
+
+    const name = draft.name ? draft.name.trim() : ''
+    if (!name) {
+      setMonsterEdits((prev) => ({
+        ...prev,
+        [monsterId]: {
+          ...draft,
+          error: 'A monster needs a name to stalk the initiative order.',
+        },
+      }))
+      return
+    }
+
+    const description = typeof draft.description === 'string' ? draft.description : ''
+
+    dispatch(
+      updateMonsterDetailsAction({
+        monsterId,
+        name,
+        description,
+      }),
+    )
+
+    setMonsterEdits((prev) => {
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
+  }
+
+  const handleQuickAddMonster = (monsterId, sourceCampaignId = null) => {
+    const draft = monsterInitiatives[monsterId]
+    const rawInitiative = typeof draft === 'string' ? draft.trim() : ''
+    const initiativeValue = Number.parseInt(rawInitiative, 10)
+
+    if (!Number.isFinite(initiativeValue)) {
+      setMonsterErrors((prev) => ({
+        ...prev,
+        [monsterId]: 'Set an initiative before adding to the tracker.',
+      }))
+      return
+    }
+
+    const monster = monsterLibrary.monsters[monsterId]
+    if (!monster) {
+      setMonsterErrors((prev) => {
+        const next = { ...prev }
+        delete next[monsterId]
+        return next
+      })
+      return
+    }
+
+    const maxHp =
+      Number.isFinite(monster.hitPoints) && monster.hitPoints > 0 ? monster.hitPoints : 1
+
+    dispatch(
+      addCombatant({
+        name: monster.name,
+        maxHp,
+        initiative: Math.trunc(initiativeValue),
+        type: 'monster',
+        armorClass: monster.armorClass,
+        notes: monster.notes,
+        sourceMonsterId: monsterId,
+        sourceCampaignId: sourceCampaignId || (activeCampaign ? activeCampaign.id : null),
+      }),
+    )
+
+    setMonsterInitiatives((prev) => ({
+      ...prev,
+      [monsterId]: '',
+    }))
+
+    setMonsterErrors((prev) => {
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
+
+    const usageCampaignId = activeCampaign ? activeCampaign.id : sourceCampaignId
+    dispatch(
+      recordMonsterUsageAction({
+        monsterId,
+        campaignId: usageCampaignId ? String(usageCampaignId) : null,
+      }),
+    )
+  }
+
+  const handleImportMonster = async (event) => {
+    event.preventDefault()
+
+    if (!activeCampaign) {
+      setMonsterImportError('Select a campaign before importing monsters.')
+      return
+    }
+
+    const trimmedUrl = monsterImportUrl.trim()
+
+    if (!trimmedUrl) {
+      setMonsterImportError('Provide a D&D Beyond monster URL to import.')
+      return
+    }
+
+    let normalized
+    try {
+      normalized = normalizeDndBeyondUrl(trimmedUrl)
+    } catch (error) {
+      setMonsterImportError(
+        error instanceof Error
+          ? error.message
+          : 'Enter a valid D&D Beyond monster URL.',
+      )
+      return
+    }
+
+    setIsMonsterImporting(true)
+    setMonsterImportError('')
+    setMonsterImportSuccess('')
+
+    try {
+      const response = await fetch(`https://r.jina.ai/${normalized.normalizedUrl}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch monster data. Check the URL and try again.')
+      }
+
+      const text = await response.text()
+      const parsedMonster = parseDndBeyondMonster(text, normalized.normalizedUrl)
+
+      dispatch(
+        importMonsterAction({
+          campaignId: activeCampaign.id,
+          monster: parsedMonster,
+        }),
+      )
+
+      setMonsterImportSuccess(`Imported ${parsedMonster.name} into ${activeCampaign.name}.`)
+      setMonsterImportUrl('')
+    } catch (error) {
+      setMonsterImportError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to import monster. Please try again.',
+      )
+    } finally {
+      setIsMonsterImporting(false)
+    }
   }
 
   const handleAddCombatant = (event) => {
@@ -702,6 +1068,50 @@ function App() {
   }, [activeCampaignRoster])
 
   useEffect(() => {
+    setMonsterInitiatives((prev) => {
+      const next = {}
+
+      visibleMonsterIds.forEach((id) => {
+        next[id] = typeof prev[id] === 'string' ? prev[id] : ''
+      })
+
+      const prevKeys = Object.keys(prev)
+      const nextKeys = Object.keys(next)
+
+      if (
+        prevKeys.length === nextKeys.length &&
+        prevKeys.every((key) => next[key] === prev[key])
+      ) {
+        return prev
+      }
+
+      return next
+    })
+
+    setMonsterErrors((prev) => {
+      const next = {}
+
+      visibleMonsterIds.forEach((id) => {
+        if (prev[id]) {
+          next[id] = prev[id]
+        }
+      })
+
+      const prevKeys = Object.keys(prev)
+      const nextKeys = Object.keys(next)
+
+      if (
+        prevKeys.length === nextKeys.length &&
+        prevKeys.every((key) => next[key] === prev[key])
+      ) {
+        return prev
+      }
+
+      return next
+    })
+  }, [visibleMonsterIds])
+
+  useEffect(() => {
     if (!activeCampaign) {
       setCampaignDetailsDraft({ name: '', notes: '' })
       setCampaignDetailsError('')
@@ -714,6 +1124,12 @@ function App() {
     })
     setCampaignDetailsError('')
   }, [activeCampaign])
+
+  useEffect(() => {
+    setMonsterImportError('')
+    setMonsterImportSuccess('')
+    setMonsterImportUrl('')
+  }, [activeCampaignId])
 
   useEffect(() => {
     if (!isCombatActive || turnStartTime === null) {
@@ -756,7 +1172,7 @@ function App() {
       setActiveCombatantId(sortedCombatants[0].id)
       setTurnStartTime(Date.now())
     }
-  }, [sortedCombatants, activeCombatantId])
+  }, [sortedCombatants, activeCombatantId, turnStartTime])
 
   const recordTurnDuration = (endTimestamp = Date.now()) => {
     if (activeCombatantId === null || turnStartTime === null) {
@@ -933,6 +1349,13 @@ function App() {
             dispatch(
               loadCampaignStateAction({ campaigns: [], activeCampaignId: null }),
             )
+          }
+
+          if (parsed.monsterLibrary && typeof parsed.monsterLibrary === 'object') {
+            dispatch(loadMonsterLibraryStateAction(parsed.monsterLibrary))
+            hasValidData = true
+          } else if (hasValidData) {
+            dispatch(loadMonsterLibraryStateAction({}))
           }
         }
 
@@ -1282,6 +1705,259 @@ function App() {
                               )}
                             </li>
                           ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <form className="campaign-form" onSubmit={handleImportMonster}>
+                      <h4>Import monster from D&D Beyond</h4>
+                      <div className="form-grid campaign-form__grid">
+                        <label className="campaign-form__url">
+                          <span>Monster URL</span>
+                          <input
+                            value={monsterImportUrl}
+                            onChange={(event) => setMonsterImportUrl(event.target.value)}
+                            placeholder="https://www.dndbeyond.com/monsters/ancient-red-dragon"
+                            inputMode="url"
+                            autoComplete="off"
+                          />
+                        </label>
+                      </div>
+                      {monsterImportError && <p className="form-error">{monsterImportError}</p>}
+                      {monsterImportSuccess && (
+                        <p className="form-success">{monsterImportSuccess}</p>
+                      )}
+                      <div className="campaign-form__actions">
+                        <button type="submit" className="primary-button" disabled={isMonsterImporting}>
+                          {isMonsterImporting ? 'Importing…' : 'Import monster'}
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() => {
+                            setMonsterImportUrl('')
+                            setMonsterImportError('')
+                            setMonsterImportSuccess('')
+                          }}
+                          disabled={isMonsterImporting}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <p className="form-hint">
+                        The tracker fetches a reader-friendly version of the stat block via r.jina.ai.
+                      </p>
+                    </form>
+
+                    <div className="monster-library">
+                      <div className="monster-library__header">
+                        <h4>Campaign monsters</h4>
+                        <p>Keep your frequently used foes ready for quick initiative drops.</p>
+                      </div>
+                      {campaignMonsterList.length === 0 ? (
+                        <div className="monster-library__empty">
+                          <p>No monsters imported yet. Paste a D&D Beyond URL above to add one.</p>
+                        </div>
+                      ) : (
+                        <ul className="monster-library__list">
+                          {campaignMonsterList.map(({ monster, entry, isFavorite }) => {
+                            const initiativeValue = monsterInitiatives[monster.id] ?? ''
+                            const statChips = [
+                              `HP ${
+                                monster.hitPoints !== null ? monster.hitPoints : '—'
+                              }${monster.hitDice ? ` (${monster.hitDice})` : ''}`,
+                              monster.armorClass !== null ? `AC ${monster.armorClass}` : null,
+                              monster.challengeRating ? `CR ${monster.challengeRating}` : null,
+                              monster.proficiencyBonus ? `PB ${monster.proficiencyBonus}` : null,
+                            ]
+                              .filter(Boolean)
+                              .slice(0, 4)
+
+                            const infoItems = []
+                            if (monster.speed) {
+                              infoItems.push(`Speed ${monster.speed}`)
+                            }
+                            if (monster.savingThrows) {
+                              infoItems.push(`Saves ${monster.savingThrows}`)
+                            }
+                            if (monster.damageResistances) {
+                              infoItems.push(`Resist ${monster.damageResistances}`)
+                            } else if (monster.damageImmunities) {
+                              infoItems.push(`Immune ${monster.damageImmunities}`)
+                            }
+
+                            const lastUsedLabel = entry.lastUsedAt
+                              ? new Date(entry.lastUsedAt).toLocaleString()
+                              : null
+
+                            const editDraft = monsterEdits[monster.id]
+                              ? monsterEdits[monster.id]
+                              : null
+                            const isEditing = Boolean(editDraft)
+
+                            return (
+                              <li key={monster.id} className="template-card monster-card">
+                                <header className="template-card__header monster-card__header">
+                                  <div>
+                                    <h5>{monster.name}</h5>
+                                    {monster.typeLine && (
+                                      <p className="monster-card__type">{monster.typeLine}</p>
+                                    )}
+                                    <div className="template-card__stats monster-card__stats">
+                                      {statChips.map((chip) => (
+                                        <span key={chip} className="stat-chip">
+                                          {chip}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div className="monster-card__header-actions">
+                                    <button
+                                      type="button"
+                                      className={`ghost-button monster-card__favorite-button${
+                                        isFavorite ? ' monster-card__favorite-button--active' : ''
+                                      }`}
+                                      onClick={() => handleToggleMonsterFavoriteClick(monster.id)}
+                                    >
+                                      {isFavorite ? '★ Favorite' : '☆ Favorite'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-button"
+                                      onClick={() => handleStartMonsterEdit(monster)}
+                                    >
+                                      {isEditing ? 'Editing…' : 'Edit details'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-button"
+                                      onClick={() => handleRemoveMonsterTemplateEntry(monster.id)}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </header>
+                                {infoItems.length > 0 && (
+                                  <div className="monster-card__info">
+                                    {infoItems.slice(0, 3).map((item) => (
+                                      <span key={item} className="monster-card__info-item">
+                                        {item}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {isEditing ? (
+                                  <form
+                                    className="monster-card__edit-form"
+                                    onSubmit={(event) => {
+                                      event.preventDefault()
+                                      handleSaveMonsterEdit(monster.id)
+                                    }}
+                                  >
+                                    <label>
+                                      <span>Monster name</span>
+                                      <input
+                                        value={editDraft.name}
+                                        onChange={(event) =>
+                                          handleMonsterEditFieldChange(
+                                            monster.id,
+                                            'name',
+                                            event.target.value,
+                                          )
+                                        }
+                                        placeholder="Gray Ooze"
+                                        autoComplete="off"
+                                      />
+                                    </label>
+                                    <label className="monster-card__edit-description">
+                                      <span>Description</span>
+                                      <textarea
+                                        value={editDraft.description}
+                                        onChange={(event) =>
+                                          handleMonsterEditFieldChange(
+                                            monster.id,
+                                            'description',
+                                            event.target.value,
+                                          )
+                                        }
+                                        placeholder="Background lore, lair notes, or encounter reminders."
+                                        rows={4}
+                                      />
+                                    </label>
+                                    {editDraft.error && (
+                                      <p className="template-card__error">{editDraft.error}</p>
+                                    )}
+                                    <div className="monster-card__edit-actions">
+                                      <button type="submit" className="primary-button">
+                                        Save changes
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="ghost-button"
+                                        onClick={() => handleCancelMonsterEdit(monster.id)}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </form>
+                                ) : (
+                                  Array.isArray(monster.description) &&
+                                  monster.description.length > 0 && (
+                                    <div className="monster-card__description">
+                                      {monster.description.map((paragraph, paragraphIndex) => (
+                                        <p key={paragraphIndex}>{paragraph}</p>
+                                      ))}
+                                    </div>
+                                  )
+                                )}
+                                <div className="template-card__actions monster-card__actions">
+                                  <label className="template-card__initiative">
+                                    <span>Initiative</span>
+                                    <input
+                                      value={initiativeValue}
+                                      onChange={(event) =>
+                                        handleMonsterInitiativeChange(
+                                          monster.id,
+                                          event.target.value,
+                                        )
+                                      }
+                                      placeholder="0"
+                                      inputMode="numeric"
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={() => handleQuickAddMonster(monster.id, activeCampaign.id)}
+                                  >
+                                    Add to initiative
+                                  </button>
+                                </div>
+                                {monsterErrors[monster.id] && (
+                                  <p className="template-card__error">{monsterErrors[monster.id]}</p>
+                                )}
+                                <footer className="monster-card__footer">
+                                  <div className="monster-card__usage">
+                                    <span>
+                                      Used {entry.usageCount}{' '}
+                                      {entry.usageCount === 1 ? 'time' : 'times'}
+                                    </span>
+                                    {lastUsedLabel && <span>Last used {lastUsedLabel}</span>}
+                                  </div>
+                                  {monster.sourceUrl && (
+                                    <a
+                                      href={monster.sourceUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="monster-card__link"
+                                    >
+                                      View on D&amp;D Beyond
+                                    </a>
+                                  )}
+                                </footer>
+                              </li>
+                            )
+                          })}
                         </ul>
                       )}
                     </div>
@@ -1810,6 +2486,175 @@ function App() {
             <div className="initiative-campaign__empty">
               <p>Create a campaign to quickly load recurring party members.</p>
             </div>
+          )}
+        </section>
+
+        <section className="initiative-monsters">
+          <header className="initiative-monsters__header">
+            <div>
+              <h3>Campaign bestiary</h3>
+              <p>Drop imported monsters into combat with a single click.</p>
+            </div>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => setActiveView('campaigns')}
+            >
+              Manage monsters
+            </button>
+          </header>
+          {!activeCampaign ? (
+            <div className="initiative-monsters__empty">
+              <p>Select a campaign to access its monsters.</p>
+            </div>
+          ) : campaignMonsterList.length === 0 ? (
+            <div className="initiative-monsters__empty">
+              <p>Import monsters in the campaign manager to build your bestiary.</p>
+            </div>
+          ) : (
+            <ul className="monster-quick-list">
+              {campaignMonsterList.map(({ monster, isFavorite }) => {
+                const initiativeValue = monsterInitiatives[monster.id] ?? ''
+                const statChips = [
+                  monster.armorClass !== null ? `AC ${monster.armorClass}` : null,
+                  monster.hitPoints !== null ? `HP ${monster.hitPoints}` : null,
+                  monster.challengeRating ? `CR ${monster.challengeRating}` : null,
+                  monster.proficiencyBonus ? `PB ${monster.proficiencyBonus}` : null,
+                ]
+                  .filter(Boolean)
+                  .slice(0, 4)
+
+                return (
+                  <li key={monster.id} className="template-card monster-card monster-card--compact">
+                    <header className="template-card__header monster-card__header">
+                      <div>
+                        <h5>{monster.name}</h5>
+                        {monster.typeLine && (
+                          <p className="monster-card__type">{monster.typeLine}</p>
+                        )}
+                        <div className="template-card__stats monster-card__stats">
+                          {statChips.map((chip) => (
+                            <span key={chip} className="stat-chip">
+                              {chip}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={`ghost-button monster-card__favorite-button${
+                          isFavorite ? ' monster-card__favorite-button--active' : ''
+                        }`}
+                        onClick={() => handleToggleMonsterFavoriteClick(monster.id)}
+                      >
+                        {isFavorite ? '★ Favorite' : '☆ Favorite'}
+                      </button>
+                    </header>
+                    <div className="template-card__actions monster-card__actions">
+                      <label className="template-card__initiative">
+                        <span>Initiative</span>
+                        <input
+                          value={initiativeValue}
+                          onChange={(event) =>
+                            handleMonsterInitiativeChange(monster.id, event.target.value)
+                          }
+                          placeholder="0"
+                          inputMode="numeric"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => handleQuickAddMonster(monster.id, activeCampaign.id)}
+                      >
+                        Add monster
+                      </button>
+                    </div>
+                    {monsterErrors[monster.id] && (
+                      <p className="template-card__error">{monsterErrors[monster.id]}</p>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section className="initiative-favorites">
+          <header className="initiative-favorites__header">
+            <div>
+              <h3>Favorite monsters</h3>
+              <p>Access your starred creatures from any campaign.</p>
+            </div>
+          </header>
+          {favoriteMonsterList.length === 0 ? (
+            <div className="initiative-favorites__empty">
+              <p>Mark campaign monsters as favorites to reuse them here.</p>
+            </div>
+          ) : (
+            <ul className="monster-quick-list">
+              {favoriteMonsterList.map(({ monster }) => {
+                const initiativeValue = monsterInitiatives[monster.id] ?? ''
+                const statChips = [
+                  monster.armorClass !== null ? `AC ${monster.armorClass}` : null,
+                  monster.hitPoints !== null ? `HP ${monster.hitPoints}` : null,
+                  monster.challengeRating ? `CR ${monster.challengeRating}` : null,
+                  monster.proficiencyBonus ? `PB ${monster.proficiencyBonus}` : null,
+                ]
+                  .filter(Boolean)
+                  .slice(0, 4)
+
+                return (
+                  <li key={monster.id} className="template-card monster-card monster-card--compact">
+                    <header className="template-card__header monster-card__header">
+                      <div>
+                        <h5>{monster.name}</h5>
+                        {monster.typeLine && (
+                          <p className="monster-card__type">{monster.typeLine}</p>
+                        )}
+                        <div className="template-card__stats monster-card__stats">
+                          {statChips.map((chip) => (
+                            <span key={chip} className="stat-chip">
+                              {chip}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="ghost-button monster-card__favorite-button monster-card__favorite-button--active"
+                        onClick={() => handleToggleMonsterFavoriteClick(monster.id)}
+                      >
+                        ★ Favorite
+                      </button>
+                    </header>
+                    <div className="template-card__actions monster-card__actions">
+                      <label className="template-card__initiative">
+                        <span>Initiative</span>
+                        <input
+                          value={initiativeValue}
+                          onChange={(event) =>
+                            handleMonsterInitiativeChange(monster.id, event.target.value)
+                          }
+                          placeholder="0"
+                          inputMode="numeric"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => handleQuickAddMonster(monster.id, activeCampaign ? activeCampaign.id : null)}
+                      >
+                        Add monster
+                      </button>
+                    </div>
+                    {monsterErrors[monster.id] && (
+                      <p className="template-card__error">{monsterErrors[monster.id]}</p>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
           )}
         </section>
       </>
