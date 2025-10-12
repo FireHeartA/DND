@@ -125,6 +125,18 @@ export interface RemovePlayerCharacterArgs {
   characterId: string
 }
 
+export interface UpdatePlayerCharacterArgs {
+  campaignId: string
+  characterId: string
+  character: {
+    name: string
+    maxHp: number
+    armorClass: number | null
+    profileUrl: string
+    notes: string
+  }
+}
+
 export interface LoadCampaignStateArgs {
   campaigns?: unknown
   activeCampaignId?: unknown
@@ -237,6 +249,41 @@ const campaignsSlice = createSlice({
       )
     },
     /**
+     * Updates an existing player character template with sanitized values.
+     */
+    updatePlayerCharacter(state, action: PayloadAction<UpdatePlayerCharacterArgs>) {
+      const { campaignId, characterId, character } = action.payload
+      const campaign = state.campaigns.find((entry) => entry.id === campaignId)
+      if (!campaign) {
+        return
+      }
+
+      const existing = campaign.playerCharacters.find((entry) => entry.id === characterId)
+      if (!existing) {
+        return
+      }
+
+      const sanitizedName = sanitizeName(character.name)
+      if (!sanitizedName) {
+        return
+      }
+
+      const maxHpValue = Number.parseInt(String(character.maxHp ?? ''), 10)
+      if (!Number.isFinite(maxHpValue) || maxHpValue <= 0) {
+        return
+      }
+
+      const armorClassValue = Number.parseInt(String(character.armorClass ?? ''), 10)
+
+      existing.name = sanitizedName
+      existing.maxHp = Math.trunc(maxHpValue)
+      existing.armorClass = Number.isFinite(armorClassValue)
+        ? Math.max(0, Math.trunc(armorClassValue))
+        : null
+      existing.profileUrl = sanitizeProfileUrl(character.profileUrl)
+      existing.notes = typeof character.notes === 'string' ? character.notes : ''
+    },
+    /**
      * Loads campaign state exported from disk and sanitizes the payload.
      */
     loadState(state, action: PayloadAction<LoadCampaignStateArgs>) {
@@ -269,6 +316,7 @@ export const {
   updateCampaignDetails,
   addPlayerCharacter,
   removePlayerCharacter,
+  updatePlayerCharacter,
   loadState,
 } = campaignsSlice.actions
 
