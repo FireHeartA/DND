@@ -7,6 +7,7 @@ import {
   removePlayerCharacter as removePlayerCharacterAction,
   setActiveCampaign as setActiveCampaignAction,
   updateCampaignDetails as updateCampaignDetailsAction,
+  updatePlayerCharacter as updatePlayerCharacterAction,
 } from '../../store/campaignSlice'
 import {
   importMonster as importMonsterAction,
@@ -38,6 +39,15 @@ interface MonsterEditDraft {
   error: string
 }
 
+interface PlayerTemplateEditDraft {
+  name: string
+  maxHp: string
+  armorClass: string
+  profileUrl: string
+  notes: string
+  error: string
+}
+
 /**
  * Displays the campaign manager view, allowing the user to manage rosters and monsters.
  */
@@ -64,6 +74,9 @@ export const CampaignManagerView: React.FC = () => {
   const [monsterImportSuccess, setMonsterImportSuccess] = useState('')
   const [isMonsterImporting, setIsMonsterImporting] = useState(false)
   const [monsterEdits, setMonsterEdits] = useState<Record<string, MonsterEditDraft>>({})
+  const [playerTemplateEdits, setPlayerTemplateEdits] = useState<
+    Record<string, PlayerTemplateEditDraft>
+  >({})
 
   /**
    * Sorts campaigns chronologically so the list remains stable for learners.
@@ -160,6 +173,13 @@ export const CampaignManagerView: React.FC = () => {
     setMonsterImportError('')
     setMonsterImportSuccess('')
     setMonsterImportUrl('')
+  }, [activeCampaignId])
+
+  /**
+   * Clears any in-progress player template edits when switching campaigns.
+   */
+  useEffect(() => {
+    setPlayerTemplateEdits({})
   }, [activeCampaignId])
 
   /**
@@ -349,6 +369,14 @@ export const CampaignManagerView: React.FC = () => {
       if (!activeCampaignId) {
         return
       }
+      setPlayerTemplateEdits((prev) => {
+        if (!(id in prev)) {
+          return prev
+        }
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
       dispatch(
         removePlayerCharacterAction({
           campaignId: activeCampaignId,
@@ -357,6 +385,163 @@ export const CampaignManagerView: React.FC = () => {
       )
     },
     [activeCampaignId, dispatch],
+  )
+
+  /**
+   * Begins editing a saved player template by copying its current data into local state.
+   */
+  const handleStartPlayerTemplateEdit = useCallback((template: CampaignCharacter) => {
+    setPlayerTemplateEdits((prev) => ({
+      ...prev,
+      [template.id]: {
+        name: template.name,
+        maxHp: String(template.maxHp),
+        armorClass: template.armorClass !== null ? String(template.armorClass) : '',
+        profileUrl: template.profileUrl || '',
+        notes: template.notes || '',
+        error: '',
+      },
+    }))
+  }, [])
+
+  /**
+   * Discards edits for a saved player template.
+   */
+  const handleCancelPlayerTemplateEdit = useCallback((id: string) => {
+    setPlayerTemplateEdits((prev) => {
+      if (!(id in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }, [])
+
+  /**
+   * Updates a field in the saved player template edit draft.
+   */
+  const handlePlayerTemplateEditFieldChange = useCallback(
+    (
+      id: string,
+      field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes',
+      value: string,
+    ) => {
+      setPlayerTemplateEdits((prev) => {
+        const draft = prev[id]
+        if (!draft) {
+          return prev
+        }
+        return {
+          ...prev,
+          [id]: {
+            ...draft,
+            [field]: value,
+            error: '',
+          },
+        }
+      })
+    },
+    [],
+  )
+
+  /**
+   * Saves the edits for a player template after validating the draft values.
+   */
+  const handleSavePlayerTemplateEdit = useCallback(
+    (id: string) => {
+      if (!activeCampaignId) {
+        return
+      }
+
+      const draft = playerTemplateEdits[id]
+      if (!draft) {
+        return
+      }
+
+      const name = draft.name.trim()
+      if (!name) {
+        setPlayerTemplateEdits((prev) => {
+          const existing = prev[id]
+          if (!existing) {
+            return prev
+          }
+          return {
+            ...prev,
+            [id]: {
+              ...existing,
+              error: 'Every hero needs a name before they join the roster.',
+            },
+          }
+        })
+        return
+      }
+
+      const maxHpValue = Number.parseInt(draft.maxHp, 10)
+      if (!Number.isFinite(maxHpValue) || maxHpValue <= 0) {
+        setPlayerTemplateEdits((prev) => {
+          const existing = prev[id]
+          if (!existing) {
+            return prev
+          }
+          return {
+            ...prev,
+            [id]: {
+              ...existing,
+              error: 'Max HP must be a positive number for your heroes.',
+            },
+          }
+        })
+        return
+      }
+
+      const armorClassValue = Number.parseInt(draft.armorClass, 10)
+      const armorClass = Number.isFinite(armorClassValue)
+        ? Math.max(0, Math.trunc(armorClassValue))
+        : null
+
+      const profileUrl = draft.profileUrl.trim()
+      if (profileUrl && !/^https?:\/\//i.test(profileUrl)) {
+        setPlayerTemplateEdits((prev) => {
+          const existing = prev[id]
+          if (!existing) {
+            return prev
+          }
+          return {
+            ...prev,
+            [id]: {
+              ...existing,
+              error: 'Profile links should start with http:// or https:// to open correctly.',
+            },
+          }
+        })
+        return
+      }
+
+      dispatch(
+        updatePlayerCharacterAction({
+          campaignId: activeCampaignId,
+          characterId: id,
+          character: {
+            name,
+            maxHp: Math.trunc(maxHpValue),
+            armorClass,
+            profileUrl,
+            notes: draft.notes,
+          },
+        }),
+      )
+
+      setPlayerTemplateEdits((prev) => {
+        if (!(id in prev)) {
+          return prev
+        }
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+    },
+    [activeCampaignId, dispatch, playerTemplateEdits],
   )
 
   /**
@@ -854,39 +1039,166 @@ export const CampaignManagerView: React.FC = () => {
                     </div>
                   ) : (
                     <ul className="template-list">
-                      {activeCampaignRoster.map((template) => (
-                        <li key={template.id} className="template-card">
-                          <header className="template-card__header">
-                            <div>
-                              <h5>{template.name}</h5>
-                              <div className="template-card__stats">
-                                <span className="stat-chip">Max HP {template.maxHp}</span>
-                                {template.armorClass !== null && (
-                                  <span className="stat-chip">AC {template.armorClass}</span>
+                      {activeCampaignRoster.map((template) => {
+                        const editDraft = playerTemplateEdits[template.id] || null
+                        const isEditing = Boolean(editDraft)
+
+                        return (
+                          <li key={template.id} className="template-card">
+                            <header className="template-card__header">
+                              <div>
+                                {isEditing ? (
+                                  <label>
+                                    <span>Name</span>
+                                    <input
+                                      value={editDraft?.name ?? ''}
+                                      onChange={(event) =>
+                                        handlePlayerTemplateEditFieldChange(
+                                          template.id,
+                                          'name',
+                                          event.target.value,
+                                        )
+                                      }
+                                      placeholder="Character name"
+                                    />
+                                  </label>
+                                ) : (
+                                  <>
+                                    <h5>{template.name}</h5>
+                                    <div className="template-card__stats">
+                                      <span className="stat-chip">Max HP {template.maxHp}</span>
+                                      {template.armorClass !== null && (
+                                        <span className="stat-chip">AC {template.armorClass}</span>
+                                      )}
+                                    </div>
+                                  </>
                                 )}
                               </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="ghost-button"
-                              onClick={() => handleRemovePlayerTemplate(template.id)}
-                            >
-                              Remove
-                            </button>
-                        </header>
-                        {template.profileUrl && (
-                          <a
-                            href={template.profileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="template-card__link"
-                          >
-                            Open character profile
-                          </a>
-                        )}
-                        {template.notes && <p className="template-card__notes">{template.notes}</p>}
-                      </li>
-                    ))}
+                              <div className="template-card__header-actions">
+                                {isEditing ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="ghost-button"
+                                      onClick={() => handleCancelPlayerTemplateEdit(template.id)}
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="primary-button"
+                                      onClick={() => handleSavePlayerTemplateEdit(template.id)}
+                                    >
+                                      Save changes
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="ghost-button"
+                                      onClick={() => handleStartPlayerTemplateEdit(template)}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-button"
+                                      onClick={() => handleRemovePlayerTemplate(template.id)}
+                                    >
+                                      Remove
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </header>
+
+                            {isEditing ? (
+                              <>
+                                <div className="form-grid campaign-form__grid">
+                                  <label>
+                                    <span>Max HP</span>
+                                    <input
+                                      value={editDraft?.maxHp ?? ''}
+                                      onChange={(event) =>
+                                        handlePlayerTemplateEditFieldChange(
+                                          template.id,
+                                          'maxHp',
+                                          event.target.value,
+                                        )
+                                      }
+                                      inputMode="numeric"
+                                      placeholder="45"
+                                    />
+                                  </label>
+                                  <label>
+                                    <span>Armor Class</span>
+                                    <input
+                                      value={editDraft?.armorClass ?? ''}
+                                      onChange={(event) =>
+                                        handlePlayerTemplateEditFieldChange(
+                                          template.id,
+                                          'armorClass',
+                                          event.target.value,
+                                        )
+                                      }
+                                      inputMode="numeric"
+                                      placeholder="15"
+                                    />
+                                  </label>
+                                  <label>
+                                    <span>Character link</span>
+                                    <input
+                                      value={editDraft?.profileUrl ?? ''}
+                                      onChange={(event) =>
+                                        handlePlayerTemplateEditFieldChange(
+                                          template.id,
+                                          'profileUrl',
+                                          event.target.value,
+                                        )
+                                      }
+                                      inputMode="url"
+                                      placeholder="https://dndbeyond.com/profile/..."
+                                    />
+                                  </label>
+                                  <label className="campaign-form__notes">
+                                    <span>Notes</span>
+                                    <textarea
+                                      value={editDraft?.notes ?? ''}
+                                      onChange={(event) =>
+                                        handlePlayerTemplateEditFieldChange(
+                                          template.id,
+                                          'notes',
+                                          event.target.value,
+                                        )
+                                      }
+                                      rows={3}
+                                      placeholder="Personality, spell slots, reminders..."
+                                    />
+                                  </label>
+                                </div>
+                                {editDraft?.error && <p className="form-error">{editDraft.error}</p>}
+                              </>
+                            ) : (
+                              <>
+                                {template.profileUrl && (
+                                  <a
+                                    href={template.profileUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="template-card__link"
+                                  >
+                                    Open character profile
+                                  </a>
+                                )}
+                                {template.notes && (
+                                  <p className="template-card__notes">{template.notes}</p>
+                                )}
+                              </>
+                            )}
+                          </li>
+                        )
+                      })}
                     </ul>
                   )}
                 </div>
