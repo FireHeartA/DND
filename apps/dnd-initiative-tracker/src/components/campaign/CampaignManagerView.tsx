@@ -1,0 +1,1085 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import {
+  addPlayerCharacter as addPlayerCharacterAction,
+  createCampaign as createCampaignAction,
+  removeCampaign as removeCampaignAction,
+  removePlayerCharacter as removePlayerCharacterAction,
+  setActiveCampaign as setActiveCampaignAction,
+  updateCampaignDetails as updateCampaignDetailsAction,
+} from '../../store/campaignSlice'
+import {
+  importMonster as importMonsterAction,
+  removeMonsterFromCampaign as removeMonsterFromCampaignAction,
+  toggleMonsterFavorite as toggleMonsterFavoriteAction,
+  updateMonsterDetails as updateMonsterDetailsAction,
+} from '../../store/monsterLibrarySlice'
+import { normalizeDndBeyondUrl, parseDndBeyondMonster } from '../../utils/dndBeyondMonsterParser'
+import {
+  getMonsterDisplayTags,
+  normalizeMonsterTag,
+  prepareMonsterTags,
+} from '../../utils/monsterTags'
+import type {
+  Campaign,
+  CampaignCharacter,
+  MonsterDetails,
+  MonsterLibraryEntry,
+  MonsterLibraryState,
+  RootState,
+} from '../../types'
+import type { AppDispatch } from '../../store'
+
+interface MonsterEditDraft {
+  name: string
+  description: string
+  tags: string[]
+  tagDraft: string
+  error: string
+}
+
+/**
+ * Displays the campaign manager view, allowing the user to manage rosters and monsters.
+ */
+export const CampaignManagerView: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>()
+  const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
+  const activeCampaignId = useSelector((state: RootState) => state.campaigns.activeCampaignId)
+  const monsterLibrary = useSelector((state: RootState) => state.monsterLibrary)
+
+  const [campaignForm, setCampaignForm] = useState({ name: '' })
+  const [campaignFormError, setCampaignFormError] = useState('')
+  const [campaignDetailsDraft, setCampaignDetailsDraft] = useState({ name: '', notes: '' })
+  const [campaignDetailsError, setCampaignDetailsError] = useState('')
+  const [playerTemplateForm, setPlayerTemplateForm] = useState({
+    name: '',
+    maxHp: '',
+    armorClass: '',
+    notes: '',
+  })
+  const [playerTemplateError, setPlayerTemplateError] = useState('')
+  const [monsterImportUrl, setMonsterImportUrl] = useState('')
+  const [monsterImportError, setMonsterImportError] = useState('')
+  const [monsterImportSuccess, setMonsterImportSuccess] = useState('')
+  const [isMonsterImporting, setIsMonsterImporting] = useState(false)
+  const [monsterEdits, setMonsterEdits] = useState<Record<string, MonsterEditDraft>>({})
+
+  /**
+   * Sorts campaigns chronologically so the list remains stable for learners.
+   */
+  const sortedCampaigns = useMemo(() => {
+    return [...campaigns].sort((a, b) => a.createdAt - b.createdAt)
+  }, [campaigns])
+
+  /**
+   * Finds the currently selected campaign from the Redux store.
+   */
+  const activeCampaign = useMemo<Campaign | null>(() => {
+    return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
+  }, [campaigns, activeCampaignId])
+
+  /**
+   * Orders the active campaign roster by creation time for predictable display.
+   */
+  const activeCampaignRoster = useMemo<CampaignCharacter[]>(() => {
+    if (!activeCampaign) {
+      return []
+    }
+    return [...activeCampaign.playerCharacters].sort((a, b) => a.createdAt - b.createdAt)
+  }, [activeCampaign])
+
+  /**
+   * Derives the monsters linked to the active campaign.
+   */
+  const campaignMonsterList = useMemo(() => {
+    if (!activeCampaign) {
+      return [] as Array<{
+        monster: MonsterDetails
+        entry: MonsterLibraryEntry
+        isFavorite: boolean
+      }>
+    }
+
+    const libraryEntries = monsterLibrary.campaignLibraries[activeCampaign.id] || []
+    const favorites = new Set(monsterLibrary.favorites)
+
+    return libraryEntries
+      .map((entry) => {
+        const monster = monsterLibrary.monsters[entry.monsterId]
+        if (!monster) {
+          return null
+        }
+        return {
+          monster,
+          entry,
+          isFavorite: favorites.has(entry.monsterId),
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const lastA = a!.entry.lastUsedAt || 0
+        const lastB = b!.entry.lastUsedAt || 0
+
+        if (lastA !== lastB) {
+          return lastB - lastA
+        }
+
+        if (a!.entry.usageCount !== b!.entry.usageCount) {
+          return b!.entry.usageCount - a!.entry.usageCount
+        }
+
+        return b!.entry.addedAt - a!.entry.addedAt
+      }) as Array<{
+      monster: MonsterDetails
+      entry: MonsterLibraryEntry
+      isFavorite: boolean
+    }>
+  }, [activeCampaign, monsterLibrary])
+
+  /**
+   * Updates the campaign details draft whenever the active campaign changes.
+   */
+  useEffect(() => {
+    if (!activeCampaign) {
+      setCampaignDetailsDraft({ name: '', notes: '' })
+      setCampaignDetailsError('')
+      return
+    }
+    setCampaignDetailsDraft({
+      name: activeCampaign.name,
+      notes: activeCampaign.notes || '',
+    })
+    setCampaignDetailsError('')
+  }, [activeCampaign])
+
+  /**
+   * Clears monster import feedback when the user selects a different campaign.
+   */
+  useEffect(() => {
+    setMonsterImportError('')
+    setMonsterImportSuccess('')
+    setMonsterImportUrl('')
+  }, [activeCampaignId])
+
+  /**
+   * Handles updates to the new campaign form fields.
+   */
+  const handleCampaignFormChange = useCallback((value: string) => {
+    setCampaignForm((prev) => ({
+      ...prev,
+      name: value,
+    }))
+  }, [])
+
+  /**
+   * Submits the campaign creation form and resets the input.
+   */
+  const handleCreateCampaign = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      const name = campaignForm.name.trim()
+
+      if (!name) {
+        setCampaignFormError('Name your campaign to begin planning your adventures.')
+        return
+      }
+
+      dispatch(createCampaignAction({ name }))
+      setCampaignForm({ name: '' })
+      setCampaignFormError('')
+    },
+    [campaignForm.name, dispatch],
+  )
+
+  /**
+   * Switches the active campaign when the user selects a different entry.
+   */
+  const handleSelectCampaign = useCallback(
+    (campaignId: string) => {
+      dispatch(setActiveCampaignAction(campaignId))
+      setPlayerTemplateError('')
+    },
+    [dispatch],
+  )
+
+  /**
+   * Removes a campaign and any associated local errors.
+   */
+  const handleRemoveCampaign = useCallback(
+    (campaignId: string) => {
+      dispatch(removeCampaignAction(campaignId))
+    },
+    [dispatch],
+  )
+
+  /**
+   * Updates the draft values for the active campaign details form.
+   */
+  const handleCampaignDetailsChange = useCallback((field: 'name' | 'notes', value: string) => {
+    setCampaignDetailsDraft((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }, [])
+
+  /**
+   * Saves the edited campaign details to Redux.
+   */
+  const handleSaveCampaignDetails = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (!activeCampaign) {
+        return
+      }
+
+      const name = campaignDetailsDraft.name.trim()
+
+      if (!name) {
+        setCampaignDetailsError('A campaign needs a name worthy of the saga.')
+        return
+      }
+
+      dispatch(
+        updateCampaignDetailsAction({
+          id: activeCampaign.id,
+          name,
+          notes: campaignDetailsDraft.notes,
+        }),
+      )
+
+      setCampaignDetailsError('')
+    },
+    [activeCampaign, campaignDetailsDraft, dispatch],
+  )
+
+  /**
+   * Handles updates to the roster form inputs.
+   */
+  const handlePlayerTemplateFormChange = useCallback(
+    (field: 'name' | 'maxHp' | 'armorClass' | 'notes', value: string) => {
+      setPlayerTemplateForm((prev) => ({
+        ...prev,
+        [field]: value,
+      }))
+    },
+    [],
+  )
+
+  /**
+   * Clears the roster form fields.
+   */
+  const resetPlayerTemplateForm = useCallback(() => {
+    setPlayerTemplateForm({
+      name: '',
+      maxHp: '',
+      armorClass: '',
+      notes: '',
+    })
+  }, [])
+
+  /**
+   * Adds a player template to the active campaign after validating input.
+   */
+  const handleAddPlayerTemplate = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (!activeCampaignId) {
+        setPlayerTemplateError('Select a campaign before saving a hero template.')
+        return
+      }
+
+      const name = playerTemplateForm.name.trim()
+      if (!name) {
+        setPlayerTemplateError('Every hero needs a name before they join the roster.')
+        return
+      }
+
+      const maxHpValue = Number.parseInt(playerTemplateForm.maxHp, 10)
+      if (!Number.isFinite(maxHpValue) || maxHpValue <= 0) {
+        setPlayerTemplateError('Max HP must be a positive number for your heroes.')
+        return
+      }
+
+      const armorClassValue = Number.parseInt(playerTemplateForm.armorClass, 10)
+      const armorClass = Number.isFinite(armorClassValue)
+        ? Math.max(0, Math.trunc(armorClassValue))
+        : null
+
+      dispatch(
+        addPlayerCharacterAction({
+          campaignId: activeCampaignId,
+          name,
+          maxHp: Math.trunc(maxHpValue),
+          armorClass,
+          notes: playerTemplateForm.notes,
+        }),
+      )
+
+      setPlayerTemplateError('')
+      resetPlayerTemplateForm()
+    },
+    [
+      activeCampaignId,
+      dispatch,
+      playerTemplateForm.armorClass,
+      playerTemplateForm.maxHp,
+      playerTemplateForm.name,
+      playerTemplateForm.notes,
+      resetPlayerTemplateForm,
+    ],
+  )
+
+  /**
+   * Removes a player template from the active campaign roster.
+   */
+  const handleRemovePlayerTemplate = useCallback(
+    (id: string) => {
+      if (!activeCampaignId) {
+        return
+      }
+      dispatch(
+        removePlayerCharacterAction({
+          campaignId: activeCampaignId,
+          characterId: id,
+        }),
+      )
+    },
+    [activeCampaignId, dispatch],
+  )
+
+  /**
+   * Starts editing a monster by capturing its current details into local state.
+   */
+  const handleStartMonsterEdit = useCallback((monster: MonsterDetails) => {
+    if (!monster || !monster.id) {
+      return
+    }
+    setMonsterEdits((prev) => ({
+      ...prev,
+      [monster.id]: {
+        name: monster.name || '',
+        description:
+          Array.isArray(monster.description) && monster.description.length > 0
+            ? monster.description.join('\n\n')
+            : '',
+        tags: getMonsterDisplayTags(monster),
+        tagDraft: '',
+        error: '',
+      },
+    }))
+  }, [])
+
+  /**
+   * Cancels editing for a monster and discards local changes.
+   */
+  const handleCancelMonsterEdit = useCallback((monsterId: string) => {
+    setMonsterEdits((prev) => {
+      if (!(monsterId in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
+  }, [])
+
+  /**
+   * Updates a field within the in-progress monster edit draft.
+   */
+  const handleMonsterEditFieldChange = useCallback(
+    (monsterId: string, field: keyof MonsterEditDraft, value: string | string[]) => {
+      setMonsterEdits((prev) => {
+        const existing = prev[monsterId]
+        if (!existing) {
+          return prev
+        }
+        return {
+          ...prev,
+          [monsterId]: {
+            ...existing,
+            [field]: value,
+            error: '',
+          },
+        }
+      })
+    },
+    [],
+  )
+
+  /**
+   * Stores the temporary tag input while editing a monster.
+   */
+  const handleMonsterTagDraftChange = useCallback(
+    (monsterId: string, value: string) => {
+      handleMonsterEditFieldChange(monsterId, 'tagDraft', value)
+    },
+    [handleMonsterEditFieldChange],
+  )
+
+  /**
+   * Adds the current tag draft to the monster edit state if it is valid.
+   */
+  const handleMonsterTagAdd = useCallback((monsterId: string) => {
+    setMonsterEdits((prev) => {
+      const existing = prev[monsterId]
+      if (!existing) {
+        return prev
+      }
+
+      const draftValue = normalizeMonsterTag(existing.tagDraft)
+      if (!draftValue) {
+        return {
+          ...prev,
+          [monsterId]: {
+            ...existing,
+            tagDraft: '',
+          },
+        }
+      }
+
+      const currentTags = Array.isArray(existing.tags) ? existing.tags : []
+      const nextTags = prepareMonsterTags([...currentTags, draftValue])
+
+      return {
+        ...prev,
+        [monsterId]: {
+          ...existing,
+          tags: nextTags,
+          tagDraft: '',
+          error: '',
+        },
+      }
+    })
+  }, [])
+
+  /**
+   * Removes a specific tag or the most recent tag from the edit draft.
+   */
+  const handleMonsterTagRemove = useCallback((monsterId: string, tagValue: string | null = null) => {
+    setMonsterEdits((prev) => {
+      const existing = prev[monsterId]
+      if (!existing) {
+        return prev
+      }
+
+      const currentTags = Array.isArray(existing.tags) ? existing.tags : []
+      if (currentTags.length === 0) {
+        return prev
+      }
+
+      let nextTags: string[]
+      if (typeof tagValue === 'string') {
+        const key = tagValue.toLowerCase()
+        nextTags = currentTags.filter((tag) => tag.toLowerCase() !== key)
+      } else {
+        nextTags = currentTags.slice(0, currentTags.length - 1)
+      }
+
+      return {
+        ...prev,
+        [monsterId]: {
+          ...existing,
+          tags: prepareMonsterTags(nextTags),
+          error: '',
+        },
+      }
+    })
+  }, [])
+
+  /**
+   * Provides keyboard shortcuts for adding or removing tags while editing.
+   */
+  const handleMonsterTagInputKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>, monsterId: string) => {
+      if (event.key === 'Enter' || event.key === ',') {
+        event.preventDefault()
+        handleMonsterTagAdd(monsterId)
+      } else if (event.key === 'Backspace' && !event.currentTarget.value) {
+        event.preventDefault()
+        handleMonsterTagRemove(monsterId)
+      }
+    },
+    [handleMonsterTagAdd, handleMonsterTagRemove],
+  )
+
+  /**
+   * Persists the monster edits back into the Redux store.
+   */
+  const handleSaveMonsterEdit = useCallback(
+    (monsterId: string) => {
+      const draft = monsterEdits[monsterId]
+      if (!draft) {
+        return
+      }
+
+      const name = draft.name ? draft.name.trim() : ''
+      if (!name) {
+        setMonsterEdits((prev) => ({
+          ...prev,
+          [monsterId]: {
+            ...draft,
+            error: 'A monster needs a name to stalk the initiative order.',
+          },
+        }))
+        return
+      }
+
+      const description = typeof draft.description === 'string' ? draft.description : ''
+      const tags = prepareMonsterTags(Array.isArray(draft.tags) ? draft.tags : [])
+
+      dispatch(
+        updateMonsterDetailsAction({
+          monsterId,
+          name,
+          description,
+          tags,
+        }),
+      )
+
+      setMonsterEdits((prev) => {
+        const next = { ...prev }
+        delete next[monsterId]
+        return next
+      })
+    },
+    [dispatch, monsterEdits],
+  )
+
+  /**
+   * Removes a monster from the active campaign library.
+   */
+  const handleRemoveMonsterTemplateEntry = useCallback(
+    (monsterId: string) => {
+      if (!activeCampaign) {
+        return
+      }
+      dispatch(
+        removeMonsterFromCampaignAction({
+          campaignId: activeCampaign.id,
+          monsterId,
+        }),
+      )
+    },
+    [activeCampaign, dispatch],
+  )
+
+  /**
+   * Toggles whether a monster is marked as a favorite.
+   */
+  const handleToggleMonsterFavorite = useCallback(
+    (monsterId: string) => {
+      dispatch(toggleMonsterFavoriteAction(monsterId))
+    },
+    [dispatch],
+  )
+
+  /**
+   * Imports a monster stat block from D&D Beyond into the current campaign.
+   */
+  const handleImportMonster = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+
+      if (!activeCampaign) {
+        setMonsterImportError('Select a campaign before importing monsters.')
+        return
+      }
+
+      const trimmedUrl = monsterImportUrl.trim()
+
+      if (!trimmedUrl) {
+        setMonsterImportError('Provide a D&D Beyond monster URL to import.')
+        return
+      }
+
+      let normalized: ReturnType<typeof normalizeDndBeyondUrl>
+      try {
+        normalized = normalizeDndBeyondUrl(trimmedUrl)
+      } catch (error) {
+        setMonsterImportError(
+          error instanceof Error ? error.message : 'Enter a valid D&D Beyond monster URL.',
+        )
+        return
+      }
+
+      setIsMonsterImporting(true)
+      setMonsterImportError('')
+      setMonsterImportSuccess('')
+
+      try {
+        const response = await fetch(`https://r.jina.ai/${normalized.normalizedUrl}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch monster data. Check the URL and try again.')
+        }
+
+        const text = await response.text()
+        const parsedMonster = parseDndBeyondMonster(text, normalized.normalizedUrl)
+
+        dispatch(
+          importMonsterAction({
+            campaignId: activeCampaign.id,
+            monster: parsedMonster,
+          }),
+        )
+
+        setMonsterImportSuccess(`Imported ${parsedMonster.name} into ${activeCampaign.name}.`)
+        setMonsterImportUrl('')
+      } catch (error) {
+        console.error('Failed to import monster', error)
+        setMonsterImportError(
+          error instanceof Error
+            ? error.message
+            : 'Something went wrong while importing the monster.',
+        )
+      } finally {
+        setIsMonsterImporting(false)
+      }
+    },
+    [activeCampaign, dispatch, monsterImportUrl],
+  )
+
+  /**
+   * Clears the monster import form and related messages.
+   */
+  const handleClearImportForm = useCallback(() => {
+    setMonsterImportUrl('')
+    setMonsterImportError('')
+    setMonsterImportSuccess('')
+  }, [])
+
+  return (
+    <>
+      <section className="main__header">
+        <div>
+          <h2>Campaign Manager</h2>
+          <p>
+            Build multiple worlds, organize notes, and curate hero rosters for every table you run.
+          </p>
+        </div>
+        <div className="header-actions">
+          <div className="campaign-summary">
+            <div className="summary-card">
+              <span className="summary__label">Campaigns</span>
+              <span className="summary__value">{campaigns.length}</span>
+            </div>
+            <div className="summary-card">
+              <span className="summary__label">Saved heroes</span>
+              <span className="summary__value">
+                {campaigns.reduce((count, campaign) => count + campaign.playerCharacters.length, 0)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="campaign-section">
+        <header className="campaign-section__header">
+          <div>
+            <h3>Campaign manager</h3>
+            <p>Organize multiple campaigns, craft notes, and maintain reusable party rosters.</p>
+          </div>
+        </header>
+        <div className="campaign-section__content">
+          <div className="campaign-manager__sidebar">
+            <div className="campaign-manager__list">
+              <h4>Your campaigns</h4>
+              {sortedCampaigns.length === 0 ? (
+                <div className="campaign-manager__empty-list">
+                  <p>No campaigns yet. Create one below to begin planning.</p>
+                </div>
+              ) : (
+                <ul>
+                  {sortedCampaigns.map((campaign) => (
+                    <li key={campaign.id}>
+                      <button
+                        type="button"
+                        className={`campaign-manager__campaign-button${
+                          campaign.id === activeCampaignId
+                            ? ' campaign-manager__campaign-button--active'
+                            : ''
+                        }`}
+                        onClick={() => handleSelectCampaign(campaign.id)}
+                      >
+                        <span>{campaign.name}</span>
+                        <span className="campaign-manager__campaign-count">
+                          {campaign.playerCharacters.length} heroes
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="campaign-manager__campaign-remove"
+                        onClick={() => handleRemoveCampaign(campaign.id)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <form className="campaign-form campaign-form--compact" onSubmit={handleCreateCampaign}>
+              <h4>Start a new campaign</h4>
+              <label>
+                <span>Campaign name</span>
+                <input
+                  value={campaignForm.name}
+                  onChange={(event) => handleCampaignFormChange(event.target.value)}
+                  placeholder="Rime of the Frostmaiden"
+                />
+              </label>
+              {campaignFormError && <p className="form-error">{campaignFormError}</p>}
+              <button type="submit" className="primary-button">
+                Create campaign
+              </button>
+            </form>
+          </div>
+
+          <div className="campaign-manager__main">
+            {activeCampaign ? (
+              <>
+                <form className="campaign-form" onSubmit={handleSaveCampaignDetails}>
+                  <h4>Campaign details</h4>
+                  <div className="form-grid campaign-form__grid">
+                    <label>
+                      <span>Name</span>
+                      <input
+                        value={campaignDetailsDraft.name}
+                        onChange={(event) => handleCampaignDetailsChange('name', event.target.value)}
+                        placeholder="The Wild Beyond the Witchlight"
+                      />
+                    </label>
+                    <label className="campaign-form__notes">
+                      <span>Notes</span>
+                      <textarea
+                        value={campaignDetailsDraft.notes}
+                        onChange={(event) => handleCampaignDetailsChange('notes', event.target.value)}
+                        placeholder="Session summaries, NPC lists, or adventure hooks."
+                        rows={4}
+                      />
+                    </label>
+                  </div>
+                  {campaignDetailsError && <p className="form-error">{campaignDetailsError}</p>}
+                  <div className="campaign-form__actions">
+                    <button type="submit" className="primary-button">
+                      Save details
+                    </button>
+                  </div>
+                </form>
+
+                <form className="campaign-form" onSubmit={handleAddPlayerTemplate}>
+                  <h4>Add a player character</h4>
+                  <div className="form-grid campaign-form__grid">
+                    <label>
+                      <span>Name</span>
+                      <input
+                        value={playerTemplateForm.name}
+                        onChange={(event) => handlePlayerTemplateFormChange('name', event.target.value)}
+                        placeholder="Fighter name"
+                      />
+                    </label>
+                    <label>
+                      <span>Max HP</span>
+                      <input
+                        value={playerTemplateForm.maxHp}
+                        onChange={(event) => handlePlayerTemplateFormChange('maxHp', event.target.value)}
+                        placeholder="45"
+                        inputMode="numeric"
+                      />
+                    </label>
+                    <label>
+                      <span>Armor Class</span>
+                      <input
+                        value={playerTemplateForm.armorClass}
+                        onChange={(event) =>
+                          handlePlayerTemplateFormChange('armorClass', event.target.value)
+                        }
+                        placeholder="15"
+                        inputMode="numeric"
+                      />
+                    </label>
+                    <label className="campaign-form__notes">
+                      <span>Notes</span>
+                      <textarea
+                        value={playerTemplateForm.notes}
+                        onChange={(event) => handlePlayerTemplateFormChange('notes', event.target.value)}
+                        placeholder="Personality, spell slots, reminders..."
+                        rows={3}
+                      />
+                    </label>
+                  </div>
+                  {playerTemplateError && <p className="form-error">{playerTemplateError}</p>}
+                  <div className="campaign-form__actions">
+                    <button type="submit" className="primary-button">
+                      Add to roster
+                    </button>
+                    <button type="button" className="ghost-button" onClick={resetPlayerTemplateForm}>
+                      Clear
+                    </button>
+                  </div>
+                </form>
+
+                <div className="campaign-roster">
+                  <div className="campaign-roster__header">
+                    <h4>Saved player characters</h4>
+                    <p>Reuse your heroes across sessions with a single click.</p>
+                  </div>
+                  {activeCampaignRoster.length === 0 ? (
+                    <div className="campaign-roster__empty">
+                      <p>
+                        No heroes saved yet. Chronicle your party above to reuse them across encounters.
+                      </p>
+                    </div>
+                  ) : (
+                    <ul className="template-list">
+                      {activeCampaignRoster.map((template) => (
+                        <li key={template.id} className="template-card">
+                          <header className="template-card__header">
+                            <div>
+                              <h5>{template.name}</h5>
+                              <div className="template-card__stats">
+                                <span className="stat-chip">Max HP {template.maxHp}</span>
+                                {template.armorClass !== null && (
+                                  <span className="stat-chip">AC {template.armorClass}</span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="ghost-button"
+                              onClick={() => handleRemovePlayerTemplate(template.id)}
+                            >
+                              Remove
+                            </button>
+                          </header>
+                          {template.notes && <p className="template-card__notes">{template.notes}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <form className="campaign-form" onSubmit={handleImportMonster}>
+                  <h4>Import monster from D&D Beyond</h4>
+                  <div className="form-grid campaign-form__grid">
+                    <label className="campaign-form__url">
+                      <span>Monster URL</span>
+                      <input
+                        value={monsterImportUrl}
+                        onChange={(event) => setMonsterImportUrl(event.target.value)}
+                        placeholder="https://www.dndbeyond.com/monsters/ancient-red-dragon"
+                        inputMode="url"
+                        autoComplete="off"
+                      />
+                    </label>
+                  </div>
+                  {monsterImportError && <p className="form-error">{monsterImportError}</p>}
+                  {monsterImportSuccess && <p className="form-success">{monsterImportSuccess}</p>}
+                  <div className="campaign-form__actions">
+                    <button type="submit" className="primary-button" disabled={isMonsterImporting}>
+                      {isMonsterImporting ? 'Importing…' : 'Import monster'}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={handleClearImportForm}
+                      disabled={isMonsterImporting}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <p className="form-hint">
+                    The tracker fetches a reader-friendly version of the stat block via r.jina.ai.
+                  </p>
+                </form>
+
+                <div className="monster-library">
+                  <div className="monster-library__header">
+                    <h4>Campaign monsters</h4>
+                    <p>Keep your frequently used foes ready for quick initiative drops.</p>
+                  </div>
+                  {campaignMonsterList.length === 0 ? (
+                    <div className="monster-library__empty">
+                      <p>No monsters imported yet. Paste a D&D Beyond URL above to add one.</p>
+                    </div>
+                  ) : (
+                    <ul className="monster-library__list">
+                      {campaignMonsterList.map(({ monster, entry, isFavorite }) => {
+                        const displayTags = getMonsterDisplayTags(monster)
+                        const editDraft = monsterEdits[monster.id] || null
+                        const isEditing = Boolean(editDraft)
+
+                        const lastUsedLabel = entry.lastUsedAt
+                          ? new Date(entry.lastUsedAt).toLocaleString()
+                          : null
+
+                        return (
+                          <li key={monster.id} className="template-card monster-card">
+                            <header className="template-card__header monster-card__header">
+                              <div>
+                                <h5>{monster.name}</h5>
+                                <div className="template-card__stats monster-card__stats">
+                                  {displayTags.map((tag) => (
+                                    <span key={tag} className="stat-chip">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="monster-card__header-actions">
+                                <button
+                                  type="button"
+                                  className={`ghost-button monster-card__favorite-button${
+                                    isFavorite ? ' monster-card__favorite-button--active' : ''
+                                  }`}
+                                  onClick={() => handleToggleMonsterFavorite(monster.id)}
+                                >
+                                  {isFavorite ? '★ Favorite' : '☆ Favorite'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ghost-button"
+                                  onClick={() =>
+                                    isEditing
+                                      ? handleCancelMonsterEdit(monster.id)
+                                      : handleStartMonsterEdit(monster)
+                                  }
+                                >
+                                  {isEditing ? 'Cancel edit' : 'Edit details'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ghost-button"
+                                  onClick={() => handleRemoveMonsterTemplateEntry(monster.id)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </header>
+                            {isEditing ? (
+                              <form
+                                className="monster-card__edit-form"
+                                onSubmit={(event) => {
+                                  event.preventDefault()
+                                  handleSaveMonsterEdit(monster.id)
+                                }}
+                              >
+                                <label>
+                                  <span>Monster name</span>
+                                  <input
+                                    value={editDraft.name}
+                                    onChange={(event) =>
+                                      handleMonsterEditFieldChange(
+                                        monster.id,
+                                        'name',
+                                        event.target.value,
+                                      )
+                                    }
+                                    placeholder="Gray Ooze"
+                                    autoComplete="off"
+                                  />
+                                </label>
+                                <label className="monster-card__edit-description">
+                                  <span>Description</span>
+                                  <textarea
+                                    value={editDraft.description}
+                                    onChange={(event) =>
+                                      handleMonsterEditFieldChange(
+                                        monster.id,
+                                        'description',
+                                        event.target.value,
+                                      )
+                                    }
+                                    placeholder="Background lore, lair notes, or encounter reminders."
+                                    rows={4}
+                                  />
+                                </label>
+                                <label className="monster-card__edit-tags">
+                                  <span>Tags</span>
+                                  <div className="monster-card__edit-tags-list">
+                                    {Array.isArray(editDraft.tags) && editDraft.tags.length > 0 ? (
+                                      editDraft.tags.map((tag) => (
+                                        <span key={tag} className="monster-card__edit-tag stat-chip">
+                                          {tag}
+                                          <button
+                                            type="button"
+                                            onClick={() => handleMonsterTagRemove(monster.id, tag)}
+                                            aria-label={`Remove tag ${tag}`}
+                                          >
+                                            ×
+                                          </button>
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className="monster-card__edit-tags-empty">No tags yet.</span>
+                                    )}
+                                  </div>
+                                  <div className="monster-card__edit-tags-input">
+                                    <input
+                                      value={typeof editDraft.tagDraft === 'string' ? editDraft.tagDraft : ''}
+                                      onChange={(event) =>
+                                        handleMonsterTagDraftChange(monster.id, event.target.value)
+                                      }
+                                      onKeyDown={(event) => handleMonsterTagInputKeyDown(event, monster.id)}
+                                      placeholder="Add a tag and press Enter"
+                                    />
+                                    <button type="button" className="ghost-button" onClick={() => handleMonsterTagAdd(monster.id)}>
+                                      Add tag
+                                    </button>
+                                  </div>
+                                </label>
+                                {editDraft.error && <p className="form-error">{editDraft.error}</p>}
+                                <div className="monster-card__edit-actions">
+                                  <button type="submit" className="primary-button">
+                                    Save monster
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="ghost-button"
+                                    onClick={() => handleCancelMonsterEdit(monster.id)}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </form>
+                            ) : (
+                              <footer className="monster-card__footer">
+                                <div className="monster-card__meta">
+                                  <span className="monster-card__meta-item">
+                                    Imported {new Date(monster.importedAt).toLocaleDateString()}
+                                  </span>
+                                  {lastUsedLabel && (
+                                    <span className="monster-card__meta-item">
+                                      Last used {lastUsedLabel}
+                                    </span>
+                                  )}
+                                </div>
+                                {monster.sourceUrl && (
+                                  <a
+                                    href={monster.sourceUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="monster-card__link"
+                                  >
+                                    View on D&D Beyond
+                                  </a>
+                                )}
+                              </footer>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="campaign-manager__empty">
+                <p>Select a campaign or create a new one to start building its roster.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </>
+  )
+}
