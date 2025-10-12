@@ -308,10 +308,12 @@ export const CampaignManagerView: React.FC = () => {
       dispatch(
         addPlayerCharacterAction({
           campaignId: activeCampaignId,
-          name,
-          maxHp: Math.trunc(maxHpValue),
-          armorClass,
-          notes: playerTemplateForm.notes,
+          character: {
+            name,
+            maxHp: Math.trunc(maxHpValue),
+            armorClass,
+            notes: playerTemplateForm.notes,
+          },
         }),
       )
 

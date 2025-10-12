@@ -17,18 +17,18 @@ import {
   loadState as loadMonsterLibraryStateAction,
   type LoadMonsterLibraryArgs,
 } from './store/monsterLibrarySlice'
-import type { AppDispatch, AppStore } from './store'
+import type { AppDispatch, AppRootState } from './store'
 
 /**
  * Renders the root application layout and orchestrates data import/export actions.
  */
 function App() {
   const dispatch = useDispatch<AppDispatch>()
-  const store = useStore<AppStore>()
+  const store = useStore<AppRootState>()
   const [activeView, setActiveView] = useState<ViewMode>('initiative')
   const [loadError, setLoadError] = useState('')
   const [resetKey, setResetKey] = useState<number>(0)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   /**
    * Switches between the initiative tracker and campaign manager views.
@@ -89,37 +89,34 @@ function App() {
           }
 
           let hasValidData = false
+          let legacyPlayerTemplates: unknown[] | null = null
 
           if (parsed.combat && typeof parsed.combat === 'object') {
-            dispatch(loadCombatStateAction(parsed.combat))
+            const combatState = parsed.combat as LoadCombatStateArgs
+            dispatch(loadCombatStateAction(combatState))
             hasValidData = true
+
+            const candidateTemplates = combatState.playerTemplates
+            if (Array.isArray(candidateTemplates)) {
+              legacyPlayerTemplates = candidateTemplates
+            }
           }
 
           if (parsed.campaigns && typeof parsed.campaigns === 'object') {
             dispatch(loadCampaignStateAction(parsed.campaigns))
             hasValidData = true
-          } else if (
-            parsed.combat &&
-            typeof parsed.combat === 'object' &&
-            Array.isArray((parsed.combat as LoadCombatStateArgs).playerTemplates)
-          ) {
+          } else if (legacyPlayerTemplates && legacyPlayerTemplates.length > 0) {
             const legacyCampaignPayload: LoadCampaignStateArgs = {
-              campaigns:
-                (parsed.combat as LoadCombatStateArgs).playerTemplates?.length ?? 0 > 0
-                  ? [
-                      {
-                        id: 'legacy-import',
-                        name: 'Imported roster',
-                        notes: '',
-                        createdAt: Date.now(),
-                        playerCharacters: (parsed.combat as LoadCombatStateArgs).playerTemplates ?? [],
-                      },
-                    ]
-                  : [],
-              activeCampaignId:
-                (parsed.combat as LoadCombatStateArgs).playerTemplates?.length ?? 0 > 0
-                  ? 'legacy-import'
-                  : null,
+              campaigns: [
+                {
+                  id: 'legacy-import',
+                  name: 'Imported roster',
+                  notes: '',
+                  createdAt: Date.now(),
+                  playerCharacters: legacyPlayerTemplates,
+                },
+              ],
+              activeCampaignId: 'legacy-import',
             }
             dispatch(loadCampaignStateAction(legacyCampaignPayload))
             hasValidData = true

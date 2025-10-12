@@ -1,5 +1,6 @@
 import { createSlice, nanoid, PayloadAction } from '@reduxjs/toolkit'
 import { buildMonsterNotes, buildMonsterTags } from '../utils/dndBeyondMonsterParser'
+import type { ParsedMonsterData } from '../utils/dndBeyondMonsterParser'
 import type {
   MonsterAbilityScores,
   MonsterDetails,
@@ -108,7 +109,14 @@ const sanitizeStringArray = (value: unknown): string[] => {
  */
 const sanitizeAbilityScores = (value: unknown): MonsterAbilityScores => {
   const keys: Array<keyof MonsterAbilityScores> = ['str', 'dex', 'con', 'int', 'wis', 'cha']
-  const scores = Object.fromEntries(keys.map((key) => [key, null])) as MonsterAbilityScores
+  const scores: MonsterAbilityScores = {
+    str: null,
+    dex: null,
+    con: null,
+    int: null,
+    wis: null,
+    cha: null,
+  }
   keys.forEach((key) => {
     const raw = value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : null
     scores[key] = sanitizeNumber(raw)
@@ -343,7 +351,7 @@ const initialState: MonsterLibraryState = {
 
 export interface ImportMonsterArgs {
   campaignId?: string | null
-  monster: MonsterDetails | Record<string, unknown>
+  monster: MonsterDetails | ParsedMonsterData | Record<string, unknown>
 }
 
 export interface UpdateMonsterDetailsArgs {
