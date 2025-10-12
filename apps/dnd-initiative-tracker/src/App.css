@@ -1023,6 +1023,16 @@ textarea:focus {
   border: 1px solid rgba(244, 241, 234, 0.12);
 }
 
+.ghost-button--compact {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
+}
+
+.generate-nickname-button {
+  white-space: nowrap;
+}
+
 .tracker__list {
   background: rgba(14, 10, 16, 0.55);
   border-radius: 18px;
@@ -1239,6 +1249,13 @@ textarea:focus {
   margin: 0;
   font-size: 1.4rem;
   font-family: 'Cinzel', 'Times New Roman', serif;
+}
+
+.combatant-nickname {
+  font-size: 1rem;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: rgba(244, 241, 234, 0.7);
+  font-weight: 500;
 }
 
 .combatant-type-badge {

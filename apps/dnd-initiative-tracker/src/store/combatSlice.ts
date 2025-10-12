@@ -2,6 +2,7 @@ import { createSlice, nanoid, PayloadAction } from '@reduxjs/toolkit'
 import type {
   CombatState,
   Combatant,
+  CombatantTag,
   CombatantType,
   PlayerTemplate,
 } from '../types'
@@ -36,10 +37,38 @@ const createCombatant = (
   type: fields.type,
   armorClass: fields.armorClass,
   notes: fields.notes,
+  tags: Array.isArray(fields.tags) ? fields.tags : [],
   sourceTemplateId: fields.sourceTemplateId,
   sourceCampaignId: fields.sourceCampaignId,
   sourceMonsterId: fields.sourceMonsterId,
 })
+
+/**
+ * Produces a normalized array of combatant tags from arbitrary input.
+ */
+const sanitizeCombatantTags = (value: unknown): CombatantTag[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return null
+      }
+
+      const candidate = entry as Partial<CombatantTag>
+      const title = typeof candidate.title === 'string' ? candidate.title.trim() : ''
+      const tagValue = typeof candidate.value === 'string' ? candidate.value.trim() : ''
+
+      if (!title || !tagValue) {
+        return null
+      }
+
+      return { title, value: tagValue }
+    })
+    .filter(Boolean) as CombatantTag[]
+}
 
 /**
  * Produces a sanitized combatant entry from untrusted data sources such as imports.
@@ -71,6 +100,7 @@ const sanitizeCombatant = (value: unknown): Combatant | null => {
     type: candidate.type === 'monster' ? 'monster' : 'player',
     armorClass: normalizeArmorClass(candidate.armorClass),
     notes: typeof candidate.notes === 'string' ? candidate.notes : '',
+    tags: sanitizeCombatantTags((candidate as { tags?: unknown }).tags),
     sourceTemplateId:
       typeof candidate.sourceTemplateId === 'string' && candidate.sourceTemplateId
         ? candidate.sourceTemplateId
@@ -129,6 +159,7 @@ export interface AddCombatantArgs {
   type: CombatantType
   armorClass?: number | null
   notes?: string
+  tags?: CombatantTag[]
   sourceTemplateId?: string | null
   sourceCampaignId?: string | null
   sourceMonsterId?: string | null
@@ -168,6 +199,7 @@ const combatSlice = createSlice({
           type,
           armorClass = null,
           notes = '',
+          tags = [],
           sourceTemplateId = null,
           sourceCampaignId = null,
           sourceMonsterId = null,
@@ -180,6 +212,7 @@ const combatSlice = createSlice({
           type,
           armorClass: armorClass === null ? null : normalizeArmorClass(armorClass),
           notes,
+          tags,
           sourceTemplateId,
           sourceCampaignId,
           sourceMonsterId,
@@ -187,6 +220,36 @@ const combatSlice = createSlice({
 
         state.combatants.push(entry)
       },
+    },
+    /**
+     * Adds or updates a tag on a combatant using the provided title.
+     */
+    setCombatantTag(state, action: PayloadAction<{ id: string; title: string; value: string }>) {
+      const { id, title, value } = action.payload
+      const combatant = state.combatants.find((entry) => entry.id === id)
+
+      if (!combatant) {
+        return
+      }
+
+      const normalizedTitle = title.trim()
+      const normalizedValue = value.trim()
+
+      if (!normalizedTitle || !normalizedValue) {
+        return
+      }
+
+      const existingTag = combatant.tags.find(
+        (tag) => tag.title.toLowerCase() === normalizedTitle.toLowerCase(),
+      )
+
+      if (existingTag) {
+        existingTag.title = normalizedTitle
+        existingTag.value = normalizedValue
+        return
+      }
+
+      combatant.tags.push({ title: normalizedTitle, value: normalizedValue })
     },
     /**
      * Removes a combatant from the list by identifier.
@@ -298,6 +361,7 @@ export const {
   resetCombatant,
   updateInitiative,
   clearMonsters,
+  setCombatantTag,
   addPlayerTemplate,
   removePlayerTemplate,
   loadState,

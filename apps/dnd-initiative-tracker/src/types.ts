@@ -1,5 +1,10 @@
 export type CombatantType = 'player' | 'monster'
 
+export interface CombatantTag {
+  title: string
+  value: string
+}
+
 export interface Combatant {
   id: string
   name: string
@@ -10,6 +15,7 @@ export interface Combatant {
   type: CombatantType
   armorClass: number | null
   notes: string
+  tags: CombatantTag[]
   sourceTemplateId: string | null
   sourceCampaignId: string | null
   sourceMonsterId: string | null
