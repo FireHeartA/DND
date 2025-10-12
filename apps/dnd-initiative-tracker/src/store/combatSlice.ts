@@ -328,6 +328,12 @@ const combatSlice = createSlice({
       state.combatants = state.combatants.filter((combatant) => combatant.type !== 'monster')
     },
     /**
+     * Removes all player characters from the initiative order while keeping monsters.
+     */
+    clearPlayers(state) {
+      state.combatants = state.combatants.filter((combatant) => combatant.type !== 'player')
+    },
+    /**
      * Adds a reusable player template to the library.
      */
     addPlayerTemplate: {
@@ -382,6 +388,7 @@ export const {
   resetCombatant,
   updateInitiative,
   clearMonsters,
+  clearPlayers,
   setCombatantTag,
   addPlayerTemplate,
   removePlayerTemplate,

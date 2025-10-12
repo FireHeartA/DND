@@ -8,6 +8,7 @@ import {
   resetCombatant as resetCombatantAction,
   updateInitiative as updateInitiativeAction,
   clearMonsters as clearMonstersAction,
+  clearPlayers as clearPlayersAction,
   setCombatantTag as setCombatantTagAction,
 } from '../../store/combatSlice'
 import {
@@ -117,6 +118,14 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       return b.initiative - a.initiative
     })
   }, [combatants])
+
+  const hasMonsterCombatants = useMemo(() => {
+    return sortedCombatants.some((combatant) => combatant.type === 'monster')
+  }, [sortedCombatants])
+
+  const hasPlayerCombatants = useMemo(() => {
+    return sortedCombatants.some((combatant) => combatant.type === 'player')
+  }, [sortedCombatants])
 
   /**
    * Builds a list of campaign monsters with metadata used in the UI.
@@ -517,6 +526,13 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
    */
   const handleClearMonsters = useCallback(() => {
     dispatch(clearMonstersAction())
+  }, [dispatch])
+
+  /**
+   * Clears all player characters from the initiative order.
+   */
+  const handleClearPlayers = useCallback(() => {
+    dispatch(clearPlayersAction())
   }, [dispatch])
 
   /**
@@ -1238,8 +1254,17 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                     type="button"
                     className="ghost-button"
                     onClick={handleClearMonsters}
+                    disabled={!hasMonsterCombatants}
                   >
                     Clear monsters
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={handleClearPlayers}
+                    disabled={!hasPlayerCombatants}
+                  >
+                    Clear players
                   </button>
                 </div>
               </div>
