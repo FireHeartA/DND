@@ -1,5 +1,7 @@
 import { createSlice, nanoid } from '@reduxjs/toolkit'
 
+import { buildMonsterNotes } from '../utils/dndBeyondMonsterParser'
+
 const initialState = {
   monsters: {},
   campaignLibraries: {},
@@ -308,6 +310,67 @@ const monsterLibrarySlice = createSlice({
         }
       },
     },
+    updateMonsterDetails: {
+      prepare({ monsterId, name, description }) {
+        return {
+          payload: {
+            monsterId: sanitizeString(monsterId),
+            name,
+            description,
+          },
+        }
+      },
+      reducer(state, action) {
+        const { monsterId, name, description } = action.payload || {}
+        if (!monsterId) {
+          return
+        }
+
+        const existing = state.monsters[monsterId]
+        if (!existing) {
+          return
+        }
+
+        const updates = {}
+
+        if (typeof name === 'string') {
+          const sanitizedName = sanitizeString(name)
+          if (!sanitizedName) {
+            return
+          }
+          updates.name = sanitizedName
+        }
+
+        if (typeof description !== 'undefined') {
+          let normalizedDescription = []
+          if (Array.isArray(description)) {
+            normalizedDescription = sanitizeStringArray(description)
+          } else if (typeof description === 'string') {
+            normalizedDescription = description
+              .split(/\r?\n/)
+              .map((entry) => sanitizeString(entry))
+              .filter(Boolean)
+          }
+          updates.description = normalizedDescription
+        }
+
+        const merged = {
+          ...existing,
+          ...updates,
+          updatedAt: Date.now(),
+        }
+
+        if (!('description' in updates)) {
+          merged.description = Array.isArray(existing.description)
+            ? existing.description
+            : []
+        }
+
+        merged.notes = sanitizeOptionalString(buildMonsterNotes(merged))
+
+        state.monsters[monsterId] = merged
+      },
+    },
     removeMonsterFromCampaign(state, action) {
       const { campaignId, monsterId } = action.payload || {}
       const key = campaignId ? String(campaignId) : null
@@ -420,6 +483,7 @@ const monsterLibrarySlice = createSlice({
 
 export const {
   importMonster,
+  updateMonsterDetails,
   removeMonsterFromCampaign,
   toggleMonsterFavorite,
   recordMonsterUsage,

@@ -129,7 +129,7 @@ const buildSections = (lines) => {
   return sections
 }
 
-const buildNotes = (monster) => {
+export const buildMonsterNotes = (monster) => {
   const parts = []
 
   if (monster.typeLine) {
@@ -281,16 +281,23 @@ export const parseDndBeyondMonster = (markdown, sourceUrl) => {
   let name = ''
   let nameIndex = -1
 
-  relevantLines.some((line, index) => {
-    const trimmed = line.trim()
+  for (let index = 0; index < relevantLines.length; index += 1) {
+    const trimmed = relevantLines[index].trim()
+    if (!trimmed) {
+      continue
+    }
+
     const match = trimmed.match(/\[([^\]]+)\]\(https:\/\/www\.dndbeyond\.com\/monsters\//i)
     if (match) {
-      name = stripFormatting(match[1])
-      nameIndex = index
-      return true
+      const candidate = stripFormatting(match[1])
+      if (candidate && candidate.toLowerCase() !== 'skip to content') {
+        name = candidate
+        nameIndex = index
+        break
+      }
+      continue
     }
-    return false
-  })
+  }
 
   if (!name) {
     throw new Error('Could not locate a monster name in the provided page.')
@@ -572,7 +579,7 @@ export const parseDndBeyondMonster = (markdown, sourceUrl) => {
     source,
   }
 
-  const notes = buildNotes(monster)
+  const notes = buildMonsterNotes(monster)
 
   return {
     ...monster,

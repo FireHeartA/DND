@@ -25,6 +25,7 @@ import {
   removeMonsterFromCampaign as removeMonsterFromCampaignAction,
   toggleMonsterFavorite as toggleMonsterFavoriteAction,
   recordMonsterUsage as recordMonsterUsageAction,
+  updateMonsterDetails as updateMonsterDetailsAction,
   loadState as loadMonsterLibraryStateAction,
 } from './store/monsterLibrarySlice'
 import { parseDndBeyondMonster, normalizeDndBeyondUrl } from './utils/dndBeyondMonsterParser'
@@ -188,6 +189,7 @@ function App() {
   const [templateErrors, setTemplateErrors] = useState({})
   const [monsterInitiatives, setMonsterInitiatives] = useState({})
   const [monsterErrors, setMonsterErrors] = useState({})
+  const [monsterEdits, setMonsterEdits] = useState({})
   const [campaignForm, setCampaignForm] = useState({ name: '' })
   const [campaignFormError, setCampaignFormError] = useState('')
   const [campaignDetailsDraft, setCampaignDetailsDraft] = useState({
@@ -395,10 +397,101 @@ function App() {
       delete next[monsterId]
       return next
     })
+
+    setMonsterEdits((prev) => {
+      if (!(monsterId in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
   }
 
   const handleToggleMonsterFavoriteClick = (monsterId) => {
     dispatch(toggleMonsterFavoriteAction(monsterId))
+  }
+
+  const handleStartMonsterEdit = (monster) => {
+    if (!monster || !monster.id) {
+      return
+    }
+
+    setMonsterEdits((prev) => ({
+      ...prev,
+      [monster.id]: {
+        name: monster.name || '',
+        description:
+          Array.isArray(monster.description) && monster.description.length > 0
+            ? monster.description.join('\n\n')
+            : '',
+        error: '',
+      },
+    }))
+  }
+
+  const handleCancelMonsterEdit = (monsterId) => {
+    setMonsterEdits((prev) => {
+      if (!(monsterId in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
+  }
+
+  const handleMonsterEditFieldChange = (monsterId, field, value) => {
+    setMonsterEdits((prev) => {
+      const existing = prev[monsterId]
+      if (!existing) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [monsterId]: {
+          ...existing,
+          [field]: value,
+          error: '',
+        },
+      }
+    })
+  }
+
+  const handleSaveMonsterEdit = (monsterId) => {
+    const draft = monsterEdits[monsterId]
+    if (!draft) {
+      return
+    }
+
+    const name = draft.name ? draft.name.trim() : ''
+    if (!name) {
+      setMonsterEdits((prev) => ({
+        ...prev,
+        [monsterId]: {
+          ...draft,
+          error: 'A monster needs a name to stalk the initiative order.',
+        },
+      }))
+      return
+    }
+
+    const description = typeof draft.description === 'string' ? draft.description : ''
+
+    dispatch(
+      updateMonsterDetailsAction({
+        monsterId,
+        name,
+        description,
+      }),
+    )
+
+    setMonsterEdits((prev) => {
+      const next = { ...prev }
+      delete next[monsterId]
+      return next
+    })
   }
 
   const handleQuickAddMonster = (monsterId, sourceCampaignId = null) => {
@@ -1697,6 +1790,11 @@ function App() {
                               ? new Date(entry.lastUsedAt).toLocaleString()
                               : null
 
+                            const editDraft = monsterEdits[monster.id]
+                              ? monsterEdits[monster.id]
+                              : null
+                            const isEditing = Boolean(editDraft)
+
                             return (
                               <li key={monster.id} className="template-card monster-card">
                                 <header className="template-card__header monster-card__header">
@@ -1726,6 +1824,13 @@ function App() {
                                     <button
                                       type="button"
                                       className="ghost-button"
+                                      onClick={() => handleStartMonsterEdit(monster)}
+                                    >
+                                      {isEditing ? 'Editing…' : 'Edit details'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-button"
                                       onClick={() => handleRemoveMonsterTemplateEntry(monster.id)}
                                     >
                                       Remove
@@ -1740,6 +1845,70 @@ function App() {
                                       </span>
                                     ))}
                                   </div>
+                                )}
+                                {isEditing ? (
+                                  <form
+                                    className="monster-card__edit-form"
+                                    onSubmit={(event) => {
+                                      event.preventDefault()
+                                      handleSaveMonsterEdit(monster.id)
+                                    }}
+                                  >
+                                    <label>
+                                      <span>Monster name</span>
+                                      <input
+                                        value={editDraft.name}
+                                        onChange={(event) =>
+                                          handleMonsterEditFieldChange(
+                                            monster.id,
+                                            'name',
+                                            event.target.value,
+                                          )
+                                        }
+                                        placeholder="Gray Ooze"
+                                        autoComplete="off"
+                                      />
+                                    </label>
+                                    <label className="monster-card__edit-description">
+                                      <span>Description</span>
+                                      <textarea
+                                        value={editDraft.description}
+                                        onChange={(event) =>
+                                          handleMonsterEditFieldChange(
+                                            monster.id,
+                                            'description',
+                                            event.target.value,
+                                          )
+                                        }
+                                        placeholder="Background lore, lair notes, or encounter reminders."
+                                        rows={4}
+                                      />
+                                    </label>
+                                    {editDraft.error && (
+                                      <p className="template-card__error">{editDraft.error}</p>
+                                    )}
+                                    <div className="monster-card__edit-actions">
+                                      <button type="submit" className="primary-button">
+                                        Save changes
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="ghost-button"
+                                        onClick={() => handleCancelMonsterEdit(monster.id)}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </form>
+                                ) : (
+                                  Array.isArray(monster.description) &&
+                                  monster.description.length > 0 && (
+                                    <div className="monster-card__description">
+                                      {monster.description.map((paragraph, paragraphIndex) => (
+                                        <p key={paragraphIndex}>{paragraph}</p>
+                                      ))}
+                                    </div>
+                                  )
                                 )}
                                 <div className="template-card__actions monster-card__actions">
                                   <label className="template-card__initiative">
