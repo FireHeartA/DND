@@ -101,6 +101,25 @@ const stringifyDefenseList = (values: string[]): string => {
     .join(', ')
 }
 
+const isDefenseTag = (tag: string): boolean => {
+  const normalized = tag.toLowerCase()
+  return (
+    normalized.startsWith('vulnerable ') ||
+    normalized.startsWith('resist ') ||
+    normalized.startsWith('immune ') ||
+    normalized.startsWith('condition immune')
+  )
+}
+
+const getDefenseChipStyle = (value: string) => {
+  const option = DEFENSE_OPTION_LOOKUP[value]
+  const backgroundColor = option?.color ? `${option.color}26` : 'rgba(255,255,255,0.08)'
+  const borderColor = option?.color || 'rgba(255,255,255,0.25)'
+  const color = option?.category === 'condition' ? '#ffffff' : '#1a1626'
+
+  return { backgroundColor, borderColor, color, option }
+}
+
 /**
  * Displays the campaign manager view, allowing the user to manage rosters and monsters.
  */
@@ -1467,7 +1486,9 @@ export const CampaignManagerView: React.FC = () => {
                   ) : (
                     <ul className="monster-library__list">
                       {campaignMonsterList.map(({ monster, entry, isFavorite }) => {
-                        const displayTags = getMonsterDisplayTags(monster)
+                        const displayTags = getMonsterDisplayTags(monster).filter(
+                          (tag) => !isDefenseTag(tag),
+                        )
                         const editDraft = monsterEdits[monster.id] || null
                         const isEditing = Boolean(editDraft)
 
@@ -1475,16 +1496,21 @@ export const CampaignManagerView: React.FC = () => {
                           damageImmunities:
                             (editDraft && Array.isArray(editDraft.damageImmunities)
                               ? editDraft.damageImmunities
-                              : []) || [],
+                              : parseDefenseList(monster.damageImmunities)) || [],
                           damageResistances:
                             (editDraft && Array.isArray(editDraft.damageResistances)
                               ? editDraft.damageResistances
-                              : []) || [],
+                              : parseDefenseList(monster.damageResistances)) || [],
                           damageVulnerabilities:
                             (editDraft && Array.isArray(editDraft.damageVulnerabilities)
                               ? editDraft.damageVulnerabilities
-                              : []) || [],
+                              : parseDefenseList(monster.damageVulnerabilities)) || [],
                         }
+
+                        const hasDefenseSelections =
+                          defenseSelections.damageImmunities.length > 0 ||
+                          defenseSelections.damageResistances.length > 0 ||
+                          defenseSelections.damageVulnerabilities.length > 0
 
                         const lastUsedLabel = entry.lastUsedAt
                           ? new Date(entry.lastUsedAt).toLocaleString()
@@ -1688,18 +1714,16 @@ export const CampaignManagerView: React.FC = () => {
                                       <div className="monster-card__defense-chips">
                                         {selectedValues.length > 0 ? (
                                           selectedValues.map((value) => {
-                                            const option = DEFENSE_OPTION_LOOKUP[value]
-                                            const background = option?.color ? `${option.color}26` : 'rgba(255,255,255,0.08)'
-                                            const borderColor = option?.color || 'rgba(255,255,255,0.25)'
-                                            const textColor = option?.category === 'condition' ? '#0f0f0f' : '#1a1626'
+                                            const { backgroundColor, borderColor, color, option } =
+                                              getDefenseChipStyle(value)
                                             return (
                                               <span
                                                 key={`${field}-${value}`}
                                                 className="monster-card__defense-chip"
                                                 style={{
-                                                  backgroundColor: background,
+                                                  backgroundColor,
                                                   borderColor,
-                                                  color: textColor,
+                                                  color,
                                                 }}
                                               >
                                                 <span className="monster-card__defense-icon" aria-hidden="true">
@@ -1776,28 +1800,72 @@ export const CampaignManagerView: React.FC = () => {
                                 </div>
                               </form>
                             ) : (
-                              <footer className="monster-card__footer">
-                                <div className="monster-card__meta">
-                                  <span className="monster-card__meta-item">
-                                    Imported {new Date(monster.importedAt).toLocaleDateString()}
-                                  </span>
-                                  {lastUsedLabel && (
-                                    <span className="monster-card__meta-item">
-                                      Last used {lastUsedLabel}
-                                    </span>
-                                  )}
-                                </div>
-                                {monster.sourceUrl && (
-                                  <a
-                                    href={monster.sourceUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="monster-card__link"
-                                  >
-                                    View on D&D Beyond
-                                  </a>
+                              <>
+                                {hasDefenseSelections && (
+                                  <div className="monster-card__defenses monster-card__defenses--preview">
+                                    {(
+                                      [
+                                        { field: 'damageImmunities' as const, label: 'Immunities' },
+                                        { field: 'damageResistances' as const, label: 'Resistances' },
+                                        { field: 'damageVulnerabilities' as const, label: 'Vulnerabilities' },
+                                      ] as const
+                                    ).map(({ field, label }) => {
+                                      const selectedValues = defenseSelections[field]
+                                      if (selectedValues.length === 0) {
+                                        return null
+                                      }
+
+                                      return (
+                                        <div key={field} className="monster-card__defense-row">
+                                          <div className="monster-card__defense-label">
+                                            <span>{label}</span>
+                                          </div>
+                                          <div className="monster-card__defense-chips">
+                                            {selectedValues.map((value) => {
+                                              const { backgroundColor, borderColor, color, option } =
+                                                getDefenseChipStyle(value)
+                                              return (
+                                                <span
+                                                  key={`${field}-${value}`}
+                                                  className="monster-card__defense-chip"
+                                                  style={{ backgroundColor, borderColor, color }}
+                                                >
+                                                  <span className="monster-card__defense-icon" aria-hidden="true">
+                                                    {option?.icon || '◆'}
+                                                  </span>
+                                                  <span>{option?.label || value}</span>
+                                                </span>
+                                              )
+                                            })}
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
                                 )}
-                              </footer>
+                                <footer className="monster-card__footer">
+                                  <div className="monster-card__meta">
+                                    <span className="monster-card__meta-item">
+                                      Imported {new Date(monster.importedAt).toLocaleDateString()}
+                                    </span>
+                                    {lastUsedLabel && (
+                                      <span className="monster-card__meta-item">
+                                        Last used {lastUsedLabel}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {monster.sourceUrl && (
+                                    <a
+                                      href={monster.sourceUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="monster-card__link"
+                                    >
+                                      View on D&D Beyond
+                                    </a>
+                                  )}
+                                </footer>
+                              </>
                             )}
                           </li>
                         )
