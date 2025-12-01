@@ -1671,11 +1671,24 @@ textarea:focus {
   color: #ff8d8d;
 }
 
+.combatant-card__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-top: 0.5rem;
+}
+
 .combatant-card__meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.5rem;
+}
+
+.combatant-card__footer .combatant-card__meta {
+  margin-top: 0;
+  justify-content: flex-end;
 }
 
 .combatant-card__meta-item {
