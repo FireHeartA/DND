@@ -1,13 +1,52 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useMemo, useState } from 'react'
+
+type QuestEntry = {
+  id: string
+  text: string
+  status: 'pending' | 'completed' | 'failed'
+}
 
 export const QuestLogView: React.FC = () => {
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState('')
+  const [entries, setEntries] = useState<QuestEntry[]>([])
+
+  const hasEntries = useMemo(() => entries.length > 0, [entries])
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const trimmedNotes = notes.trim()
+    if (!trimmedNotes) {
+      setStatus('Add some quest details before confirming')
+      setTimeout(() => setStatus(''), 2500)
+      return
+    }
+
+    setEntries((previous) => [
+      {
+        id: crypto.randomUUID(),
+        text: trimmedNotes,
+        status: 'pending',
+      },
+      ...previous,
+    ])
+
+    setNotes('')
     setStatus('Quest log updated')
     setTimeout(() => setStatus(''), 2500)
+  }
+
+  const handleStatusChange = (id: string, newStatus: QuestEntry['status']) => {
+    setEntries((previous) =>
+      previous.map((entry) =>
+        entry.id === id
+          ? {
+              ...entry,
+              status: newStatus,
+            }
+          : entry
+      )
+    )
   }
 
   return (
@@ -42,6 +81,39 @@ export const QuestLogView: React.FC = () => {
           {status && <span className="quest-log__status">{status}</span>}
         </div>
       </form>
+
+      <div className="quest-log__entries" aria-live="polite">
+        {hasEntries ? (
+          entries.map((entry) => (
+            <article
+              key={entry.id}
+              className={`quest-log__entry quest-log__entry--${entry.status}`}
+            >
+              <div className="quest-log__entry-body">
+                <p className="quest-log__entry-text">{entry.text}</p>
+              </div>
+              <div className="quest-log__entry-footer">
+                <button
+                  type="button"
+                  className="secondary-button quest-log__complete-button"
+                  onClick={() => handleStatusChange(entry.id, 'completed')}
+                >
+                  Completed
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  onClick={() => handleStatusChange(entry.id, 'failed')}
+                >
+                  Failed
+                </button>
+              </div>
+            </article>
+          ))
+        ) : (
+          <p className="quest-log__empty">No quests confirmed yet.</p>
+        )}
+      </div>
     </section>
   )
 }
