@@ -1467,9 +1467,6 @@ export const CampaignManagerView: React.FC = () => {
                       Clear
                     </button>
                   </div>
-                  <p className="form-hint">
-                    The tracker fetches a reader-friendly version of the stat block via r.jina.ai.
-                  </p>
                 </form>
 
                 <div className="monster-library">
