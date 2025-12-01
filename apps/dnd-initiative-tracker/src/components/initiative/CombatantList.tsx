@@ -145,10 +145,24 @@ export const CombatantList: React.FC<CombatantListProps> = ({
           combatant.type === 'monster' && combatant.sourceMonsterId
             ? monstersById[combatant.sourceMonsterId] ?? null
             : null
-        const isBloodied = combatant.currentHp <= Math.max(1, combatant.maxHp / 2)
         const isDown = combatant.currentHp === 0
-        const showDeathSaves = isDown && combatant.type === 'player'
         const hpPercent = combatant.maxHp > 0 ? (combatant.currentHp / combatant.maxHp) * 100 : 0
+        const bloodIndicatorCount = isDown || combatant.currentHp <= 1
+          ? 3
+          : hpPercent <= 25
+            ? 2
+            : hpPercent <= 50
+              ? 1
+              : 0
+        const bloodIndicatorLabel =
+          bloodIndicatorCount === 3
+            ? 'Critical condition'
+            : bloodIndicatorCount === 2
+              ? 'Severely wounded'
+              : bloodIndicatorCount === 1
+                ? 'Bloodied'
+                : ''
+        const showDeathSaves = isDown && combatant.type === 'player'
         const nicknameTag = combatant.tags.find((tag) => tag.title.toLowerCase() === 'nickname')
         const displayName = displayNames[combatant.id] ?? combatant.name
         const monsterTags =
@@ -234,9 +248,9 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                       Generate nickname
                     </button>
                   )}
-                  {isBloodied && (
-                    <span className="bloodied-indicator" title="Bloodied" aria-label="Bloodied">
-                      <span aria-hidden="true">🩸</span>
+                  {bloodIndicatorCount > 0 && bloodIndicatorLabel && (
+                    <span className="bloodied-indicator" title={bloodIndicatorLabel} aria-label={bloodIndicatorLabel}>
+                      <span aria-hidden="true">{'🩸'.repeat(bloodIndicatorCount)}</span>
                     </span>
                   )}
                   {combatant.type === 'monster' && monsterTags.length > 0 && (
@@ -363,7 +377,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                   <input
                     value={adjustment}
                     onChange={(event) => onAdjustmentChange(combatant.id, event.target.value)}
-                    placeholder="5 8 12"
+                    placeholder=""
                     inputMode="text"
                   />
                 </label>
