@@ -21,7 +21,13 @@ import {
   normalizeMonsterTag,
   prepareMonsterTags,
 } from '../../utils/monsterTags'
-import { DEFENSE_OPTION_LOOKUP, MONSTER_DEFENSE_OPTIONS } from '../../utils/monsterDefenses'
+import {
+  DEFENSE_OPTION_LOOKUP,
+  MONSTER_DEFENSE_OPTIONS,
+  getDefenseChipStyle,
+  isDefenseTag,
+  parseDefenseList,
+} from '../../utils/monsterDefenses'
 import type {
   Campaign,
   CampaignCharacter,
@@ -55,38 +61,6 @@ interface PlayerTemplateEditDraft {
   error: string
 }
 
-const normalizeDefenseValue = (value: string): string => value.replace(/[^a-z]/gi, '').toLowerCase()
-
-const parseDefenseList = (rawValue: string): string[] => {
-  if (!rawValue || typeof rawValue !== 'string') {
-    return []
-  }
-
-  const parts = rawValue
-    .split(/[,;/]/)
-    .flatMap((entry) => entry.split(/\band\b/gi))
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-
-  const seen = new Set<string>()
-
-  parts.forEach((entry) => {
-    const normalized = normalizeDefenseValue(entry)
-    const match = MONSTER_DEFENSE_OPTIONS.find((option) => {
-      return (
-        normalizeDefenseValue(option.value) === normalized ||
-        normalizeDefenseValue(option.label) === normalized
-      )
-    })
-
-    if (match) {
-      seen.add(match.value)
-    }
-  })
-
-  return Array.from(seen)
-}
-
 const stringifyDefenseList = (values: string[]): string => {
   if (!Array.isArray(values)) {
     return ''
@@ -99,25 +73,6 @@ const stringifyDefenseList = (values: string[]): string => {
     })
     .filter(Boolean)
     .join(', ')
-}
-
-const isDefenseTag = (tag: string): boolean => {
-  const normalized = tag.toLowerCase()
-  return (
-    normalized.startsWith('vulnerable ') ||
-    normalized.startsWith('resist ') ||
-    normalized.startsWith('immune ') ||
-    normalized.startsWith('condition immune')
-  )
-}
-
-const getDefenseChipStyle = (value: string) => {
-  const option = DEFENSE_OPTION_LOOKUP[value]
-  const backgroundColor = option?.color ? `${option.color}26` : 'rgba(255,255,255,0.08)'
-  const borderColor = option?.color || 'rgba(255,255,255,0.25)'
-  const color = option?.category === 'condition' ? '#ffffff' : '#1a1626'
-
-  return { backgroundColor, borderColor, color, option }
 }
 
 /**

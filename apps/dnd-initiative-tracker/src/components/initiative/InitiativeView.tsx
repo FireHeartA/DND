@@ -22,6 +22,7 @@ import {
 } from '../../store/monsterLibrarySlice'
 import { formatDurationClock, formatDurationVerbose, computeCombatStats } from '../../utils/combatStats'
 import { getMonsterCombatantTags, getMonsterDisplayTags } from '../../utils/monsterTags'
+import { getDefenseChipStyle, isDefenseTag, parseDefenseList } from '../../utils/monsterDefenses'
 import { generateFantasyName } from '../../utils/nameGenerator'
 import { CombatantList } from './CombatantList'
 import type { AdjustmentDraft, DamageModifier, ValueDraft } from './types'
@@ -53,6 +54,63 @@ const createDefaultAdjustmentDraft = (): AdjustmentDraft => ({
   value: '',
   damageModifier: 'normal',
 })
+
+type DefenseSelections = {
+  damageImmunities: string[]
+  damageResistances: string[]
+  damageVulnerabilities: string[]
+}
+
+const MonsterDefensePreview: React.FC<{ selections: DefenseSelections }> = ({ selections }) => {
+  const hasDefenseSelections =
+    selections.damageImmunities.length > 0 ||
+    selections.damageResistances.length > 0 ||
+    selections.damageVulnerabilities.length > 0
+
+  if (!hasDefenseSelections) {
+    return null
+  }
+
+  return (
+    <div className="monster-card__defenses monster-card__defenses--preview">
+      {([
+        { field: 'damageImmunities' as const, label: 'Immunities' },
+        { field: 'damageResistances' as const, label: 'Resistances' },
+        { field: 'damageVulnerabilities' as const, label: 'Vulnerabilities' },
+      ] as const).map(({ field, label }) => {
+        const selectedValues = selections[field]
+        if (selectedValues.length === 0) {
+          return null
+        }
+
+        return (
+          <div key={field} className="monster-card__defense-row">
+            <div className="monster-card__defense-label">
+              <span>{label}</span>
+            </div>
+            <div className="monster-card__defense-chips">
+              {selectedValues.map((value) => {
+                const { backgroundColor, borderColor, color, option } = getDefenseChipStyle(value)
+                return (
+                  <span
+                    key={`${field}-${value}`}
+                    className="monster-card__defense-chip"
+                    style={{ backgroundColor, borderColor, color }}
+                  >
+                    <span className="monster-card__defense-icon" aria-hidden="true">
+                      {option?.icon || '◆'}
+                    </span>
+                    <span>{option?.label || value}</span>
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 /**
  * Hosts the initiative tracker workflow, including combat timing and quick-add helpers.
@@ -1824,7 +1882,12 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
               <ul className="monster-quick-list">
                 {campaignMonsterList.map(({ monster, isFavorite }) => {
                   const initiativeValue = monsterInitiatives[monster.id] ?? ''
-                  const displayTags = getMonsterDisplayTags(monster)
+                  const displayTags = getMonsterDisplayTags(monster).filter((tag) => !isDefenseTag(tag))
+                  const defenseSelections: DefenseSelections = {
+                    damageImmunities: parseDefenseList(monster.damageImmunities),
+                    damageResistances: parseDefenseList(monster.damageResistances),
+                    damageVulnerabilities: parseDefenseList(monster.damageVulnerabilities),
+                  }
 
                   return (
                     <li key={monster.id} className="template-card monster-card">
@@ -1849,6 +1912,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                           {isFavorite ? '★ Favorite' : '☆ Favorite'}
                         </button>
                       </header>
+                      <MonsterDefensePreview selections={defenseSelections} />
                       <div className="template-card__actions monster-card__actions">
                         <label className="template-card__initiative">
                           <span>Initiative</span>
@@ -1909,7 +1973,12 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
               <ul className="monster-quick-list">
                 {favoriteMonsterList.map(({ monster }) => {
                   const initiativeValue = monsterInitiatives[monster.id] ?? ''
-                  const displayTags = getMonsterDisplayTags(monster)
+                  const displayTags = getMonsterDisplayTags(monster).filter((tag) => !isDefenseTag(tag))
+                  const defenseSelections: DefenseSelections = {
+                    damageImmunities: parseDefenseList(monster.damageImmunities),
+                    damageResistances: parseDefenseList(monster.damageResistances),
+                    damageVulnerabilities: parseDefenseList(monster.damageVulnerabilities),
+                  }
 
                   return (
                     <li key={monster.id} className="template-card monster-card monster-card--compact">
@@ -1932,6 +2001,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                           ★ Favorite
                         </button>
                       </header>
+                      <MonsterDefensePreview selections={defenseSelections} />
                       <div className="template-card__actions monster-card__actions">
                         <label className="template-card__initiative">
                           <span>Initiative</span>
