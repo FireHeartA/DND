@@ -1413,14 +1413,21 @@ textarea:focus {
 
 .bulk-damage-panel__controls {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1.25rem;
-  align-items: flex-end;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 1.1rem;
+  align-items: flex-start;
+}
+
+.bulk-damage-panel__inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 420px;
 }
 
 .bulk-damage-panel__controls label {
-  flex: 1 1 220px;
+  width: 100%;
 }
 
 .bulk-damage-panel__actions {
