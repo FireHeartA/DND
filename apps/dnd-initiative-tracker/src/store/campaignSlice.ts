@@ -36,6 +36,60 @@ const sanitizeProfileUrl = (value: unknown): string => {
   return /^https?:\/\//i.test(trimmed) ? trimmed : ''
 }
 
+const sanitizeTagList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const seen = new Set<string>()
+  const normalized: string[] = []
+
+  value.forEach((entry) => {
+    if (typeof entry !== 'string') {
+      return
+    }
+    const cleaned = entry.trim()
+    if (!cleaned) {
+      return
+    }
+    const key = cleaned.toLowerCase()
+    if (seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    normalized.push(cleaned)
+  })
+
+  return normalized
+}
+
+const sanitizeDefenseList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const seen = new Set<string>()
+  const normalized: string[] = []
+
+  value.forEach((entry) => {
+    if (typeof entry !== 'string') {
+      return
+    }
+    const cleaned = entry.trim()
+    if (!cleaned) {
+      return
+    }
+    const key = cleaned.toLowerCase()
+    if (seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    normalized.push(cleaned)
+  })
+
+  return normalized
+}
+
 /**
  * Converts untrusted campaign character data into a safe template entry.
  */
@@ -63,6 +117,12 @@ const sanitizeCharacter = (character: unknown): CampaignCharacter | null => {
     armorClass: Number.isFinite(armorClassValue) ? Math.max(0, Math.trunc(armorClassValue)) : null,
     profileUrl: sanitizeProfileUrl(candidate.profileUrl),
     notes: typeof candidate.notes === 'string' ? candidate.notes : '',
+    tags: sanitizeTagList(candidate.tags),
+    damageImmunities: sanitizeDefenseList((candidate as { damageImmunities?: unknown }).damageImmunities),
+    damageResistances: sanitizeDefenseList((candidate as { damageResistances?: unknown }).damageResistances),
+    damageVulnerabilities: sanitizeDefenseList(
+      (candidate as { damageVulnerabilities?: unknown }).damageVulnerabilities,
+    ),
     createdAt: Number.isFinite(createdAtValue) ? createdAtValue : Date.now(),
   }
 }
@@ -134,6 +194,10 @@ export interface UpdatePlayerCharacterArgs {
     armorClass: number | null
     profileUrl: string
     notes: string
+    tags: string[]
+    damageImmunities: string[]
+    damageResistances: string[]
+    damageVulnerabilities: string[]
   }
 }
 
@@ -221,6 +285,10 @@ const campaignsSlice = createSlice({
               armorClass: character.armorClass,
               profileUrl: sanitizeProfileUrl(character.profileUrl),
               notes: character.notes,
+              tags: sanitizeTagList(character.tags),
+              damageImmunities: sanitizeDefenseList(character.damageImmunities),
+              damageResistances: sanitizeDefenseList(character.damageResistances),
+              damageVulnerabilities: sanitizeDefenseList(character.damageVulnerabilities),
               createdAt: Date.now(),
             } satisfies CampaignCharacter,
           },
@@ -282,6 +350,10 @@ const campaignsSlice = createSlice({
         : null
       existing.profileUrl = sanitizeProfileUrl(character.profileUrl)
       existing.notes = typeof character.notes === 'string' ? character.notes : ''
+      existing.tags = sanitizeTagList(character.tags)
+      existing.damageImmunities = sanitizeDefenseList(character.damageImmunities)
+      existing.damageResistances = sanitizeDefenseList(character.damageResistances)
+      existing.damageVulnerabilities = sanitizeDefenseList(character.damageVulnerabilities)
     },
     /**
      * Loads campaign state exported from disk and sanitizes the payload.

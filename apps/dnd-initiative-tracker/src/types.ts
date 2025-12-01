@@ -19,6 +19,9 @@ export interface Combatant {
   profileUrl: string
   notes: string
   tags: CombatantTag[]
+  damageImmunities: string[]
+  damageResistances: string[]
+  damageVulnerabilities: string[]
   sourceTemplateId: string | null
   sourceCampaignId: string | null
   sourceMonsterId: string | null
@@ -46,6 +49,10 @@ export interface CampaignCharacter {
   armorClass: number | null
   profileUrl: string
   notes: string
+  tags: string[]
+  damageImmunities: string[]
+  damageResistances: string[]
+  damageVulnerabilities: string[]
   createdAt: number
 }
 

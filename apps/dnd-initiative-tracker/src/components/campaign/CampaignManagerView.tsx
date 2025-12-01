@@ -58,8 +58,15 @@ interface PlayerTemplateEditDraft {
   armorClass: string
   profileUrl: string
   notes: string
+  tags: string[]
+  tagDraft: string
+  damageImmunities: string[]
+  damageResistances: string[]
+  damageVulnerabilities: string[]
   error: string
 }
+
+type PlayerDefenseField = 'damageImmunities' | 'damageResistances' | 'damageVulnerabilities'
 
 const stringifyDefenseList = (values: string[]): string => {
   if (!Array.isArray(values)) {
@@ -88,13 +95,19 @@ export const CampaignManagerView: React.FC = () => {
   const [campaignFormError, setCampaignFormError] = useState('')
   const [campaignDetailsDraft, setCampaignDetailsDraft] = useState({ name: '', notes: '' })
   const [campaignDetailsError, setCampaignDetailsError] = useState('')
-  const [playerTemplateForm, setPlayerTemplateForm] = useState({
+  const createEmptyPlayerTemplateForm = () => ({
     name: '',
     maxHp: '',
     armorClass: '',
     profileUrl: '',
     notes: '',
+    tags: [] as string[],
+    tagDraft: '',
+    damageImmunities: [] as string[],
+    damageResistances: [] as string[],
+    damageVulnerabilities: [] as string[],
   })
+  const [playerTemplateForm, setPlayerTemplateForm] = useState(createEmptyPlayerTemplateForm())
   const [playerTemplateError, setPlayerTemplateError] = useState('')
   const [monsterImportUrl, setMonsterImportUrl] = useState('')
   const [monsterImportError, setMonsterImportError] = useState('')
@@ -317,7 +330,10 @@ export const CampaignManagerView: React.FC = () => {
    * Handles updates to the roster form inputs.
    */
   const handlePlayerTemplateFormChange = useCallback(
-    (field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes', value: string) => {
+    (
+      field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes' | 'tagDraft',
+      value: string,
+    ) => {
       setPlayerTemplateForm((prev) => ({
         ...prev,
         [field]: value,
@@ -330,13 +346,52 @@ export const CampaignManagerView: React.FC = () => {
    * Clears the roster form fields.
    */
   const resetPlayerTemplateForm = useCallback(() => {
-    setPlayerTemplateForm({
-      name: '',
-      maxHp: '',
-      armorClass: '',
-      profileUrl: '',
-      notes: '',
+    setPlayerTemplateForm(createEmptyPlayerTemplateForm())
+  }, [])
+
+  const handlePlayerTemplateFormDefenseToggle = useCallback(
+    (field: PlayerDefenseField, value: string) => {
+      setPlayerTemplateForm((prev) => {
+        const current = prev[field] || []
+        const exists = current.some((entry) => entry.toLowerCase() === value.toLowerCase())
+        const nextValues = exists
+          ? current.filter((entry) => entry.toLowerCase() !== value.toLowerCase())
+          : [...current, value]
+
+        return {
+          ...prev,
+          [field]: nextValues,
+        }
+      })
+    },
+    [],
+  )
+
+  const handlePlayerTemplateFormTagAdd = useCallback(() => {
+    setPlayerTemplateForm((prev) => {
+      const draftValue = prev.tagDraft.trim()
+      if (!draftValue) {
+        return prev
+      }
+
+      const exists = prev.tags.some((tag) => tag.toLowerCase() === draftValue.toLowerCase())
+      if (exists) {
+        return { ...prev, tagDraft: '' }
+      }
+
+      return {
+        ...prev,
+        tags: [...prev.tags, draftValue],
+        tagDraft: '',
+      }
     })
+  }, [])
+
+  const handlePlayerTemplateFormTagRemove = useCallback((tag: string) => {
+    setPlayerTemplateForm((prev) => ({
+      ...prev,
+      tags: prev.tags.filter((entry) => entry.toLowerCase() !== tag.toLowerCase()),
+    }))
   }, [])
 
   /**
@@ -382,6 +437,10 @@ export const CampaignManagerView: React.FC = () => {
             armorClass,
             profileUrl,
             notes: playerTemplateForm.notes,
+            tags: playerTemplateForm.tags,
+            damageImmunities: playerTemplateForm.damageImmunities,
+            damageResistances: playerTemplateForm.damageResistances,
+            damageVulnerabilities: playerTemplateForm.damageVulnerabilities,
           },
         }),
       )
@@ -439,6 +498,17 @@ export const CampaignManagerView: React.FC = () => {
         armorClass: template.armorClass !== null ? String(template.armorClass) : '',
         profileUrl: template.profileUrl || '',
         notes: template.notes || '',
+        tags: Array.isArray(template.tags) ? template.tags : [],
+        tagDraft: '',
+        damageImmunities: Array.isArray(template.damageImmunities)
+          ? template.damageImmunities
+          : [],
+        damageResistances: Array.isArray(template.damageResistances)
+          ? template.damageResistances
+          : [],
+        damageVulnerabilities: Array.isArray(template.damageVulnerabilities)
+          ? template.damageVulnerabilities
+          : [],
         error: '',
       },
     }))
@@ -464,7 +534,7 @@ export const CampaignManagerView: React.FC = () => {
   const handlePlayerTemplateEditFieldChange = useCallback(
     (
       id: string,
-      field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes',
+      field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes' | 'tagDraft',
       value: string,
     ) => {
       setPlayerTemplateEdits((prev) => {
@@ -484,6 +554,77 @@ export const CampaignManagerView: React.FC = () => {
     },
     [],
   )
+
+  const handlePlayerTemplateEditDefenseToggle = useCallback(
+    (id: string, field: PlayerDefenseField, value: string) => {
+      setPlayerTemplateEdits((prev) => {
+        const draft = prev[id]
+        if (!draft) {
+          return prev
+        }
+
+        const current = draft[field] || []
+        const exists = current.some((entry) => entry.toLowerCase() === value.toLowerCase())
+        const nextValues = exists
+          ? current.filter((entry) => entry.toLowerCase() !== value.toLowerCase())
+          : [...current, value]
+
+        return {
+          ...prev,
+          [id]: {
+            ...draft,
+            [field]: nextValues,
+            error: '',
+          },
+        }
+      })
+    },
+    [],
+  )
+
+  const handlePlayerTemplateEditTagAdd = useCallback((id: string) => {
+    setPlayerTemplateEdits((prev) => {
+      const draft = prev[id]
+      if (!draft) {
+        return prev
+      }
+
+      const draftValue = (draft.tagDraft || '').trim()
+      if (!draftValue) {
+        return prev
+      }
+
+      const exists = draft.tags.some((tag) => tag.toLowerCase() === draftValue.toLowerCase())
+      if (exists) {
+        return {
+          ...prev,
+          [id]: { ...draft, tagDraft: '' },
+        }
+      }
+
+      return {
+        ...prev,
+        [id]: { ...draft, tags: [...draft.tags, draftValue], tagDraft: '' },
+      }
+    })
+  }, [])
+
+  const handlePlayerTemplateEditTagRemove = useCallback((id: string, tag: string) => {
+    setPlayerTemplateEdits((prev) => {
+      const draft = prev[id]
+      if (!draft) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [id]: {
+          ...draft,
+          tags: draft.tags.filter((entry) => entry.toLowerCase() !== tag.toLowerCase()),
+        },
+      }
+    })
+  }, [])
 
   /**
    * Saves the edits for a player template after validating the draft values.
@@ -568,6 +709,10 @@ export const CampaignManagerView: React.FC = () => {
             armorClass,
             profileUrl,
             notes: draft.notes,
+            tags: draft.tags,
+            damageImmunities: draft.damageImmunities,
+            damageResistances: draft.damageResistances,
+            damageVulnerabilities: draft.damageVulnerabilities,
           },
         }),
       )
@@ -1234,6 +1379,105 @@ export const CampaignManagerView: React.FC = () => {
                             rows={3}
                           />
                         </label>
+                        <div className="campaign-form__defenses">
+                          <span>Damage defenses</span>
+                          <div className="monster-card__defense-picker">
+                            {(
+                              [
+                                { field: 'damageImmunities' as const, label: 'Immunities' },
+                                { field: 'damageResistances' as const, label: 'Resistances' },
+                                { field: 'damageVulnerabilities' as const, label: 'Vulnerabilities' },
+                              ] as const
+                            ).map(({ field, label }) => (
+                              <div key={field} className="monster-card__defense-field">
+                                <label>
+                                  <span>{label}</span>
+                                  <select
+                                    value=""
+                                    onChange={(event) =>
+                                      handlePlayerTemplateFormDefenseToggle(field, event.target.value)
+                                    }
+                                  >
+                                    <option value="" disabled>
+                                      Add a damage type
+                                    </option>
+                                    {damageDefenseOptions.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.icon} {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <div className="monster-card__defense-chips">
+                                  {playerTemplateForm[field].length > 0 ? (
+                                    playerTemplateForm[field].map((value) => {
+                                      const { backgroundColor, borderColor, color, option } =
+                                        getDefenseChipStyle(value)
+                                      return (
+                                        <span
+                                          key={`${field}-${value}`}
+                                          className="monster-card__defense-chip"
+                                          style={{ backgroundColor, borderColor, color }}
+                                        >
+                                          <span className="monster-card__defense-icon" aria-hidden="true">
+                                            {option?.icon || '◆'}
+                                          </span>
+                                          <span>{option?.label || value}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handlePlayerTemplateFormDefenseToggle(field, value)}
+                                            aria-label={`Remove ${option?.label || value}`}
+                                          >
+                                            ×
+                                          </button>
+                                        </span>
+                                      )
+                                    })
+                                  ) : (
+                                    <span className="monster-card__edit-tags-empty">No selections yet.</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <label className="monster-card__edit-tags">
+                          <span>Tags</span>
+                          <div className="monster-card__edit-tags-list">
+                            {playerTemplateForm.tags.length > 0 ? (
+                              playerTemplateForm.tags.map((tag) => (
+                                  <span key={tag} className="monster-card__edit-tag stat-chip">
+                                    {tag}
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePlayerTemplateFormTagRemove(tag)}
+                                      aria-label={`Remove tag ${tag}`}
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))
+                            ) : (
+                              <span className="monster-card__edit-tags-empty">No tags yet.</span>
+                            )}
+                          </div>
+                          <div className="monster-card__edit-tags-input">
+                            <input
+                              value={playerTemplateForm.tagDraft}
+                              onChange={(event) => handlePlayerTemplateFormChange('tagDraft', event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault()
+                                  handlePlayerTemplateFormTagAdd()
+                                }
+                              }}
+                              placeholder="Add a tag and press Enter"
+                            />
+                            <button type="button" className="ghost-button" onClick={handlePlayerTemplateFormTagAdd}>
+                              Add tag
+                            </button>
+                          </div>
+                        </label>
                       </div>
                       {playerTemplateError && <p className="form-error">{playerTemplateError}</p>}
                       <div className="campaign-form__actions">
@@ -1409,6 +1653,128 @@ export const CampaignManagerView: React.FC = () => {
                                       placeholder="Personality, spell slots, reminders..."
                                     />
                                   </label>
+                                  <div className="campaign-form__defenses">
+                                    <span>Damage defenses</span>
+                                    <div className="monster-card__defense-picker">
+                                      {(
+                                        [
+                                          { field: 'damageImmunities' as const, label: 'Immunities' },
+                                          { field: 'damageResistances' as const, label: 'Resistances' },
+                                          { field: 'damageVulnerabilities' as const, label: 'Vulnerabilities' },
+                                        ] as const
+                                      ).map(({ field, label }) => {
+                                        const selectedValues = editDraft ? editDraft[field] : []
+                                        return (
+                                          <div key={field} className="monster-card__defense-field">
+                                            <label>
+                                              <span>{label}</span>
+                                              <select
+                                                value=""
+                                                onChange={(event) =>
+                                                  handlePlayerTemplateEditDefenseToggle(
+                                                    template.id,
+                                                    field,
+                                                    event.target.value,
+                                                  )
+                                                }
+                                              >
+                                                <option value="" disabled>
+                                                  Add a damage type
+                                                </option>
+                                                {damageDefenseOptions.map((option) => (
+                                                  <option key={option.value} value={option.value}>
+                                                    {option.icon} {option.label}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </label>
+                                            <div className="monster-card__defense-chips">
+                                              {selectedValues.length > 0 ? (
+                                                selectedValues.map((value) => {
+                                                  const { backgroundColor, borderColor, color, option } =
+                                                    getDefenseChipStyle(value)
+                                                  return (
+                                                    <span
+                                                      key={`${field}-${value}`}
+                                                      className="monster-card__defense-chip"
+                                                      style={{ backgroundColor, borderColor, color }}
+                                                    >
+                                                      <span className="monster-card__defense-icon" aria-hidden="true">
+                                                        {option?.icon || '◆'}
+                                                      </span>
+                                                      <span>{option?.label || value}</span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                          handlePlayerTemplateEditDefenseToggle(
+                                                            template.id,
+                                                            field,
+                                                            value,
+                                                          )
+                                                        }
+                                                        aria-label={`Remove ${option?.label || value}`}
+                                                      >
+                                                        ×
+                                                      </button>
+                                                    </span>
+                                                  )
+                                                })
+                                              ) : (
+                                                <span className="monster-card__edit-tags-empty">No selections yet.</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                  <label className="monster-card__edit-tags">
+                                    <span>Tags</span>
+                                    <div className="monster-card__edit-tags-list">
+                                      {editDraft && editDraft.tags.length > 0 ? (
+                                        editDraft.tags.map((tag) => (
+                                            <span key={tag} className="monster-card__edit-tag stat-chip">
+                                              {tag}
+                                              <button
+                                                type="button"
+                                                onClick={() => handlePlayerTemplateEditTagRemove(template.id, tag)}
+                                                aria-label={`Remove tag ${tag}`}
+                                              >
+                                                ×
+                                              </button>
+                                            </span>
+                                          ))
+                                      ) : (
+                                        <span className="monster-card__edit-tags-empty">No tags yet.</span>
+                                      )}
+                                    </div>
+                                    <div className="monster-card__edit-tags-input">
+                                      <input
+                                        value={editDraft?.tagDraft ?? ''}
+                                        onChange={(event) =>
+                                          handlePlayerTemplateEditFieldChange(
+                                            template.id,
+                                            'tagDraft',
+                                            event.target.value,
+                                          )
+                                        }
+                                        onKeyDown={(event) => {
+                                          if (event.key === 'Enter') {
+                                            event.preventDefault()
+                                            handlePlayerTemplateEditTagAdd(template.id)
+                                          }
+                                        }}
+                                        placeholder="Add a tag and press Enter"
+                                      />
+                                      <button
+                                        type="button"
+                                        className="ghost-button"
+                                        onClick={() => handlePlayerTemplateEditTagAdd(template.id)}
+                                      >
+                                        Add tag
+                                      </button>
+                                    </div>
+                                  </label>
                                 </div>
                                 {editDraft?.error && <p className="form-error">{editDraft.error}</p>}
                               </>
@@ -1426,6 +1792,59 @@ export const CampaignManagerView: React.FC = () => {
                                 )}
                                 {template.notes && (
                                   <p className="template-card__notes">{template.notes}</p>
+                                )}
+                                {([
+                                  template.damageImmunities,
+                                  template.damageResistances,
+                                  template.damageVulnerabilities,
+                                ].some((list) => Array.isArray(list) && list.length > 0) ||
+                                  (Array.isArray(template.tags) && template.tags.length > 0)) && (
+                                  <div className="monster-card__defenses monster-card__defenses--preview">
+                                    {(
+                                      [
+                                        { field: 'damageImmunities' as const, label: 'Immunities' },
+                                        { field: 'damageResistances' as const, label: 'Resistances' },
+                                        { field: 'damageVulnerabilities' as const, label: 'Vulnerabilities' },
+                                      ] as const
+                                    ).map(({ field, label }) => {
+                                      const selectedValues = template[field] || []
+                                      if (selectedValues.length === 0) {
+                                        return null
+                                      }
+                                      return (
+                                        <div key={field} className="monster-card__defense-group">
+                                          <span className="monster-card__defense-label">{label}</span>
+                                          <div className="monster-card__defense-chips">
+                                            {selectedValues.map((value) => {
+                                              const { backgroundColor, borderColor, color, option } =
+                                                getDefenseChipStyle(value)
+                                              return (
+                                                <span
+                                                  key={`${field}-${value}`}
+                                                  className="monster-card__defense-chip"
+                                                  style={{ backgroundColor, borderColor, color }}
+                                                >
+                                                  <span className="monster-card__defense-icon" aria-hidden="true">
+                                                    {option?.icon || '◆'}
+                                                  </span>
+                                                  <span>{option?.label || value}</span>
+                                                </span>
+                                              )
+                                            })}
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                    {Array.isArray(template.tags) && template.tags.length > 0 && (
+                                      <div className="monster-card__edit-tags-list">
+                                        {template.tags.map((tag) => (
+                                            <span key={tag} className="stat-chip monster-card__edit-tag">
+                                              {tag}
+                                            </span>
+                                          ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
                               </>
                             )}
