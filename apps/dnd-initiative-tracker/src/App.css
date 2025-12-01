@@ -204,9 +204,14 @@
 }
 
 .save-load-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 0.75rem;
-  justify-content: flex-end;
+  width: 100%;
+}
+
+.save-load-actions button {
+  width: 100%;
 }
 
 .save-load-indicator {
