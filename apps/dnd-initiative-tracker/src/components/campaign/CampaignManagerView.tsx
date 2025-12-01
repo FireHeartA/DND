@@ -104,6 +104,10 @@ export const CampaignManagerView: React.FC = () => {
   const [playerTemplateEdits, setPlayerTemplateEdits] = useState<
     Record<string, PlayerTemplateEditDraft>
   >({})
+  const [isCampaignDetailsCollapsed, setIsCampaignDetailsCollapsed] = useState(false)
+  const [isPlayerFormCollapsed, setIsPlayerFormCollapsed] = useState(false)
+  const [isRosterCollapsed, setIsRosterCollapsed] = useState(false)
+  const [isMonstersCollapsed, setIsMonstersCollapsed] = useState(false)
 
   const damageDefenseOptions = useMemo(
     () => MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'damage'),
@@ -1127,113 +1131,150 @@ export const CampaignManagerView: React.FC = () => {
             {activeCampaign ? (
               <>
                 <form className="campaign-form" onSubmit={handleSaveCampaignDetails}>
-                  <h4>Campaign details</h4>
-                  <div className="form-grid campaign-form__grid">
-                    <label>
-                      <span>Name</span>
-                      <input
-                        value={campaignDetailsDraft.name}
-                        onChange={(event) => handleCampaignDetailsChange('name', event.target.value)}
-                        placeholder="The Wild Beyond the Witchlight"
-                      />
-                    </label>
-                    <label className="campaign-form__notes">
-                      <span>Notes</span>
-                      <textarea
-                        value={campaignDetailsDraft.notes}
-                        onChange={(event) => handleCampaignDetailsChange('notes', event.target.value)}
-                        placeholder="Session summaries, NPC lists, or adventure hooks."
-                        rows={4}
-                      />
-                    </label>
-                  </div>
-                  {campaignDetailsError && <p className="form-error">{campaignDetailsError}</p>}
-                  <div className="campaign-form__actions">
-                    <button type="submit" className="primary-button">
-                      Save details
+                  <div className="section-header">
+                    <h4>Campaign details</h4>
+                    <button
+                      type="button"
+                      className="section-toggle"
+                      onClick={() => setIsCampaignDetailsCollapsed((prev) => !prev)}
+                    >
+                      {isCampaignDetailsCollapsed ? 'Expand' : 'Minimize'}
                     </button>
                   </div>
+                  {!isCampaignDetailsCollapsed && (
+                    <>
+                      <div className="form-grid campaign-form__grid">
+                        <label>
+                          <span>Name</span>
+                          <input
+                            value={campaignDetailsDraft.name}
+                            onChange={(event) => handleCampaignDetailsChange('name', event.target.value)}
+                            placeholder="The Wild Beyond the Witchlight"
+                          />
+                        </label>
+                        <label className="campaign-form__notes">
+                          <span>Notes</span>
+                          <textarea
+                            value={campaignDetailsDraft.notes}
+                            onChange={(event) => handleCampaignDetailsChange('notes', event.target.value)}
+                            placeholder="Session summaries, NPC lists, or adventure hooks."
+                            rows={4}
+                          />
+                        </label>
+                      </div>
+                      {campaignDetailsError && <p className="form-error">{campaignDetailsError}</p>}
+                      <div className="campaign-form__actions">
+                        <button type="submit" className="primary-button">
+                          Save details
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </form>
 
                 <form className="campaign-form" onSubmit={handleAddPlayerTemplate}>
-                  <h4>Add a player character</h4>
-                  <div className="form-grid campaign-form__grid">
-                    <label>
-                      <span>Name</span>
-                      <input
-                        value={playerTemplateForm.name}
-                        onChange={(event) => handlePlayerTemplateFormChange('name', event.target.value)}
-                        placeholder="Fighter name"
-                      />
-                    </label>
-                    <label>
-                      <span>Max HP</span>
-                      <input
-                        value={playerTemplateForm.maxHp}
-                        onChange={(event) => handlePlayerTemplateFormChange('maxHp', event.target.value)}
-                        placeholder="45"
-                        inputMode="numeric"
-                      />
-                    </label>
-                    <label>
-                      <span>Armor Class</span>
-                      <input
-                        value={playerTemplateForm.armorClass}
-                        onChange={(event) =>
-                          handlePlayerTemplateFormChange('armorClass', event.target.value)
-                        }
-                        placeholder="15"
-                        inputMode="numeric"
-                      />
-                    </label>
-                    <label>
-                      <span>Character link</span>
-                      <input
-                        value={playerTemplateForm.profileUrl}
-                        onChange={(event) =>
-                          handlePlayerTemplateFormChange('profileUrl', event.target.value)
-                        }
-                        placeholder="https://dndbeyond.com/profile/..."
-                        inputMode="url"
-                      />
-                    </label>
-                    <label className="campaign-form__notes">
-                      <span>Notes</span>
-                      <textarea
-                        value={playerTemplateForm.notes}
-                        onChange={(event) => handlePlayerTemplateFormChange('notes', event.target.value)}
-                        placeholder="Personality, spell slots, reminders..."
-                        rows={3}
-                      />
-                    </label>
-                  </div>
-                  {playerTemplateError && <p className="form-error">{playerTemplateError}</p>}
-                  <div className="campaign-form__actions">
-                    <button type="submit" className="primary-button">
-                      Add to roster
-                    </button>
-                    <button type="button" className="ghost-button" onClick={resetPlayerTemplateForm}>
-                      Clear
+                  <div className="section-header">
+                    <h4>Add a player character</h4>
+                    <button
+                      type="button"
+                      className="section-toggle"
+                      onClick={() => setIsPlayerFormCollapsed((prev) => !prev)}
+                    >
+                      {isPlayerFormCollapsed ? 'Expand' : 'Minimize'}
                     </button>
                   </div>
+                  {!isPlayerFormCollapsed && (
+                    <>
+                      <div className="form-grid campaign-form__grid">
+                        <label>
+                          <span>Name</span>
+                          <input
+                            value={playerTemplateForm.name}
+                            onChange={(event) => handlePlayerTemplateFormChange('name', event.target.value)}
+                            placeholder="Fighter name"
+                          />
+                        </label>
+                        <label>
+                          <span>Max HP</span>
+                          <input
+                            value={playerTemplateForm.maxHp}
+                            onChange={(event) => handlePlayerTemplateFormChange('maxHp', event.target.value)}
+                            placeholder="45"
+                            inputMode="numeric"
+                          />
+                        </label>
+                        <label>
+                          <span>Armor Class</span>
+                          <input
+                            value={playerTemplateForm.armorClass}
+                            onChange={(event) =>
+                              handlePlayerTemplateFormChange('armorClass', event.target.value)
+                            }
+                            placeholder="15"
+                            inputMode="numeric"
+                          />
+                        </label>
+                        <label>
+                          <span>Character link</span>
+                          <input
+                            value={playerTemplateForm.profileUrl}
+                            onChange={(event) =>
+                              handlePlayerTemplateFormChange('profileUrl', event.target.value)
+                            }
+                            placeholder="https://dndbeyond.com/profile/..."
+                            inputMode="url"
+                          />
+                        </label>
+                        <label className="campaign-form__notes">
+                          <span>Notes</span>
+                          <textarea
+                            value={playerTemplateForm.notes}
+                            onChange={(event) => handlePlayerTemplateFormChange('notes', event.target.value)}
+                            placeholder="Personality, spell slots, reminders..."
+                            rows={3}
+                          />
+                        </label>
+                      </div>
+                      {playerTemplateError && <p className="form-error">{playerTemplateError}</p>}
+                      <div className="campaign-form__actions">
+                        <button type="submit" className="primary-button">
+                          Add to roster
+                        </button>
+                        <button type="button" className="ghost-button" onClick={resetPlayerTemplateForm}>
+                          Clear
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </form>
 
                 <div className="campaign-roster">
-                  <div className="campaign-roster__header">
-                    <h4>Saved player characters</h4>
-                    <p>Reuse your heroes across sessions with a single click.</p>
-                  </div>
-                  {activeCampaignRoster.length === 0 ? (
-                    <div className="campaign-roster__empty">
-                      <p>
-                        No heroes saved yet. Chronicle your party above to reuse them across encounters.
-                      </p>
+                  <div className="campaign-roster__header section-header">
+                    <div>
+                      <h4>Saved player characters</h4>
+                      <p>Reuse your heroes across sessions with a single click.</p>
                     </div>
-                  ) : (
-                    <ul className="template-list">
-                      {activeCampaignRoster.map((template) => {
-                        const editDraft = playerTemplateEdits[template.id] || null
-                        const isEditing = Boolean(editDraft)
+                    <button
+                      type="button"
+                      className="section-toggle"
+                      onClick={() => setIsRosterCollapsed((prev) => !prev)}
+                    >
+                      {isRosterCollapsed ? 'Expand' : 'Minimize'}
+                    </button>
+                  </div>
+                  {!isRosterCollapsed && (
+                    <>
+                      {activeCampaignRoster.length === 0 ? (
+                        <div className="campaign-roster__empty">
+                          <p>
+                            No heroes saved yet. Chronicle your party above to reuse them across encounters.
+                          </p>
+                        </div>
+                      ) : (
+                        <ul className="template-list">
+                          {activeCampaignRoster.map((template) => {
+                            const editDraft = playerTemplateEdits[template.id] || null
+                            const isEditing = Boolean(editDraft)
 
                         return (
                           <li key={template.id} className="template-card">
@@ -1392,6 +1433,8 @@ export const CampaignManagerView: React.FC = () => {
                         )
                       })}
                     </ul>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -1430,22 +1473,33 @@ export const CampaignManagerView: React.FC = () => {
                 </form>
 
                 <div className="monster-library">
-                  <div className="monster-library__header">
-                    <h4>Campaign monsters</h4>
-                    <p>Keep your frequently used foes ready for quick initiative drops.</p>
-                  </div>
-                  {campaignMonsterList.length === 0 ? (
-                    <div className="monster-library__empty">
-                      <p>No monsters imported yet. Paste a D&D Beyond URL above to add one.</p>
+                  <div className="monster-library__header section-header">
+                    <div>
+                      <h4>Campaign monsters</h4>
+                      <p>Keep your frequently used foes ready for quick initiative drops.</p>
                     </div>
-                  ) : (
-                    <ul className="monster-library__list">
-                      {campaignMonsterList.map(({ monster, entry, isFavorite }) => {
-                        const displayTags = getMonsterDisplayTags(monster).filter(
-                          (tag) => !isDefenseTag(tag),
-                        )
-                        const editDraft = monsterEdits[monster.id] || null
-                        const isEditing = Boolean(editDraft)
+                    <button
+                      type="button"
+                      className="section-toggle"
+                      onClick={() => setIsMonstersCollapsed((prev) => !prev)}
+                    >
+                      {isMonstersCollapsed ? 'Expand' : 'Minimize'}
+                    </button>
+                  </div>
+                  {!isMonstersCollapsed && (
+                    <>
+                      {campaignMonsterList.length === 0 ? (
+                        <div className="monster-library__empty">
+                          <p>No monsters imported yet. Paste a D&D Beyond URL above to add one.</p>
+                        </div>
+                      ) : (
+                        <ul className="monster-library__list">
+                          {campaignMonsterList.map(({ monster, entry, isFavorite }) => {
+                            const displayTags = getMonsterDisplayTags(monster).filter(
+                              (tag) => !isDefenseTag(tag),
+                            )
+                            const editDraft = monsterEdits[monster.id] || null
+                            const isEditing = Boolean(editDraft)
 
                         const defenseSelections = {
                           damageImmunities:
@@ -1826,6 +1880,8 @@ export const CampaignManagerView: React.FC = () => {
                         )
                       })}
                     </ul>
+                      )}
+                    </>
                   )}
                 </div>
               </>
