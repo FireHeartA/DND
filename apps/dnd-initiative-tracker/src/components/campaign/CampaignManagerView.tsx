@@ -130,11 +130,6 @@ export const CampaignManagerView: React.FC = () => {
     () => MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'condition'),
     [],
   )
-  const playerDefenseOptions = useMemo(
-    () => [...damageDefenseOptions, ...conditionDefenseOptions],
-    [conditionDefenseOptions, damageDefenseOptions],
-  )
-
   /**
    * Sorts campaigns chronologically so the list remains stable for learners.
    */
@@ -1404,11 +1399,28 @@ export const CampaignManagerView: React.FC = () => {
                                     <option value="" disabled>
                                       Add a defense
                                     </option>
-                                    {playerDefenseOptions.map((option) => (
-                                      <option key={option.value} value={option.value}>
-                                        {option.icon} {option.label}
-                                      </option>
-                                    ))}
+                                    <optgroup label="Damage types">
+                                      {damageDefenseOptions.map((option) => (
+                                        <option
+                                          key={`${field}-${option.value}`}
+                                          value={option.value}
+                                          disabled={playerTemplateForm[field].includes(option.value)}
+                                        >
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                    <optgroup label="Conditions">
+                                      {conditionDefenseOptions.map((option) => (
+                                        <option
+                                          key={`${field}-${option.value}`}
+                                          value={option.value}
+                                          disabled={playerTemplateForm[field].includes(option.value)}
+                                        >
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </optgroup>
                                   </select>
                                 </label>
                                 <div className="monster-card__defense-chips">
@@ -1683,11 +1695,28 @@ export const CampaignManagerView: React.FC = () => {
                                                 <option value="" disabled>
                                                   Add a defense
                                                 </option>
-                                                {playerDefenseOptions.map((option) => (
-                                                  <option key={option.value} value={option.value}>
-                                                    {option.icon} {option.label}
-                                                  </option>
-                                                ))}
+                                                <optgroup label="Damage types">
+                                                  {damageDefenseOptions.map((option) => (
+                                                    <option
+                                                      key={`${field}-${option.value}`}
+                                                      value={option.value}
+                                                      disabled={selectedValues.includes(option.value)}
+                                                    >
+                                                      {option.label}
+                                                    </option>
+                                                  ))}
+                                                </optgroup>
+                                                <optgroup label="Conditions">
+                                                  {conditionDefenseOptions.map((option) => (
+                                                    <option
+                                                      key={`${field}-${option.value}`}
+                                                      value={option.value}
+                                                      disabled={selectedValues.includes(option.value)}
+                                                    >
+                                                      {option.label}
+                                                    </option>
+                                                  ))}
+                                                </optgroup>
                                               </select>
                                             </label>
                                             <div className="monster-card__defense-chips">
