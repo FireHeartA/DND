@@ -165,6 +165,13 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                 damageVulnerabilities: parseDefenseList(sourceMonster.damageVulnerabilities),
               }
             : null
+        const hasMetaItems =
+          combatant.armorClass !== null ||
+          Boolean(combatant.sourceTemplateId) ||
+          Boolean(combatant.sourceMonsterId) ||
+          metaTags.length > 0
+        const hasLinks = Boolean(sourceMonster?.sourceUrl || combatant.profileUrl)
+        const showFooter = hasMetaItems || hasLinks || isDown
 
         return (
           <li
@@ -253,92 +260,98 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                     {combatant.currentHp} / {combatant.maxHp} HP
                   </span>
                 </div>
-                <div className="combatant-card__meta">
-                  {combatant.armorClass !== null && (
-                    <span className="combatant-card__meta-item">AC {combatant.armorClass}</span>
-                  )}
-                  {combatant.sourceTemplateId && (
-                    <span className="combatant-card__meta-item combatant-card__meta-item--tag">Roster</span>
-                  )}
-                  {combatant.sourceMonsterId && (
-                    <span className="combatant-card__meta-item combatant-card__meta-item--tag">Monster</span>
-                  )}
-                  {metaTags.map((tag) => (
-                    <span
-                      key={`${combatant.id}-${tag.title}-${tag.value}`}
-                      className="combatant-card__meta-item combatant-card__meta-item--tag"
-                    >
-                      {tag.title}: {tag.value}
-                    </span>
-                  ))}
-                </div>
-                {sourceMonster?.sourceUrl && (
-                  <a
-                    href={sourceMonster.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="combatant-card__link"
-                  >
-                    View on D&D Beyond
-                  </a>
-                )}
-                {combatant.profileUrl && (
-                  <a
-                    href={combatant.profileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="combatant-card__link"
-                  >
-                    Open character profile
-                  </a>
-                )}
-                {isDown && <p className="status status--down">Unconscious</p>}
-                {isDown && (
-                  <div className="death-save-tracker" aria-label="Death saving throws">
-                    <div className="death-save-tracker__group" role="group" aria-label="Successes">
-                      <span className="death-save-tracker__label">Successes</span>
-                      <div className="death-save-tracker__boxes">
-                        {[0, 1, 2].map((index) => {
-                          const isFilled = index < successCount
-                          return (
-                            <button
-                              key={`${combatant.id}-success-${index}`}
-                              type="button"
-                              className={`death-save-box${isFilled ? ' death-save-box--success' : ''}`}
-                              aria-pressed={isFilled}
-                              aria-label={`Mark success ${index + 1}`}
-                              onClick={() =>
-                                handleDeathSaveClick(combatant.id, 'successes', index, successCount)
-                              }
-                            >
-                              {isFilled ? '✔' : ''}
-                            </button>
-                          )
-                        })}
+                {showFooter && (
+                  <div className="combatant-card__footer">
+                    {hasMetaItems && (
+                      <div className="combatant-card__meta">
+                        {combatant.armorClass !== null && (
+                          <span className="combatant-card__meta-item">AC {combatant.armorClass}</span>
+                        )}
+                        {combatant.sourceTemplateId && (
+                          <span className="combatant-card__meta-item combatant-card__meta-item--tag">Roster</span>
+                        )}
+                        {combatant.sourceMonsterId && (
+                          <span className="combatant-card__meta-item combatant-card__meta-item--tag">Monster</span>
+                        )}
+                        {metaTags.map((tag) => (
+                          <span
+                            key={`${combatant.id}-${tag.title}-${tag.value}`}
+                            className="combatant-card__meta-item combatant-card__meta-item--tag"
+                          >
+                            {tag.title}: {tag.value}
+                          </span>
+                        ))}
                       </div>
-                    </div>
-                    <div className="death-save-tracker__group" role="group" aria-label="Failures">
-                      <span className="death-save-tracker__label">Failures</span>
-                      <div className="death-save-tracker__boxes">
-                        {[0, 1, 2].map((index) => {
-                          const isFilled = index < failureCount
-                          return (
-                            <button
-                              key={`${combatant.id}-failure-${index}`}
-                              type="button"
-                              className={`death-save-box${isFilled ? ' death-save-box--failure' : ''}`}
-                              aria-pressed={isFilled}
-                              aria-label={`Mark failure ${index + 1}`}
-                              onClick={() =>
-                                handleDeathSaveClick(combatant.id, 'failures', index, failureCount)
-                              }
-                            >
-                              {isFilled ? '✖' : ''}
-                            </button>
-                          )
-                        })}
+                    )}
+                    {sourceMonster?.sourceUrl && (
+                      <a
+                        href={sourceMonster.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="combatant-card__link"
+                      >
+                        View on D&D Beyond
+                      </a>
+                    )}
+                    {combatant.profileUrl && (
+                      <a
+                        href={combatant.profileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="combatant-card__link"
+                      >
+                        Open character profile
+                      </a>
+                    )}
+                    {isDown && <p className="status status--down">Unconscious</p>}
+                    {isDown && (
+                      <div className="death-save-tracker" aria-label="Death saving throws">
+                        <div className="death-save-tracker__group" role="group" aria-label="Successes">
+                          <span className="death-save-tracker__label">Successes</span>
+                          <div className="death-save-tracker__boxes">
+                            {[0, 1, 2].map((index) => {
+                              const isFilled = index < successCount
+                              return (
+                                <button
+                                  key={`${combatant.id}-success-${index}`}
+                                  type="button"
+                                  className={`death-save-box${isFilled ? ' death-save-box--success' : ''}`}
+                                  aria-pressed={isFilled}
+                                  aria-label={`Mark success ${index + 1}`}
+                                  onClick={() =>
+                                    handleDeathSaveClick(combatant.id, 'successes', index, successCount)
+                                  }
+                                >
+                                  {isFilled ? '✔' : ''}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                        <div className="death-save-tracker__group" role="group" aria-label="Failures">
+                          <span className="death-save-tracker__label">Failures</span>
+                          <div className="death-save-tracker__boxes">
+                            {[0, 1, 2].map((index) => {
+                              const isFilled = index < failureCount
+                              return (
+                                <button
+                                  key={`${combatant.id}-failure-${index}`}
+                                  type="button"
+                                  className={`death-save-box${isFilled ? ' death-save-box--failure' : ''}`}
+                                  aria-pressed={isFilled}
+                                  aria-label={`Mark failure ${index + 1}`}
+                                  onClick={() =>
+                                    handleDeathSaveClick(combatant.id, 'failures', index, failureCount)
+                                  }
+                                >
+                                  {isFilled ? '✖' : ''}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
