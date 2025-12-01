@@ -2218,11 +2218,12 @@ textarea:focus {
   border: 1px solid #cfb78a;
   border-radius: 12px;
   padding: 1rem 1rem 1.25rem;
-  font-size: 1rem;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.6;
   resize: vertical;
   box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.06);
-  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  font-family: 'Arial', sans-serif;
+  font-weight: 700;
 }
 
 .quest-log__textarea::placeholder {
@@ -2238,4 +2239,111 @@ textarea:focus {
 .quest-log__status {
   color: #cbd5ff;
   font-weight: 600;
+}
+
+.quest-log__entries {
+  display: grid;
+  gap: 1rem;
+}
+
+.quest-log__empty {
+  color: rgba(244, 241, 234, 0.78);
+  font-style: italic;
+}
+
+.quest-log__entry {
+  position: relative;
+  background: linear-gradient(180deg, #fffdf6 0%, #fcf3dc 45%, #fffdf6 100%);
+  color: #1f130a;
+  border: 1px solid #d7c39a;
+  border-radius: 22px;
+  padding: 1.1rem 1.2rem 1.25rem;
+  box-shadow:
+    inset 0 0 0 2px rgba(243, 231, 205, 0.88),
+    0 16px 24px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  font-family: 'Arial', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.quest-log__entry::before,
+.quest-log__entry::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 95%;
+  height: 34px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.12), transparent 70%);
+  transform: translateX(-50%);
+  animation: scroll-curve 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.quest-log__entry::before {
+  top: -18px;
+  border-radius: 50% 50% 0 0;
+}
+
+.quest-log__entry::after {
+  bottom: -18px;
+  border-radius: 0 0 50% 50%;
+  transform: translateX(-50%) rotate(180deg);
+}
+
+.quest-log__entry-body {
+  position: relative;
+  z-index: 1;
+  padding: 0.25rem 0.1rem 0.5rem;
+}
+
+.quest-log__entry-text {
+  margin: 0;
+  white-space: pre-wrap;
+  color: #2b1c10;
+}
+
+.quest-log__entry-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.quest-log__complete-button {
+  background: linear-gradient(135deg, #56c68c, #3a9f68);
+  color: #0f1c12;
+  border: 1px solid rgba(86, 198, 140, 0.55);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.2);
+}
+
+.quest-log__entry--completed {
+  border-color: #5ea76f;
+  box-shadow:
+    inset 0 0 0 2px rgba(94, 167, 111, 0.45),
+    0 18px 26px rgba(0, 0, 0, 0.25);
+}
+
+.quest-log__entry--failed {
+  border-color: #d04848;
+  box-shadow:
+    inset 0 0 0 2px rgba(208, 72, 72, 0.4),
+    0 18px 26px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes scroll-curve {
+  0% {
+    opacity: 0.28;
+    transform: translateX(-50%) scaleY(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: translateX(-50%) scaleY(1.06);
+  }
+  100% {
+    opacity: 0.28;
+    transform: translateX(-50%) scaleY(1);
+  }
 }
