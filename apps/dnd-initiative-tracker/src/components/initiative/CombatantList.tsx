@@ -20,6 +20,10 @@ interface CombatantListProps {
   onApplyAdjustment: (id: string, direction: 'damage' | 'heal') => void
   onResetCombatant: (id: string) => void
   onReorder: (sourceId: string, targetId: string, position: 'before' | 'after') => void
+  onDeathSaveProgressChange: (
+    id: string,
+    payload: { successes?: number; failures?: number },
+  ) => void
 }
 
 export const CombatantList: React.FC<CombatantListProps> = ({
@@ -39,6 +43,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
   onApplyAdjustment,
   onResetCombatant,
   onReorder,
+  onDeathSaveProgressChange,
 }) => {
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<{ id: string; position: 'before' | 'after' } | null>(null)
@@ -98,6 +103,16 @@ export const CombatantList: React.FC<CombatantListProps> = ({
     setDragOver(null)
   }
 
+  const handleDeathSaveClick = (
+    combatantId: string,
+    type: 'successes' | 'failures',
+    index: number,
+    currentCount: number,
+  ) => {
+    const newCount = currentCount === index + 1 ? index : index + 1
+    onDeathSaveProgressChange(combatantId, { [type]: newCount })
+  }
+
   const renderTagLabel = (tag: CombatantTag): string => {
     const title = tag.title.trim()
     const value = tag.value.trim()
@@ -138,6 +153,8 @@ export const CombatantList: React.FC<CombatantListProps> = ({
             ? combatant.tags.filter((tag) => tag.title.toLowerCase() !== 'nickname')
             : []
         const metaTags = combatant.type === 'monster' ? [] : combatant.tags
+        const successCount = combatant.deathSaveSuccesses
+        const failureCount = combatant.deathSaveFailures
 
         return (
           <li
@@ -265,6 +282,54 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                   </a>
                 )}
                 {isDown && <p className="status status--down">Unconscious</p>}
+                {isDown && (
+                  <div className="death-save-tracker" aria-label="Death saving throws">
+                    <div className="death-save-tracker__group" role="group" aria-label="Successes">
+                      <span className="death-save-tracker__label">Successes</span>
+                      <div className="death-save-tracker__boxes">
+                        {[0, 1, 2].map((index) => {
+                          const isFilled = index < successCount
+                          return (
+                            <button
+                              key={`${combatant.id}-success-${index}`}
+                              type="button"
+                              className={`death-save-box${isFilled ? ' death-save-box--success' : ''}`}
+                              aria-pressed={isFilled}
+                              aria-label={`Mark success ${index + 1}`}
+                              onClick={() =>
+                                handleDeathSaveClick(combatant.id, 'successes', index, successCount)
+                              }
+                            >
+                              {isFilled ? '✔' : ''}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div className="death-save-tracker__group" role="group" aria-label="Failures">
+                      <span className="death-save-tracker__label">Failures</span>
+                      <div className="death-save-tracker__boxes">
+                        {[0, 1, 2].map((index) => {
+                          const isFilled = index < failureCount
+                          return (
+                            <button
+                              key={`${combatant.id}-failure-${index}`}
+                              type="button"
+                              className={`death-save-box${isFilled ? ' death-save-box--failure' : ''}`}
+                              aria-pressed={isFilled}
+                              aria-label={`Mark failure ${index + 1}`}
+                              onClick={() =>
+                                handleDeathSaveClick(combatant.id, 'failures', index, failureCount)
+                              }
+                            >
+                              {isFilled ? '✖' : ''}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="combatant-card__actions">

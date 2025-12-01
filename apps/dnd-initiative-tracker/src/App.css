@@ -1619,6 +1619,57 @@ textarea:focus {
   color: #ff7b7b;
 }
 
+.death-save-tracker {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.death-save-tracker__group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.death-save-tracker__label {
+  font-size: 0.85rem;
+  color: rgba(244, 241, 234, 0.82);
+}
+
+.death-save-tracker__boxes {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.death-save-box {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(244, 241, 234, 0.35);
+  background: rgba(244, 241, 234, 0.06);
+  color: #f4f1ea;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.death-save-box:hover {
+  transform: translateY(-1px);
+  border-color: rgba(244, 241, 234, 0.55);
+}
+
+.death-save-box--success {
+  background: rgba(58, 181, 75, 0.2);
+  border-color: rgba(58, 181, 75, 0.65);
+}
+
+.death-save-box--failure {
+  background: rgba(255, 105, 97, 0.2);
+  border-color: rgba(255, 105, 97, 0.7);
+}
+
 .combatant-card__actions {
   display: flex;
   flex-direction: column;

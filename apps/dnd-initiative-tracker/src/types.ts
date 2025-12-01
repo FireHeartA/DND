@@ -10,6 +10,8 @@ export interface Combatant {
   name: string
   maxHp: number
   currentHp: number
+  deathSaveSuccesses: number
+  deathSaveFailures: number
   initiative: number
   createdAt: number
   type: CombatantType
