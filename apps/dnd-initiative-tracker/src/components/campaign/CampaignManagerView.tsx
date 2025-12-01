@@ -21,6 +21,7 @@ import {
   normalizeMonsterTag,
   prepareMonsterTags,
 } from '../../utils/monsterTags'
+import { DEFENSE_OPTION_LOOKUP, MONSTER_DEFENSE_OPTIONS } from '../../utils/monsterDefenses'
 import type {
   Campaign,
   CampaignCharacter,
@@ -37,6 +38,9 @@ interface MonsterEditDraft {
   armorClass: string
   hitPoints: string
   challengeRating: string
+  damageImmunities: string[]
+  damageResistances: string[]
+  damageVulnerabilities: string[]
   tags: string[]
   tagDraft: string
   error: string
@@ -49,6 +53,52 @@ interface PlayerTemplateEditDraft {
   profileUrl: string
   notes: string
   error: string
+}
+
+const normalizeDefenseValue = (value: string): string => value.replace(/[^a-z]/gi, '').toLowerCase()
+
+const parseDefenseList = (rawValue: string): string[] => {
+  if (!rawValue || typeof rawValue !== 'string') {
+    return []
+  }
+
+  const parts = rawValue
+    .split(/[,;/]/)
+    .flatMap((entry) => entry.split(/\band\b/gi))
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+
+  const seen = new Set<string>()
+
+  parts.forEach((entry) => {
+    const normalized = normalizeDefenseValue(entry)
+    const match = MONSTER_DEFENSE_OPTIONS.find((option) => {
+      return (
+        normalizeDefenseValue(option.value) === normalized ||
+        normalizeDefenseValue(option.label) === normalized
+      )
+    })
+
+    if (match) {
+      seen.add(match.value)
+    }
+  })
+
+  return Array.from(seen)
+}
+
+const stringifyDefenseList = (values: string[]): string => {
+  if (!Array.isArray(values)) {
+    return ''
+  }
+
+  return values
+    .map((value) => {
+      const option = DEFENSE_OPTION_LOOKUP[value]
+      return option ? option.label : value
+    })
+    .filter(Boolean)
+    .join(', ')
 }
 
 /**
@@ -80,6 +130,15 @@ export const CampaignManagerView: React.FC = () => {
   const [playerTemplateEdits, setPlayerTemplateEdits] = useState<
     Record<string, PlayerTemplateEditDraft>
   >({})
+
+  const damageDefenseOptions = useMemo(
+    () => MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'damage'),
+    [],
+  )
+  const conditionDefenseOptions = useMemo(
+    () => MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'condition'),
+    [],
+  )
 
   /**
    * Sorts campaigns chronologically so the list remains stable for learners.
@@ -565,6 +624,9 @@ export const CampaignManagerView: React.FC = () => {
         armorClass: monster.armorClass !== null ? String(monster.armorClass) : '',
         hitPoints: monster.hitPoints !== null ? String(monster.hitPoints) : '',
         challengeRating: monster.challengeRating || '',
+        damageImmunities: parseDefenseList(monster.damageImmunities),
+        damageResistances: parseDefenseList(monster.damageResistances),
+        damageVulnerabilities: parseDefenseList(monster.damageVulnerabilities),
         tags: getMonsterDisplayTags(monster),
         tagDraft: '',
         error: '',
@@ -601,6 +663,75 @@ export const CampaignManagerView: React.FC = () => {
           [monsterId]: {
             ...existing,
             [field]: value,
+            error: '',
+          },
+        }
+      })
+    },
+    [],
+  )
+
+  const handleMonsterDefenseAdd = useCallback(
+    (
+      monsterId: string,
+      field: 'damageImmunities' | 'damageResistances' | 'damageVulnerabilities',
+      value: string,
+    ) => {
+      const trimmed = value.trim()
+      if (!trimmed) {
+        return
+      }
+
+      const option = MONSTER_DEFENSE_OPTIONS.find((candidate) => candidate.value === trimmed)
+      if (!option) {
+        return
+      }
+
+      setMonsterEdits((prev) => {
+        const existing = prev[monsterId]
+        if (!existing) {
+          return prev
+        }
+
+        const currentValues = Array.isArray(existing[field]) ? existing[field] : []
+
+        if (currentValues.includes(option.value)) {
+          return prev
+        }
+
+        return {
+          ...prev,
+          [monsterId]: {
+            ...existing,
+            [field]: [...currentValues, option.value],
+            error: '',
+          },
+        }
+      })
+    },
+    [],
+  )
+
+  const handleMonsterDefenseRemove = useCallback(
+    (
+      monsterId: string,
+      field: 'damageImmunities' | 'damageResistances' | 'damageVulnerabilities',
+      value: string,
+    ) => {
+      setMonsterEdits((prev) => {
+        const existing = prev[monsterId]
+        if (!existing) {
+          return prev
+        }
+
+        const currentValues = Array.isArray(existing[field]) ? existing[field] : []
+        const filtered = currentValues.filter((entry) => entry !== value)
+
+        return {
+          ...prev,
+          [monsterId]: {
+            ...existing,
+            [field]: filtered,
             error: '',
           },
         }
@@ -733,6 +864,16 @@ export const CampaignManagerView: React.FC = () => {
       const challengeRatingInput =
         typeof draft.challengeRating === 'string' ? draft.challengeRating.trim() : ''
 
+      const damageImmunities = Array.isArray(draft.damageImmunities)
+        ? draft.damageImmunities
+        : []
+      const damageResistances = Array.isArray(draft.damageResistances)
+        ? draft.damageResistances
+        : []
+      const damageVulnerabilities = Array.isArray(draft.damageVulnerabilities)
+        ? draft.damageVulnerabilities
+        : []
+
       let armorClassValue: number | null = null
       if (armorClassInput) {
         const parsedAc = Number.parseInt(armorClassInput, 10)
@@ -791,6 +932,10 @@ export const CampaignManagerView: React.FC = () => {
 
       const tags = prepareMonsterTags([...filteredTags, ...autoTags])
 
+      const damageImmunitiesString = stringifyDefenseList(damageImmunities)
+      const damageResistancesString = stringifyDefenseList(damageResistances)
+      const damageVulnerabilitiesString = stringifyDefenseList(damageVulnerabilities)
+
       dispatch(
         updateMonsterDetailsAction({
           monsterId,
@@ -800,6 +945,9 @@ export const CampaignManagerView: React.FC = () => {
           armorClass: armorClassValue,
           hitPoints: hitPointsValue,
           challengeRating: challengeRatingInput,
+          damageImmunities: damageImmunitiesString,
+          damageResistances: damageResistancesString,
+          damageVulnerabilities: damageVulnerabilitiesString,
         }),
       )
 
@@ -1323,6 +1471,21 @@ export const CampaignManagerView: React.FC = () => {
                         const editDraft = monsterEdits[monster.id] || null
                         const isEditing = Boolean(editDraft)
 
+                        const defenseSelections = {
+                          damageImmunities:
+                            (editDraft && Array.isArray(editDraft.damageImmunities)
+                              ? editDraft.damageImmunities
+                              : []) || [],
+                          damageResistances:
+                            (editDraft && Array.isArray(editDraft.damageResistances)
+                              ? editDraft.damageResistances
+                              : []) || [],
+                          damageVulnerabilities:
+                            (editDraft && Array.isArray(editDraft.damageVulnerabilities)
+                              ? editDraft.damageVulnerabilities
+                              : []) || [],
+                        }
+
                         const lastUsedLabel = entry.lastUsedAt
                           ? new Date(entry.lastUsedAt).toLocaleString()
                           : null
@@ -1457,6 +1620,112 @@ export const CampaignManagerView: React.FC = () => {
                                   autoComplete="off"
                                 />
                               </label>
+                            </div>
+                            <div className="monster-card__defenses">
+                              {(
+                                [
+                                  {
+                                    field: 'damageImmunities' as const,
+                                    label: 'Immunities',
+                                    helper: 'Attacks or conditions that have no effect.',
+                                  },
+                                  {
+                                    field: 'damageResistances' as const,
+                                    label: 'Resistances',
+                                    helper: 'Sources that deal reduced damage.',
+                                  },
+                                  {
+                                    field: 'damageVulnerabilities' as const,
+                                    label: 'Vulnerabilities',
+                                    helper: 'Sources that deal increased damage.',
+                                  },
+                                ] as const
+                              ).map(({ field, label, helper }) => {
+                                const selectedValues = defenseSelections[field]
+                                return (
+                                  <div key={field} className="monster-card__defense-row">
+                                    <div className="monster-card__defense-label">
+                                      <span>{label}</span>
+                                      <p>{helper}</p>
+                                    </div>
+                                    <div className="monster-card__defense-controls">
+                                      <label className="monster-card__defense-select">
+                                        <span>Select a condition</span>
+                                        <select
+                                          defaultValue=""
+                                          onChange={(event) => {
+                                            handleMonsterDefenseAdd(monster.id, field, event.target.value)
+                                            event.currentTarget.value = ''
+                                          }}
+                                        >
+                                          <option value="" disabled>
+                                            Choose an option…
+                                          </option>
+                                          <optgroup label="Damage types">
+                                            {damageDefenseOptions.map((option) => (
+                                              <option
+                                                key={`${field}-${option.value}`}
+                                                value={option.value}
+                                                disabled={selectedValues.includes(option.value)}
+                                              >
+                                                {option.label}
+                                              </option>
+                                            ))}
+                                          </optgroup>
+                                          <optgroup label="Conditions">
+                                            {conditionDefenseOptions.map((option) => (
+                                              <option
+                                                key={`${field}-${option.value}`}
+                                                value={option.value}
+                                                disabled={selectedValues.includes(option.value)}
+                                              >
+                                                {option.label}
+                                              </option>
+                                            ))}
+                                          </optgroup>
+                                        </select>
+                                      </label>
+                                      <div className="monster-card__defense-chips">
+                                        {selectedValues.length > 0 ? (
+                                          selectedValues.map((value) => {
+                                            const option = DEFENSE_OPTION_LOOKUP[value]
+                                            const background = option?.color ? `${option.color}26` : 'rgba(255,255,255,0.08)'
+                                            const borderColor = option?.color || 'rgba(255,255,255,0.25)'
+                                            const textColor = option?.category === 'condition' ? '#0f0f0f' : '#1a1626'
+                                            return (
+                                              <span
+                                                key={`${field}-${value}`}
+                                                className="monster-card__defense-chip"
+                                                style={{
+                                                  backgroundColor: background,
+                                                  borderColor,
+                                                  color: textColor,
+                                                }}
+                                              >
+                                                <span className="monster-card__defense-icon" aria-hidden="true">
+                                                  {option?.icon || '◆'}
+                                                </span>
+                                                <span>{option?.label || value}</span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    handleMonsterDefenseRemove(monster.id, field, value)
+                                                  }
+                                                  aria-label={`Remove ${option?.label || value}`}
+                                                >
+                                                  ×
+                                                </button>
+                                              </span>
+                                            )
+                                          })
+                                        ) : (
+                                          <span className="monster-card__edit-tags-empty">No selections yet.</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
                             </div>
                             <label className="monster-card__edit-tags">
                               <span>Tags</span>
