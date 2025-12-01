@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { DragEvent, KeyboardEvent } from 'react'
 import type { Combatant, CombatantTag, MonsterDetails } from '../../types'
+import { parseDefenseList } from '../../utils/monsterDefenses'
+import { MonsterDefensePreview, type DefenseSelections } from './MonsterDefensePreview'
 import type { AdjustmentDraft, DamageModifier, ValueDraft } from './types'
 
 interface CombatantListProps {
@@ -155,6 +157,14 @@ export const CombatantList: React.FC<CombatantListProps> = ({
         const metaTags = combatant.type === 'monster' ? [] : combatant.tags
         const successCount = combatant.deathSaveSuccesses
         const failureCount = combatant.deathSaveFailures
+        const defenseSelections: DefenseSelections | null =
+          combatant.type === 'monster' && sourceMonster
+            ? {
+                damageImmunities: parseDefenseList(sourceMonster.damageImmunities),
+                damageResistances: parseDefenseList(sourceMonster.damageResistances),
+                damageVulnerabilities: parseDefenseList(sourceMonster.damageVulnerabilities),
+              }
+            : null
 
         return (
           <li
@@ -233,6 +243,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                       ))}
                     </div>
                   )}
+                  {defenseSelections && <MonsterDefensePreview selections={defenseSelections} />}
                 </div>
                 <div className="hp-track">
                   <div className="hp-track__bar">
