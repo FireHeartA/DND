@@ -506,6 +506,20 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
     [],
   )
 
+  const applyBaseDamageModifier = (baseAmount: number, modifier: DamageModifier): number => {
+    if (modifier === 'immune') {
+      return 0
+    }
+    if (modifier === 'resistant') {
+      return Math.floor(baseAmount / 2)
+    }
+    if (modifier === 'vulnerable') {
+      return baseAmount * 2
+    }
+
+    return baseAmount
+  }
+
   /**
    * Applies damage or healing to a combatant based on user input.
    */
@@ -662,19 +676,12 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
 
     entries.forEach(([id, mode]) => {
       const combatant = combatants.find((entry) => entry.id === id)
-      const baseAmount = mode === 'half' ? Math.floor(amount / 2) : amount
-      let adjustedAmount = baseAmount
-
-      if (normalizedDamageType) {
-        const modifier = getDamageModifierForType(combatant, normalizedDamageType)
-        if (modifier === 'immune') {
-          adjustedAmount = 0
-        } else if (modifier === 'resistant') {
-          adjustedAmount = Math.floor(baseAmount / 2)
-        } else if (modifier === 'vulnerable') {
-          adjustedAmount = baseAmount * 2
-        }
-      }
+      const modifier = normalizedDamageType
+        ? getDamageModifierForType(combatant, normalizedDamageType)
+        : 'normal'
+      const baseAmount =
+        modifier === 'normal' ? amount : applyBaseDamageModifier(amount, modifier)
+      const adjustedAmount = mode === 'half' ? Math.floor(baseAmount / 2) : baseAmount
 
       if (adjustedAmount > 0) {
         dispatch(applyDamageAction({ id, amount: adjustedAmount }))
@@ -1850,6 +1857,16 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                 <ul className="template-list">
                   {activeCampaignRoster.map((template) => {
                     const initiativeValue = templateInitiatives[template.id] ?? ''
+                    const defenseSelections: DefenseSelections = {
+                      damageImmunities: template.damageImmunities || [],
+                      damageResistances: template.damageResistances || [],
+                      damageVulnerabilities: template.damageVulnerabilities || [],
+                    }
+                    const hasDefenses =
+                      defenseSelections.damageImmunities.length > 0 ||
+                      defenseSelections.damageResistances.length > 0 ||
+                      defenseSelections.damageVulnerabilities.length > 0
+
                     return (
                       <li key={template.id} className="template-card">
                         <header className="template-card__header">
@@ -1883,6 +1900,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                         {template.notes && (
                           <p className="template-card__notes">{template.notes}</p>
                         )}
+                        {hasDefenses && <MonsterDefensePreview selections={defenseSelections} />}
                         <div className="template-card__actions">
                           <label className="template-card__initiative">
                             <span>Initiative</span>
