@@ -172,8 +172,20 @@ export const CombatantList: React.FC<CombatantListProps> = ({
         const metaTags = combatant.type === 'monster' ? [] : combatant.tags
         const successCount = combatant.deathSaveSuccesses
         const failureCount = combatant.deathSaveFailures
-        const defenseSelections: DefenseSelections | null =
-          combatant.type === 'monster' && sourceMonster
+        const baseDefenseSelections: DefenseSelections = {
+          damageImmunities: combatant.damageImmunities ?? [],
+          damageResistances: combatant.damageResistances ?? [],
+          damageVulnerabilities: combatant.damageVulnerabilities ?? [],
+        }
+
+        const hasCombatantDefenses =
+          baseDefenseSelections.damageImmunities.length > 0 ||
+          baseDefenseSelections.damageResistances.length > 0 ||
+          baseDefenseSelections.damageVulnerabilities.length > 0
+
+        const defenseSelections: DefenseSelections | null = hasCombatantDefenses
+          ? baseDefenseSelections
+          : combatant.type === 'monster' && sourceMonster
             ? {
                 damageImmunities: parseDefenseList(sourceMonster.damageImmunities),
                 damageResistances: parseDefenseList(sourceMonster.damageResistances),
