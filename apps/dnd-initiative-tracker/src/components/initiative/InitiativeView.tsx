@@ -10,6 +10,7 @@ import {
   clearMonsters as clearMonstersAction,
   clearPlayers as clearPlayersAction,
   setCombatantTag as setCombatantTagAction,
+  setDeathSaveProgress as setDeathSaveProgressAction,
 } from '../../store/combatSlice'
 import {
   removePlayerCharacter as removePlayerCharacterAction,
@@ -428,6 +429,13 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const handleResetCombatant = useCallback(
     (id: string) => {
       dispatch(resetCombatantAction(id))
+    },
+    [dispatch],
+  )
+
+  const handleDeathSaveProgressChange = useCallback(
+    (id: string, payload: { successes?: number; failures?: number }) => {
+      dispatch(setDeathSaveProgressAction({ id, ...payload }))
     },
     [dispatch],
   )
@@ -1677,6 +1685,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   onApplyAdjustment={applyAdjustment}
                   onResetCombatant={handleResetCombatant}
                   onReorder={handleManualReorder}
+                  onDeathSaveProgressChange={handleDeathSaveProgressChange}
                 />
               ) : (
                 <div className="tracker__empty">

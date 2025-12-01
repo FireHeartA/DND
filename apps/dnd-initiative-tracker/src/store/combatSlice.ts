@@ -18,6 +18,14 @@ const normalizeArmorClass = (value: unknown): number | null => {
   return Math.max(0, Math.trunc(parsed))
 }
 
+const normalizeDeathSaveCount = (value: unknown): number => {
+  const parsed = Number.parseInt(String(value ?? ''), 10)
+  if (!Number.isFinite(parsed)) {
+    return 0
+  }
+  return Math.min(3, Math.max(0, Math.trunc(parsed)))
+}
+
 /**
  * Normalizes a character profile link to an http(s) URL or clears it.
  */
@@ -36,16 +44,20 @@ const sanitizeProfileUrl = (value: unknown): string => {
  * Creates a combatant record with the base fields required by the tracker.
  */
 const createCombatant = (
-  fields: Omit<Combatant, 'id' | 'currentHp' | 'createdAt'> & {
+  fields: Omit<Combatant, 'id' | 'currentHp' | 'createdAt' | 'deathSaveSuccesses' | 'deathSaveFailures'> & {
     id?: string
     currentHp?: number
     createdAt?: number
+    deathSaveSuccesses?: number
+    deathSaveFailures?: number
   },
 ): Combatant => ({
   id: fields.id ?? nanoid(),
   name: fields.name,
   maxHp: fields.maxHp,
   currentHp: fields.currentHp ?? fields.maxHp,
+  deathSaveSuccesses: normalizeDeathSaveCount(fields.deathSaveSuccesses),
+  deathSaveFailures: normalizeDeathSaveCount(fields.deathSaveFailures),
   initiative: fields.initiative,
   createdAt: fields.createdAt ?? Date.now(),
   type: fields.type,
@@ -132,6 +144,12 @@ const sanitizeCombatant = (value: unknown): Combatant | null => {
     createdAt: Number.isFinite(candidate.createdAt)
       ? Math.trunc(Number(candidate.createdAt))
       : Date.now(),
+    deathSaveSuccesses: normalizeDeathSaveCount(
+      (candidate as { deathSaveSuccesses?: unknown }).deathSaveSuccesses,
+    ),
+    deathSaveFailures: normalizeDeathSaveCount(
+      (candidate as { deathSaveFailures?: unknown }).deathSaveFailures,
+    ),
   })
 }
 
@@ -191,6 +209,12 @@ export interface UpdateInitiativeArgs {
 export interface AdjustmentArgs {
   id: string
   amount: number
+}
+
+export interface UpdateDeathSaveProgressArgs {
+  id: string
+  successes?: number
+  failures?: number
 }
 
 export interface LoadCombatStateArgs {
@@ -286,7 +310,15 @@ const combatSlice = createSlice({
       if (!combatant) {
         return
       }
-      combatant.currentHp = Math.max(0, combatant.currentHp - Math.max(0, Math.trunc(amount)))
+      const previousHp = combatant.currentHp
+      const newHp = Math.max(0, combatant.currentHp - Math.max(0, Math.trunc(amount)))
+
+      combatant.currentHp = newHp
+
+      if (previousHp > 0 && newHp === 0) {
+        combatant.deathSaveSuccesses = 0
+        combatant.deathSaveFailures = 0
+      }
     },
     /**
      * Applies healing to a combatant by increasing their current hit points.
@@ -299,6 +331,11 @@ const combatSlice = createSlice({
       }
       const healedAmount = Math.max(0, Math.trunc(amount))
       combatant.currentHp = Math.min(combatant.maxHp, combatant.currentHp + healedAmount)
+
+      if (combatant.currentHp > 0) {
+        combatant.deathSaveSuccesses = 0
+        combatant.deathSaveFailures = 0
+      }
     },
     /**
      * Restores a combatant's hit points to their maximum value.
@@ -309,6 +346,25 @@ const combatSlice = createSlice({
         return
       }
       combatant.currentHp = combatant.maxHp
+      combatant.deathSaveSuccesses = 0
+      combatant.deathSaveFailures = 0
+    },
+
+    setDeathSaveProgress(state, action: PayloadAction<UpdateDeathSaveProgressArgs>) {
+      const { id, successes, failures } = action.payload
+      const combatant = state.combatants.find((entry) => entry.id === id)
+
+      if (!combatant) {
+        return
+      }
+
+      if (typeof successes !== 'undefined') {
+        combatant.deathSaveSuccesses = normalizeDeathSaveCount(successes)
+      }
+
+      if (typeof failures !== 'undefined') {
+        combatant.deathSaveFailures = normalizeDeathSaveCount(failures)
+      }
     },
     /**
      * Updates the stored initiative value for a combatant.
@@ -390,6 +446,7 @@ export const {
   clearMonsters,
   clearPlayers,
   setCombatantTag,
+  setDeathSaveProgress,
   addPlayerTemplate,
   removePlayerTemplate,
   loadState,
