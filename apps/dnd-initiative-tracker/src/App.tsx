@@ -5,6 +5,7 @@ import './App.css'
 import { Sidebar, ViewMode } from './components/layout/Sidebar'
 import { CampaignManagerView } from './components/campaign/CampaignManagerView'
 import { InitiativeView } from './components/initiative/InitiativeView'
+import { QuestLogView } from './components/quest/QuestLogView'
 import {
   loadState as loadCombatStateAction,
   type LoadCombatStateArgs,
@@ -198,6 +199,7 @@ function App() {
    * Memoizes the campaign manager view to avoid unnecessary re-renders.
    */
   const campaignView = useMemo(() => <CampaignManagerView />, [])
+  const questLogView = useMemo(() => <QuestLogView />, [])
 
   return (
     <div className="app-shell">
@@ -212,7 +214,9 @@ function App() {
         isDirty={isDirty}
       />
       <main className="main">
-        {activeView === 'campaigns' ? campaignView : initiativeView}
+        {activeView === 'campaigns' && campaignView}
+        {activeView === 'initiative' && initiativeView}
+        {activeView === 'quest-logs' && questLogView}
       </main>
     </div>
   )
