@@ -573,7 +573,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   }, [])
 
   const handleExpandAddPanel = useCallback(() => {
-    setIsAddPanelCollapsed(true)
+    setIsAddPanelCollapsed(false)
   }, [])
 
   const handleToggleBulkDamagePanel = useCallback(() => {
