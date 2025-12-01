@@ -511,10 +511,10 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       return 0
     }
     if (modifier === 'resistant') {
-      return Math.floor(baseAmount / 2)
+      return Math.ceil(baseAmount / 2)
     }
     if (modifier === 'vulnerable') {
-      return baseAmount * 2
+      return Math.ceil(baseAmount * 2)
     }
 
     return baseAmount
@@ -1688,37 +1688,39 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                       </button>
                     </div>
                     <div className="bulk-damage-panel__controls">
-                      <label>
-                        <span>Base damage</span>
-                        <input
-                          value={bulkDamageValue}
-                          onChange={(event) => {
-                            setBulkDamageValue(event.target.value)
-                            setBulkDamageError('')
-                          }}
-                          placeholder="12"
-                          inputMode="numeric"
-                        />
-                      </label>
-                      <label>
-                        <span>Damage type</span>
-                        <select
-                          value={bulkDamageType}
-                          onChange={(event) => {
-                            setBulkDamageType(event.target.value)
-                            setBulkDamageError('')
-                          }}
-                        >
-                          <option value="">Unspecified</option>
-                          {MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'damage').map(
-                            (option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.icon} {option.label}
-                              </option>
-                            ),
-                          )}
-                        </select>
-                      </label>
+                      <div className="bulk-damage-panel__inputs">
+                        <label>
+                          <span>Base damage</span>
+                          <input
+                            value={bulkDamageValue}
+                            onChange={(event) => {
+                              setBulkDamageValue(event.target.value)
+                              setBulkDamageError('')
+                            }}
+                            placeholder="12"
+                            inputMode="numeric"
+                          />
+                        </label>
+                        <label>
+                          <span>Damage type</span>
+                          <select
+                            value={bulkDamageType}
+                            onChange={(event) => {
+                              setBulkDamageType(event.target.value)
+                              setBulkDamageError('')
+                            }}
+                          >
+                            <option value="">Unspecified</option>
+                            {MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'damage').map(
+                              (option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.icon} {option.label}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                      </div>
                       <div className="bulk-damage-panel__actions">
                         <button
                           type="button"
