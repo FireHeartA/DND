@@ -147,6 +147,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
             : null
         const isBloodied = combatant.currentHp <= Math.max(1, combatant.maxHp / 2)
         const isDown = combatant.currentHp === 0
+        const showDeathSaves = isDown && combatant.type === 'player'
         const hpPercent = combatant.maxHp > 0 ? (combatant.currentHp / combatant.maxHp) * 100 : 0
         const nicknameTag = combatant.tags.find((tag) => tag.title.toLowerCase() === 'nickname')
         const displayName = displayNames[combatant.id] ?? combatant.name
@@ -304,7 +305,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                       </a>
                     )}
                     {isDown && <p className="status status--down">Unconscious</p>}
-                    {isDown && (
+                    {showDeathSaves && (
                       <div className="death-save-tracker" aria-label="Death saving throws">
                         <div className="death-save-tracker__group" role="group" aria-label="Successes">
                           <span className="death-save-tracker__label">Successes</span>

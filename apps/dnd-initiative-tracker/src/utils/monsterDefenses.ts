@@ -115,11 +115,13 @@ export const isDefenseTag = (tag: string): boolean => {
   )
 }
 
+const whiteTextValues = new Set(['magical-bludgeoning', 'magical-piercing', 'magical-slashing'])
+
 export const getDefenseChipStyle = (value: string) => {
   const option = DEFENSE_OPTION_LOOKUP[value]
   const backgroundColor = option?.color ? `${option.color}26` : 'rgba(255,255,255,0.08)'
   const borderColor = option?.color || 'rgba(255,255,255,0.25)'
-  const color = option?.category === 'condition' ? '#ffffff' : '#1a1626'
+  const color = option?.category === 'condition' || whiteTextValues.has(option?.value ?? '') ? '#ffffff' : '#1a1626'
 
   return { backgroundColor, borderColor, color, option }
 }
