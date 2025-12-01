@@ -1127,6 +1127,12 @@ textarea {
   transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
+select,
+select option {
+  color: #fffaf0;
+  background-color: rgba(30, 23, 33, 0.9);
+}
+
 input:focus,
 select:focus,
 textarea:focus {
