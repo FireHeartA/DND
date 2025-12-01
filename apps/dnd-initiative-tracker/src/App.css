@@ -1096,12 +1096,26 @@ textarea:focus {
   grid-column: 1 / -1;
 }
 
+.tracker__controls {
+  position: sticky;
+  top: 1rem;
+  z-index: 5;
+  display: grid;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(18, 12, 22, 0.85), rgba(13, 9, 16, 0.9));
+  border: 1px solid rgba(244, 241, 234, 0.08);
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
 .list-controls {
   display: flex;
   align-items: stretch;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.5rem;
   flex-wrap: wrap;
 }
 
@@ -1388,6 +1402,19 @@ textarea:focus {
   display: flex;
   gap: 1rem;
   align-items: center;
+}
+
+.combatant-card__initiative-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.initiative-star {
+  color: #ffd78d;
+  text-shadow: 0 0 12px rgba(255, 215, 141, 0.8);
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 .turn-indicator {

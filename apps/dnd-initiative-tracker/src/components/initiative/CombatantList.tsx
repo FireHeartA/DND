@@ -157,7 +157,14 @@ export const CombatantList: React.FC<CombatantListProps> = ({
             <header className="combatant-card__header">
               <div className="combatant-card__header-info">
                 <label>
-                  <span>Initiative</span>
+                  <span className="combatant-card__initiative-label">
+                    Initiative
+                    {combatant.id === activeCombatantId ? (
+                      <span className="initiative-star" role="img" aria-label="Active turn">
+                        ★
+                      </span>
+                    ) : null}
+                  </span>
                   <input
                     value={draft ? draft.value : ''}
                     onChange={(event) => onInitiativeDraftChange(combatant.id, event.target.value)}

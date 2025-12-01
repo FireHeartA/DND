@@ -1494,168 +1494,170 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
             ) : null}
 
             <div className={`tracker__list${isAddPanelCollapsed ? ' tracker__list--expanded' : ''}`}>
-              <div className="list-controls">
-                <div className="list-controls__info">
-                  <h3>Initiative order</h3>
-                  {isManualOrderActive && <span className="manual-order-indicator">Manual order active</span>}
-                  <div className="turn-tracking">
-                    <div className="turn-timer" aria-live="polite">
-                      <span className="turn-timer__label">
-                        {isCombatActive ? 'Current turn' : 'Turn timer'}
-                      </span>
-                      <span className="turn-timer__value">
-                        {formatDurationClock(currentTurnElapsed)}
-                      </span>
-                    </div>
-                    <div className="turn-counter">
-                      <span className="turn-counter__label">Turns logged</span>
-                      <span className="turn-counter__value">{turnsRecorded}</span>
+              <div className="tracker__controls">
+                <div className="list-controls">
+                  <div className="list-controls__info">
+                    <h3>Initiative order</h3>
+                    {isManualOrderActive && <span className="manual-order-indicator">Manual order active</span>}
+                    <div className="turn-tracking">
+                      <div className="turn-timer" aria-live="polite">
+                        <span className="turn-timer__label">
+                          {isCombatActive ? 'Current turn' : 'Turn timer'}
+                        </span>
+                        <span className="turn-timer__value">
+                          {formatDurationClock(currentTurnElapsed)}
+                        </span>
+                      </div>
+                      <div className="turn-counter">
+                        <span className="turn-counter__label">Turns logged</span>
+                        <span className="turn-counter__value">{turnsRecorded}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="list-actions">
-                  {isAddPanelCollapsed && (
+                  <div className="list-actions">
+                    {isAddPanelCollapsed && (
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={handleExpandAddPanel}
+                        aria-expanded={!isAddPanelCollapsed}
+                      >
+                        Add combatant
+                      </button>
+                    )}
                     <button
                       type="button"
-                      className="primary-button"
-                      onClick={handleExpandAddPanel}
-                      aria-expanded={!isAddPanelCollapsed}
+                      className={`ghost-button${isBulkDamageVisible ? ' ghost-button--toggled' : ''}`}
+                      onClick={handleToggleBulkDamagePanel}
+                      disabled={!hasCombatants}
+                      aria-pressed={isBulkDamageVisible}
                     >
-                      Add combatant
+                      {isBulkDamageVisible ? 'Hide AoE helper' : 'AoE damage'}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    className={`ghost-button${isBulkDamageVisible ? ' ghost-button--toggled' : ''}`}
-                    onClick={handleToggleBulkDamagePanel}
-                    disabled={!hasCombatants}
-                    aria-pressed={isBulkDamageVisible}
-                  >
-                    {isBulkDamageVisible ? 'Hide AoE helper' : 'AoE damage'}
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleStartCombat}
-                    disabled={!hasCombatants}
-                  >
-                    Start combat
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleAdvanceTurn}
-                    disabled={!hasCombatants || !isCombatActive}
-                  >
-                    Next turn
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={handleEndCombat}
-                    disabled={!isCombatActive}
-                  >
-                    End combat
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={handleClearMonsters}
-                    disabled={!hasMonsterCombatants}
-                  >
-                    Clear monsters
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={handleClearPlayers}
-                    disabled={!hasPlayerCombatants}
-                  >
-                    Clear players
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={handleResetManualOrder}
-                    disabled={!isManualOrderActive}
-                  >
-                    Reset order
-                  </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={handleStartCombat}
+                      disabled={!hasCombatants}
+                    >
+                      Start combat
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={handleAdvanceTurn}
+                      disabled={!hasCombatants || !isCombatActive}
+                    >
+                      Next turn
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={handleEndCombat}
+                      disabled={!isCombatActive}
+                    >
+                      End combat
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={handleClearMonsters}
+                      disabled={!hasMonsterCombatants}
+                    >
+                      Clear monsters
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={handleClearPlayers}
+                      disabled={!hasPlayerCombatants}
+                    >
+                      Clear players
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={handleResetManualOrder}
+                      disabled={!isManualOrderActive}
+                    >
+                      Reset order
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {isBulkDamageVisible && hasCombatants ? (
-                <div className="bulk-damage-panel">
-                  <div className="bulk-damage-panel__header">
-                    <div className="bulk-damage-panel__intro">
-                      <h4>Area damage helper</h4>
-                      <p>Select combatants and apply a shared damage roll in one click.</p>
-                    </div>
-                    <button
-                      type="button"
-                      className="ghost-button ghost-button--compact"
-                      onClick={handleHideBulkDamagePanel}
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <div className="bulk-damage-panel__controls">
-                    <label>
-                      <span>Base damage</span>
-                      <input
-                        value={bulkDamageValue}
-                        onChange={(event) => {
-                          setBulkDamageValue(event.target.value)
-                          setBulkDamageError('')
-                        }}
-                        placeholder="12"
-                        inputMode="numeric"
-                      />
-                    </label>
-                    <div className="bulk-damage-panel__actions">
+                {isBulkDamageVisible && hasCombatants ? (
+                  <div className="bulk-damage-panel">
+                    <div className="bulk-damage-panel__header">
+                      <div className="bulk-damage-panel__intro">
+                        <h4>Area damage helper</h4>
+                        <p>Select combatants and apply a shared damage roll in one click.</p>
+                      </div>
                       <button
                         type="button"
-                        className="danger-button"
-                        onClick={handleBulkDamageApply}
-                        disabled={!hasBulkDamageInput || bulkSelectionCount === 0}
+                        className="ghost-button ghost-button--compact"
+                        onClick={handleHideBulkDamagePanel}
                       >
-                        Apply damage
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost-button"
-                        onClick={handleClearBulkSelection}
-                        disabled={bulkSelectionCount === 0 && !hasBulkDamageInput}
-                      >
-                        Clear selection
+                        Close
                       </button>
                     </div>
-                  </div>
-                  {bulkDamageError && <p className="form-error bulk-damage-panel__error">{bulkDamageError}</p>}
-                  <p className="bulk-damage-panel__hint">Click a combatant to cycle between full and half damage.</p>
-                  <div className="bulk-damage-panel__targets">
-                    {orderedCombatants.map((combatant) => {
-                      const mode = bulkDamageTargets[combatant.id] ?? null
-                      const displayName = combatantDisplayNames[combatant.id] ?? combatant.name
-                      return (
+                    <div className="bulk-damage-panel__controls">
+                      <label>
+                        <span>Base damage</span>
+                        <input
+                          value={bulkDamageValue}
+                          onChange={(event) => {
+                            setBulkDamageValue(event.target.value)
+                            setBulkDamageError('')
+                          }}
+                          placeholder="12"
+                          inputMode="numeric"
+                        />
+                      </label>
+                      <div className="bulk-damage-panel__actions">
                         <button
-                          key={combatant.id}
                           type="button"
-                          className={`bulk-target-chip${mode ? ' bulk-target-chip--active' : ''}${
-                            mode === 'half' ? ' bulk-target-chip--half' : ''
-                          }`}
-                          onClick={() => handleBulkTargetToggle(combatant.id)}
+                          className="danger-button"
+                          onClick={handleBulkDamageApply}
+                          disabled={!hasBulkDamageInput || bulkSelectionCount === 0}
                         >
-                          <span className="bulk-target-chip__name">{displayName}</span>
-                          {mode && (
-                            <span className="bulk-target-chip__badge">{mode === 'half' ? 'Half' : 'Full'}</span>
-                          )}
+                          Apply damage
                         </button>
-                      )
-                    })}
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={handleClearBulkSelection}
+                          disabled={bulkSelectionCount === 0 && !hasBulkDamageInput}
+                        >
+                          Clear selection
+                        </button>
+                      </div>
+                    </div>
+                    {bulkDamageError && <p className="form-error bulk-damage-panel__error">{bulkDamageError}</p>}
+                    <p className="bulk-damage-panel__hint">Click a combatant to cycle between full and half damage.</p>
+                    <div className="bulk-damage-panel__targets">
+                      {orderedCombatants.map((combatant) => {
+                        const mode = bulkDamageTargets[combatant.id] ?? null
+                        const displayName = combatantDisplayNames[combatant.id] ?? combatant.name
+                        return (
+                          <button
+                            key={combatant.id}
+                            type="button"
+                            className={`bulk-target-chip${mode ? ' bulk-target-chip--active' : ''}${
+                              mode === 'half' ? ' bulk-target-chip--half' : ''
+                            }`}
+                            onClick={() => handleBulkTargetToggle(combatant.id)}
+                          >
+                            <span className="bulk-target-chip__name">{displayName}</span>
+                            {mode && (
+                              <span className="bulk-target-chip__badge">{mode === 'half' ? 'Half' : 'Full'}</span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
 
               {hasCombatants ? (
                 <CombatantList
