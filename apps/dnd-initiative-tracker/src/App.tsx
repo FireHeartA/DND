@@ -200,6 +200,7 @@ function App() {
    */
   const campaignView = useMemo(() => <CampaignManagerView />, [])
   const questLogView = useMemo(() => <QuestLogView />, [])
+ 
 
   return (
     <div className="app-shell">
@@ -216,7 +217,7 @@ function App() {
       <main className="main">
         {activeView === 'campaigns' && campaignView}
         {activeView === 'initiative' && initiativeView}
-        {activeView === 'quest-logs' && questLogView}
+        {activeView === 'quest-logs' && questLogView}        
       </main>
     </div>
   )
