@@ -571,7 +571,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   }, [])
 
   const handleExpandAddPanel = useCallback(() => {
-    setIsAddPanelCollapsed(false)
+    setIsAddPanelCollapsed(true)
   }, [])
 
   const handleToggleBulkDamagePanel = useCallback(() => {
@@ -1077,7 +1077,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
     setTemplateErrors({})
     setMonsterInitiatives({})
     setMonsterErrors({})
-    setIsAddPanelCollapsed(false)
+    setIsAddPanelCollapsed(true)
     setManualOrder(null)
     setBulkDamageTargets({})
     setBulkDamageValue('')
