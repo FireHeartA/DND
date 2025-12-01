@@ -875,7 +875,9 @@
 }
 
 .monster-card__defense-field optgroup,
-.monster-card__defense-field option {
+.monster-card__defense-field option,
+.monster-card__defense-select optgroup,
+.monster-card__defense-select option {
   color: #fffaf0;
   background-color: rgba(30, 23, 33, 0.95);
 }
