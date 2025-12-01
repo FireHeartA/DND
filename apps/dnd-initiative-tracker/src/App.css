@@ -874,6 +874,12 @@
   box-shadow: 0 0 0 2px rgba(255, 179, 109, 0.15);
 }
 
+.monster-card__defense-field optgroup,
+.monster-card__defense-field option {
+  color: #fffaf0;
+  background-color: rgba(30, 23, 33, 0.95);
+}
+
 .monster-card__defense-chips {
   display: flex;
   flex-wrap: wrap;
