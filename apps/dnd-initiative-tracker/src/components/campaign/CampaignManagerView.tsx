@@ -130,6 +130,10 @@ export const CampaignManagerView: React.FC = () => {
     () => MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'condition'),
     [],
   )
+  const playerDefenseOptions = useMemo(
+    () => [...damageDefenseOptions, ...conditionDefenseOptions],
+    [conditionDefenseOptions, damageDefenseOptions],
+  )
 
   /**
    * Sorts campaigns chronologically so the list remains stable for learners.
@@ -1380,7 +1384,6 @@ export const CampaignManagerView: React.FC = () => {
                           />
                         </label>
                         <div className="campaign-form__defenses">
-                          <span>Damage defenses</span>
                           <div className="monster-card__defense-picker">
                             {(
                               [
@@ -1399,9 +1402,9 @@ export const CampaignManagerView: React.FC = () => {
                                     }
                                   >
                                     <option value="" disabled>
-                                      Add a damage type
+                                      Add a defense
                                     </option>
-                                    {damageDefenseOptions.map((option) => (
+                                    {playerDefenseOptions.map((option) => (
                                       <option key={option.value} value={option.value}>
                                         {option.icon} {option.label}
                                       </option>
@@ -1654,7 +1657,6 @@ export const CampaignManagerView: React.FC = () => {
                                     />
                                   </label>
                                   <div className="campaign-form__defenses">
-                                    <span>Damage defenses</span>
                                     <div className="monster-card__defense-picker">
                                       {(
                                         [
@@ -1679,9 +1681,9 @@ export const CampaignManagerView: React.FC = () => {
                                                 }
                                               >
                                                 <option value="" disabled>
-                                                  Add a damage type
+                                                  Add a defense
                                                 </option>
-                                                {damageDefenseOptions.map((option) => (
+                                                {playerDefenseOptions.map((option) => (
                                                   <option key={option.value} value={option.value}>
                                                     {option.icon} {option.label}
                                                   </option>
