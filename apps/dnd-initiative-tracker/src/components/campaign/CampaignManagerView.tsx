@@ -1396,7 +1396,7 @@ export const CampaignManagerView: React.FC = () => {
                 </div>
 
                 <form className="campaign-form" onSubmit={handleImportMonster}>
-                  <h4>Import monster from D&D Beyond</h4>
+                  <h4>Import monster from external source</h4>
                   <div className="form-grid campaign-form__grid">
                     <label className="campaign-form__url">
                       <span>Monster URL</span>

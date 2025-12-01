@@ -1546,7 +1546,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                     </button>
                     <button
                       type="button"
-                      className="secondary-button"
+                      className="ghost-button"
                       onClick={handleStartCombat}
                       disabled={!hasCombatants || isCombatActive}
                     >
@@ -1554,7 +1554,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                     </button>
                     <button
                       type="button"
-                      className="secondary-button"
+                      className="ghost-button"
                       onClick={handleAdvanceTurn}
                       disabled={!hasCombatants || !isCombatActive}
                     >
