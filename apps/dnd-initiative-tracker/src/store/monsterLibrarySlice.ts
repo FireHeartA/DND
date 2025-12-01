@@ -362,6 +362,9 @@ export interface UpdateMonsterDetailsArgs {
   armorClass?: number | string | null
   hitPoints?: number | string | null
   challengeRating?: string | null
+  damageImmunities?: string | string[] | null
+  damageResistances?: string | string[] | null
+  damageVulnerabilities?: string | string[] | null
 }
 
 export interface RemoveMonsterFromCampaignArgs {
@@ -459,6 +462,9 @@ const monsterLibrarySlice = createSlice({
         armorClass,
         hitPoints,
         challengeRating,
+        damageImmunities,
+        damageResistances,
+        damageVulnerabilities,
       }: UpdateMonsterDetailsArgs) {
         return {
           payload: {
@@ -469,12 +475,25 @@ const monsterLibrarySlice = createSlice({
             armorClass,
             hitPoints,
             challengeRating,
+            damageImmunities,
+            damageResistances,
+            damageVulnerabilities,
           },
         }
       },
       reducer(state, action: PayloadAction<UpdateMonsterDetailsArgs>) {
-        const { monsterId, name, description, tags, armorClass, hitPoints, challengeRating } =
-          action.payload
+        const {
+          monsterId,
+          name,
+          description,
+          tags,
+          armorClass,
+          hitPoints,
+          challengeRating,
+          damageImmunities,
+          damageResistances,
+          damageVulnerabilities,
+        } = action.payload
         if (!monsterId) {
           return
         }
@@ -527,6 +546,27 @@ const monsterLibrarySlice = createSlice({
 
         if (typeof challengeRating !== 'undefined') {
           updates.challengeRating = sanitizeOptionalString(challengeRating)
+        }
+
+        if (typeof damageImmunities !== 'undefined') {
+          const normalized = Array.isArray(damageImmunities)
+            ? sanitizeStringArray(damageImmunities).join(', ')
+            : sanitizeOptionalString(damageImmunities)
+          updates.damageImmunities = normalized
+        }
+
+        if (typeof damageResistances !== 'undefined') {
+          const normalized = Array.isArray(damageResistances)
+            ? sanitizeStringArray(damageResistances).join(', ')
+            : sanitizeOptionalString(damageResistances)
+          updates.damageResistances = normalized
+        }
+
+        if (typeof damageVulnerabilities !== 'undefined') {
+          const normalized = Array.isArray(damageVulnerabilities)
+            ? sanitizeStringArray(damageVulnerabilities).join(', ')
+            : sanitizeOptionalString(damageVulnerabilities)
+          updates.damageVulnerabilities = normalized
         }
 
         const merged: MonsterDetails = {

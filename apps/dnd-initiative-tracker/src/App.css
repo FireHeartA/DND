@@ -784,6 +784,105 @@
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
+.monster-card__defenses {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.monster-card__defense-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(244, 241, 234, 0.12);
+  background: rgba(12, 8, 14, 0.5);
+}
+
+.monster-card__defense-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.monster-card__defense-label span {
+  font-weight: 600;
+  color: #f4f1ea;
+}
+
+.monster-card__defense-label p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(244, 241, 234, 0.75);
+}
+
+.monster-card__defense-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.monster-card__defense-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: rgba(244, 241, 234, 0.82);
+}
+
+.monster-card__defense-select select {
+  width: 100%;
+  background: rgba(12, 8, 14, 0.65);
+  border: 1px solid rgba(244, 241, 234, 0.16);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  color: #f4f1ea;
+}
+
+.monster-card__defense-select select:focus {
+  outline: none;
+  border-color: rgba(255, 179, 109, 0.55);
+  box-shadow: 0 0 0 2px rgba(255, 179, 109, 0.15);
+}
+
+.monster-card__defense-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-height: 1.6rem;
+}
+
+.monster-card__defense-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(244, 241, 234, 0.25);
+  background: rgba(244, 241, 234, 0.08);
+  color: #0f0f0f;
+}
+
+.monster-card__defense-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.monster-card__defense-chip button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.monster-card__defense-chip button:hover {
+  opacity: 0.8;
+}
+
 .monster-card__edit-form label {
   display: flex;
   flex-direction: column;
