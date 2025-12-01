@@ -82,10 +82,10 @@ export const getMonsterDisplayTags = (monster: MonsterDetails | null): string[] 
     return []
   }
 
-  const sourceTags = Array.isArray(monster.tags) ? monster.tags : []
-  const fallback = sourceTags.length > 0 ? sourceTags : buildMonsterTags(monster)
+  const manualTags = Array.isArray(monster.tags) ? monster.tags : []
+  const autoTags = buildMonsterTags(monster)
 
-  return prepareMonsterTags(fallback)
+  return prepareMonsterTags([...manualTags, ...autoTags])
 }
 
 const TYPE_TAG_PATTERN = /^(Tiny|Small|Medium|Large|Huge|Gargantuan|Swarm of)/i
