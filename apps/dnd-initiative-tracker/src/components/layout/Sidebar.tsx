@@ -49,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`sidebar__item${activeView === 'campaigns' ? ' sidebar__item--active' : ''}`}
             onClick={() => onViewChange('campaigns')}
           >
-            Campaign Manager
+            Combatant Manager
           </button>
         </li>
         <li>
