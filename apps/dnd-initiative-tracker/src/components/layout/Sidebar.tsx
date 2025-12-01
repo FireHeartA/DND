@@ -86,8 +86,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       </div>
     </div>
-    <footer className="sidebar__footer">
-      <p>Forged for D&D tables that crave order in the chaos.</p>
-    </footer>
+    <footer className="sidebar__footer" aria-hidden="true" />
   </aside>
 )
