@@ -90,7 +90,7 @@ export const getMonsterDisplayTags = (monster: MonsterDetails | null): string[] 
 
 const TYPE_TAG_PATTERN = /^(Tiny|Small|Medium|Large|Huge|Gargantuan|Swarm of)/i
 
-const parseMonsterTagForCombatant = (rawTag: unknown): CombatantTag | null => {
+export const parseTagForCombatant = (rawTag: unknown): CombatantTag | null => {
   if (typeof rawTag !== 'string') {
     return null
   }
@@ -140,7 +140,7 @@ export const getMonsterCombatantTags = (monster: MonsterDetails | null): Combata
   const parsed: CombatantTag[] = []
 
   displayTags.forEach((tag) => {
-    const structured = parseMonsterTagForCombatant(tag)
+    const structured = parseTagForCombatant(tag)
     if (structured) {
       parsed.push(structured)
     }

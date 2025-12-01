@@ -21,8 +21,8 @@ import {
   toggleMonsterFavorite as toggleMonsterFavoriteAction,
 } from '../../store/monsterLibrarySlice'
 import { formatDurationClock, formatDurationVerbose, computeCombatStats } from '../../utils/combatStats'
-import { getMonsterCombatantTags, getMonsterDisplayTags } from '../../utils/monsterTags'
-import { isDefenseTag, parseDefenseList } from '../../utils/monsterDefenses'
+import { getMonsterCombatantTags, getMonsterDisplayTags, parseTagForCombatant } from '../../utils/monsterTags'
+import { MONSTER_DEFENSE_OPTIONS, isDefenseTag, parseDefenseList } from '../../utils/monsterDefenses'
 import { generateFantasyName } from '../../utils/nameGenerator'
 import { CombatantList } from './CombatantList'
 import { MonsterDefensePreview, type DefenseSelections } from './MonsterDefensePreview'
@@ -31,6 +31,7 @@ import type {
   Campaign,
   CampaignCharacter,
   Combatant,
+  CombatantTag,
   MonsterDetails,
   MonsterLibraryEntry,
   RootState,
@@ -88,6 +89,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const [isAddPanelCollapsed, setIsAddPanelCollapsed] = useState(true)
   const [manualOrder, setManualOrder] = useState<string[] | null>(null)
   const [bulkDamageValue, setBulkDamageValue] = useState('')
+  const [bulkDamageType, setBulkDamageType] = useState('')
   const [bulkDamageTargets, setBulkDamageTargets] = useState<Record<string, 'full' | 'half'>>({})
   const [bulkDamageError, setBulkDamageError] = useState('')
   const [isBulkDamageVisible, setIsBulkDamageVisible] = useState(false)
@@ -204,6 +206,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       setBulkDamageTargets({})
       setBulkDamageValue('')
       setBulkDamageError('')
+      setBulkDamageType('')
     }
   }, [hasCombatants])
 
@@ -474,6 +477,35 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
     })
   }, [])
 
+  const getDamageModifierForType = useCallback(
+    (combatant: Combatant | undefined, damageType: string): DamageModifier => {
+      if (!combatant) {
+        return 'normal'
+      }
+
+      const normalized = damageType.trim().toLowerCase()
+      if (!normalized) {
+        return 'normal'
+      }
+
+      const hasMatch = (values: string[] | undefined) =>
+        Array.isArray(values) && values.some((entry) => entry.trim().toLowerCase() === normalized)
+
+      if (hasMatch(combatant.damageImmunities)) {
+        return 'immune'
+      }
+      if (hasMatch(combatant.damageResistances)) {
+        return 'resistant'
+      }
+      if (hasMatch(combatant.damageVulnerabilities)) {
+        return 'vulnerable'
+      }
+
+      return 'normal'
+    },
+    [],
+  )
+
   /**
    * Applies damage or healing to a combatant based on user input.
    */
@@ -507,6 +539,8 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
           adjustedAmount = Math.floor(amount / 2)
         } else if (modifier === 'vulnerable') {
           adjustedAmount = amount * 2
+        } else if (modifier === 'immune') {
+          adjustedAmount = 0
         }
 
         dispatch(applyDamageAction({ id, amount: adjustedAmount }))
@@ -606,11 +640,13 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const handleClearBulkSelection = useCallback(() => {
     setBulkDamageTargets({})
     setBulkDamageValue('')
+    setBulkDamageType('')
     setBulkDamageError('')
   }, [])
 
   const handleBulkDamageApply = useCallback(() => {
     const amount = Number.parseInt(bulkDamageValue, 10)
+    const normalizedDamageType = bulkDamageType.trim().toLowerCase()
 
     if (!Number.isFinite(amount) || amount <= 0) {
       setBulkDamageError('Enter a positive damage value before applying the effect.')
@@ -625,7 +661,21 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
     }
 
     entries.forEach(([id, mode]) => {
-      const adjustedAmount = mode === 'half' ? Math.floor(amount / 2) : amount
+      const combatant = combatants.find((entry) => entry.id === id)
+      const baseAmount = mode === 'half' ? Math.floor(amount / 2) : amount
+      let adjustedAmount = baseAmount
+
+      if (normalizedDamageType) {
+        const modifier = getDamageModifierForType(combatant, normalizedDamageType)
+        if (modifier === 'immune') {
+          adjustedAmount = 0
+        } else if (modifier === 'resistant') {
+          adjustedAmount = Math.floor(baseAmount / 2)
+        } else if (modifier === 'vulnerable') {
+          adjustedAmount = baseAmount * 2
+        }
+      }
+
       if (adjustedAmount > 0) {
         dispatch(applyDamageAction({ id, amount: adjustedAmount }))
       }
@@ -633,7 +683,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
 
     setBulkDamageValue('')
     setBulkDamageError('')
-  }, [bulkDamageTargets, bulkDamageValue, dispatch])
+  }, [bulkDamageTargets, bulkDamageValue, combatants, dispatch, getDamageModifierForType, bulkDamageType])
 
   /**
    * Updates the initiative draft for a combatant when the user edits the input.
@@ -879,6 +929,16 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
         return
       }
 
+      const combatantTags: CombatantTag[] = []
+      if (Array.isArray(template.tags)) {
+        template.tags.forEach((tag) => {
+          const parsed = parseTagForCombatant(tag)
+          if (parsed) {
+            combatantTags.push(parsed)
+          }
+        })
+      }
+
       dispatch(
         addCombatantAction({
           name: template.name,
@@ -888,6 +948,10 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
           armorClass: template.armorClass,
           profileUrl: template.profileUrl,
           notes: template.notes,
+          tags: combatantTags,
+          damageImmunities: template.damageImmunities,
+          damageResistances: template.damageResistances,
+          damageVulnerabilities: template.damageVulnerabilities,
           sourceTemplateId: template.id,
           sourceCampaignId: activeCampaign.id,
         }),
@@ -950,6 +1014,9 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
           ? hitPoints
           : 1
       const tags = getMonsterCombatantTags(monster)
+      const damageImmunities = parseDefenseList(monster.damageImmunities)
+      const damageResistances = parseDefenseList(monster.damageResistances)
+      const damageVulnerabilities = parseDefenseList(monster.damageVulnerabilities)
 
       dispatch(
         addCombatantAction({
@@ -960,6 +1027,9 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
           armorClass: monster.armorClass,
           notes: monster.notes,
           tags,
+          damageImmunities,
+          damageResistances,
+          damageVulnerabilities,
           sourceMonsterId: monsterId,
           sourceCampaignId: sourceCampaignId || (activeCampaign ? activeCampaign.id : null),
         }),
@@ -1622,6 +1692,25 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                           placeholder="12"
                           inputMode="numeric"
                         />
+                      </label>
+                      <label>
+                        <span>Damage type</span>
+                        <select
+                          value={bulkDamageType}
+                          onChange={(event) => {
+                            setBulkDamageType(event.target.value)
+                            setBulkDamageError('')
+                          }}
+                        >
+                          <option value="">Unspecified</option>
+                          {MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'damage').map(
+                            (option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.icon} {option.label}
+                              </option>
+                            ),
+                          )}
+                        </select>
                       </label>
                       <div className="bulk-damage-panel__actions">
                         <button

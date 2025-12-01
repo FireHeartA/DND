@@ -398,6 +398,17 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                     <button
                       type="button"
                       className={`ghost-button ghost-button--compact damage-modifier-button${
+                        damageModifier === 'immune' ? ' damage-modifier-button--active' : ''
+                      }`}
+                      onClick={() => onToggleDamageModifier(combatant.id, 'immune')}
+                      aria-pressed={damageModifier === 'immune'}
+                      title="Ignore incoming damage"
+                    >
+                      Immune
+                    </button>
+                    <button
+                      type="button"
+                      className={`ghost-button ghost-button--compact damage-modifier-button${
                         damageModifier === 'vulnerable' ? ' damage-modifier-button--active' : ''
                       }`}
                       onClick={() => onToggleDamageModifier(combatant.id, 'vulnerable')}

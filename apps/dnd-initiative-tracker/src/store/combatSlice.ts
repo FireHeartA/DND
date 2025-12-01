@@ -65,6 +65,11 @@ const createCombatant = (
   profileUrl: fields.profileUrl ?? '',
   notes: fields.notes,
   tags: Array.isArray(fields.tags) ? fields.tags : [],
+  damageImmunities: Array.isArray(fields.damageImmunities) ? fields.damageImmunities : [],
+  damageResistances: Array.isArray(fields.damageResistances) ? fields.damageResistances : [],
+  damageVulnerabilities: Array.isArray(fields.damageVulnerabilities)
+    ? fields.damageVulnerabilities
+    : [],
   sourceTemplateId: fields.sourceTemplateId,
   sourceCampaignId: fields.sourceCampaignId,
   sourceMonsterId: fields.sourceMonsterId,
@@ -95,6 +100,35 @@ const sanitizeCombatantTags = (value: unknown): CombatantTag[] => {
       return { title, value: tagValue }
     })
     .filter(Boolean) as CombatantTag[]
+}
+
+const sanitizeDefenseList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const seen = new Set<string>()
+  const normalized: string[] = []
+
+  value.forEach((entry) => {
+    if (typeof entry !== 'string') {
+      return
+    }
+    const trimmed = entry.trim()
+    if (!trimmed) {
+      return
+    }
+
+    const key = trimmed.toLowerCase()
+    if (seen.has(key)) {
+      return
+    }
+
+    seen.add(key)
+    normalized.push(trimmed)
+  })
+
+  return normalized
 }
 
 /**
@@ -129,6 +163,11 @@ const sanitizeCombatant = (value: unknown): Combatant | null => {
     profileUrl: sanitizeProfileUrl(candidate.profileUrl),
     notes: typeof candidate.notes === 'string' ? candidate.notes : '',
     tags: sanitizeCombatantTags((candidate as { tags?: unknown }).tags),
+    damageImmunities: sanitizeDefenseList((candidate as { damageImmunities?: unknown }).damageImmunities),
+    damageResistances: sanitizeDefenseList((candidate as { damageResistances?: unknown }).damageResistances),
+    damageVulnerabilities: sanitizeDefenseList(
+      (candidate as { damageVulnerabilities?: unknown }).damageVulnerabilities,
+    ),
     sourceTemplateId:
       typeof candidate.sourceTemplateId === 'string' && candidate.sourceTemplateId
         ? candidate.sourceTemplateId
@@ -196,6 +235,9 @@ export interface AddCombatantArgs {
   profileUrl?: string | null
   notes?: string
   tags?: CombatantTag[]
+  damageImmunities?: string[]
+  damageResistances?: string[]
+  damageVulnerabilities?: string[]
   sourceTemplateId?: string | null
   sourceCampaignId?: string | null
   sourceMonsterId?: string | null
@@ -243,6 +285,9 @@ const combatSlice = createSlice({
           profileUrl = null,
           notes = '',
           tags = [],
+          damageImmunities = [],
+          damageResistances = [],
+          damageVulnerabilities = [],
           sourceTemplateId = null,
           sourceCampaignId = null,
           sourceMonsterId = null,
@@ -257,6 +302,9 @@ const combatSlice = createSlice({
           profileUrl: sanitizeProfileUrl(profileUrl),
           notes,
           tags,
+          damageImmunities: sanitizeDefenseList(damageImmunities),
+          damageResistances: sanitizeDefenseList(damageResistances),
+          damageVulnerabilities: sanitizeDefenseList(damageVulnerabilities),
           sourceTemplateId,
           sourceCampaignId,
           sourceMonsterId,
