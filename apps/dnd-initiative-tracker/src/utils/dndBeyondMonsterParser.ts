@@ -435,22 +435,22 @@ export interface NormalizedDndBeyondUrl {
  */
 export const normalizeDndBeyondUrl = (rawUrl: string): NormalizedDndBeyondUrl => {
   if (typeof rawUrl !== 'string') {
-    throw new Error('Enter a valid D&D Beyond monster URL.')
+    throw new Error('Enter a valid external URL')
   }
 
   let parsed: URL
   try {
     parsed = new URL(rawUrl, 'https://www.dndbeyond.com')
   } catch {
-    throw new Error('Enter a valid D&D Beyond monster URL.')
+    throw new Error('Enter a valid external URL')
   }
 
   if (!parsed.hostname.endsWith('dndbeyond.com')) {
-    throw new Error('Enter a D&D Beyond monster URL.')
+    throw new Error('Enter a valid external URL')
   }
 
   if (!parsed.pathname.includes('/monsters/')) {
-    throw new Error('Enter a D&D Beyond monster URL.')
+    throw new Error('Enter a valid external URL')
   }
 
   parsed.protocol = 'https:'
