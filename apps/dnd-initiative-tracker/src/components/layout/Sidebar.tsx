@@ -1,6 +1,6 @@
 import type { ChangeEvent, RefObject } from 'react'
 
-export type ViewMode = 'initiative' | 'campaigns'
+export type ViewMode = 'initiative' | 'campaigns' | 'soundboard'
 
 interface SidebarProps {
   activeView: ViewMode
@@ -49,7 +49,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`sidebar__item${activeView === 'campaigns' ? ' sidebar__item--active' : ''}`}
             onClick={() => onViewChange('campaigns')}
           >
-            Campaign Manager
+            Combatant Manager
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            className={`sidebar__item${activeView === 'soundboard' ? ' sidebar__item--active' : ''}`}
+            onClick={() => onViewChange('soundboard')}
+          >
+            Sound Board
           </button>
         </li>
         <li>
@@ -86,8 +95,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       </div>
     </div>
-    <footer className="sidebar__footer">
-      <p>Forged for D&D tables that crave order in the chaos.</p>
-    </footer>
+    <footer className="sidebar__footer" aria-hidden="true" />
   </aside>
 )

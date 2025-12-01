@@ -1670,25 +1670,50 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
               </div>
 
               {hasCombatants ? (
-                <CombatantList
-                  combatants={orderedCombatants}
-                  activeCombatantId={activeCombatantId}
-                  initiativeDrafts={initiativeDrafts}
-                  adjustments={adjustments}
-                  monstersById={monsterLibrary.monsters}
-                  displayNames={combatantDisplayNames}
-                  onInitiativeDraftChange={handleInitiativeDraftChange}
-                  onInitiativeCommit={commitInitiativeChange}
-                  onInitiativeKeyDown={handleInitiativeKeyDown}
-                  onRemoveCombatant={handleRemoveCombatant}
-                  onGenerateMonsterNickname={handleGenerateMonsterNickname}
-                  onAdjustmentChange={handleAdjustmentChange}
-                  onToggleDamageModifier={toggleDamageModifier}
-                  onApplyAdjustment={applyAdjustment}
-                  onResetCombatant={handleResetCombatant}
-                  onReorder={handleManualReorder}
-                  onDeathSaveProgressChange={handleDeathSaveProgressChange}
-                />
+                <div className="initiative-layout">
+                  <aside className="turn-order" aria-label="Turn order names only">
+                    <header className="turn-order__header">
+                      <p className="turn-order__title">Turn names</p>
+                      <p className="turn-order__hint">Highlights whose turn is active.</p>
+                    </header>
+                    <ol className="turn-order__list">
+                      {orderedCombatants.map((combatant, index) => {
+                        const displayName = combatantDisplayNames[combatant.id] ?? combatant.name
+                        const isActive = combatant.id === activeCombatantId
+
+                        return (
+                          <li
+                            key={combatant.id}
+                            className={`turn-order__item${isActive ? ' turn-order__item--active' : ''}`}
+                          >
+                            <span className="turn-order__position">{index + 1}</span>
+                            <span className="turn-order__name">{displayName}</span>
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  </aside>
+
+                  <CombatantList
+                    combatants={orderedCombatants}
+                    activeCombatantId={activeCombatantId}
+                    initiativeDrafts={initiativeDrafts}
+                    adjustments={adjustments}
+                    monstersById={monsterLibrary.monsters}
+                    displayNames={combatantDisplayNames}
+                    onInitiativeDraftChange={handleInitiativeDraftChange}
+                    onInitiativeCommit={commitInitiativeChange}
+                    onInitiativeKeyDown={handleInitiativeKeyDown}
+                    onRemoveCombatant={handleRemoveCombatant}
+                    onGenerateMonsterNickname={handleGenerateMonsterNickname}
+                    onAdjustmentChange={handleAdjustmentChange}
+                    onToggleDamageModifier={toggleDamageModifier}
+                    onApplyAdjustment={applyAdjustment}
+                    onResetCombatant={handleResetCombatant}
+                    onReorder={handleManualReorder}
+                    onDeathSaveProgressChange={handleDeathSaveProgressChange}
+                  />
+                </div>
               ) : (
                 <div className="tracker__empty">
                   <p>Add combatants to begin managing the initiative order.</p>

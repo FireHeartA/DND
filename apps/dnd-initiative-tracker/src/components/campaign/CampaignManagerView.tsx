@@ -1044,9 +1044,9 @@ export const CampaignManagerView: React.FC = () => {
     <>
       <section className="main__header">
         <div>
-          <h2>Campaign Manager</h2>
+          <h2>Combatant Manager</h2>
           <p>
-            Build multiple worlds, organize notes, and curate hero rosters for every table you run.
+            Add players and monsters for each campaign you run, so jumping into initiative is quick and easy
           </p>
         </div>
         <div className="header-actions">
