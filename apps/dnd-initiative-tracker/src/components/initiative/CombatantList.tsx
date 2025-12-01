@@ -145,9 +145,24 @@ export const CombatantList: React.FC<CombatantListProps> = ({
           combatant.type === 'monster' && combatant.sourceMonsterId
             ? monstersById[combatant.sourceMonsterId] ?? null
             : null
-        const isBloodied = combatant.currentHp <= Math.max(1, combatant.maxHp / 2)
         const isDown = combatant.currentHp === 0
         const hpPercent = combatant.maxHp > 0 ? (combatant.currentHp / combatant.maxHp) * 100 : 0
+        const bloodIndicatorCount = isDown || combatant.currentHp <= 1
+          ? 3
+          : hpPercent <= 25
+            ? 2
+            : hpPercent <= 50
+              ? 1
+              : 0
+        const bloodIndicatorLabel =
+          bloodIndicatorCount === 3
+            ? 'Critical condition'
+            : bloodIndicatorCount === 2
+              ? 'Severely wounded'
+              : bloodIndicatorCount === 1
+                ? 'Bloodied'
+                : ''
+        const showDeathSaves = isDown && combatant.type === 'player'
         const nicknameTag = combatant.tags.find((tag) => tag.title.toLowerCase() === 'nickname')
         const displayName = displayNames[combatant.id] ?? combatant.name
         const monsterTags =
@@ -157,8 +172,20 @@ export const CombatantList: React.FC<CombatantListProps> = ({
         const metaTags = combatant.type === 'monster' ? [] : combatant.tags
         const successCount = combatant.deathSaveSuccesses
         const failureCount = combatant.deathSaveFailures
-        const defenseSelections: DefenseSelections | null =
-          combatant.type === 'monster' && sourceMonster
+        const baseDefenseSelections: DefenseSelections = {
+          damageImmunities: combatant.damageImmunities ?? [],
+          damageResistances: combatant.damageResistances ?? [],
+          damageVulnerabilities: combatant.damageVulnerabilities ?? [],
+        }
+
+        const hasCombatantDefenses =
+          baseDefenseSelections.damageImmunities.length > 0 ||
+          baseDefenseSelections.damageResistances.length > 0 ||
+          baseDefenseSelections.damageVulnerabilities.length > 0
+
+        const defenseSelections: DefenseSelections | null = hasCombatantDefenses
+          ? baseDefenseSelections
+          : combatant.type === 'monster' && sourceMonster
             ? {
                 damageImmunities: parseDefenseList(sourceMonster.damageImmunities),
                 damageResistances: parseDefenseList(sourceMonster.damageResistances),
@@ -233,9 +260,9 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                       Generate nickname
                     </button>
                   )}
-                  {isBloodied && (
-                    <span className="bloodied-indicator" title="Bloodied" aria-label="Bloodied">
-                      <span aria-hidden="true">🩸</span>
+                  {bloodIndicatorCount > 0 && bloodIndicatorLabel && (
+                    <span className="bloodied-indicator" title={bloodIndicatorLabel} aria-label={bloodIndicatorLabel}>
+                      <span aria-hidden="true">{'🩸'.repeat(bloodIndicatorCount)}</span>
                     </span>
                   )}
                   {combatant.type === 'monster' && monsterTags.length > 0 && (
@@ -304,7 +331,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                       </a>
                     )}
                     {isDown && <p className="status status--down">Unconscious</p>}
-                    {isDown && (
+                    {showDeathSaves && (
                       <div className="death-save-tracker" aria-label="Death saving throws">
                         <div className="death-save-tracker__group" role="group" aria-label="Successes">
                           <span className="death-save-tracker__label">Successes</span>
@@ -379,6 +406,17 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                       title="Halve incoming damage (rounded down)"
                     >
                       Resistant
+                    </button>
+                    <button
+                      type="button"
+                      className={`ghost-button ghost-button--compact damage-modifier-button${
+                        damageModifier === 'immune' ? ' damage-modifier-button--active' : ''
+                      }`}
+                      onClick={() => onToggleDamageModifier(combatant.id, 'immune')}
+                      aria-pressed={damageModifier === 'immune'}
+                      title="Ignore incoming damage"
+                    >
+                      Immune
                     </button>
                     <button
                       type="button"
