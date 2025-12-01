@@ -5,6 +5,7 @@ import './App.css'
 import { Sidebar, ViewMode } from './components/layout/Sidebar'
 import { CampaignManagerView } from './components/campaign/CampaignManagerView'
 import { InitiativeView } from './components/initiative/InitiativeView'
+import { SoundBoardView } from './components/soundboard/SoundBoardView'
 import {
   loadState as loadCombatStateAction,
   type LoadCombatStateArgs,
@@ -199,6 +200,11 @@ function App() {
    */
   const campaignView = useMemo(() => <CampaignManagerView />, [])
 
+  /**
+   * Memoizes the sound board view to keep navigation snappy.
+   */
+  const soundBoardView = useMemo(() => <SoundBoardView />, [])
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -212,7 +218,11 @@ function App() {
         isDirty={isDirty}
       />
       <main className="main">
-        {activeView === 'campaigns' ? campaignView : initiativeView}
+        {activeView === 'soundboard'
+          ? soundBoardView
+          : activeView === 'campaigns'
+            ? campaignView
+            : initiativeView}
       </main>
     </div>
   )

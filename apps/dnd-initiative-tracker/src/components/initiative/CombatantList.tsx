@@ -362,7 +362,7 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                   <input
                     value={adjustment}
                     onChange={(event) => onAdjustmentChange(combatant.id, event.target.value)}
-                    placeholder="5 8 12"
+                    placeholder=""
                     inputMode="text"
                   />
                 </label>
