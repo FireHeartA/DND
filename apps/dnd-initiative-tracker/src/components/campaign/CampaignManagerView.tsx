@@ -68,6 +68,46 @@ interface PlayerTemplateEditDraft {
 
 type PlayerDefenseField = 'damageImmunities' | 'damageResistances' | 'damageVulnerabilities'
 
+type CollapseState = {
+  campaignDetails: boolean
+  playerForm: boolean
+  roster: boolean
+  monsters: boolean
+}
+
+const COLLAPSE_STATE_STORAGE_KEY = 'campaign-manager-collapse-state'
+
+const DEFAULT_COLLAPSE_STATE: CollapseState = {
+  campaignDetails: false,
+  playerForm: false,
+  roster: false,
+  monsters: false,
+}
+
+const getStoredCollapseState = (): CollapseState => {
+  if (typeof window === 'undefined') {
+    return DEFAULT_COLLAPSE_STATE
+  }
+
+  try {
+    const raw = window.localStorage.getItem(COLLAPSE_STATE_STORAGE_KEY)
+    if (!raw) {
+      return DEFAULT_COLLAPSE_STATE
+    }
+
+    const parsed = JSON.parse(raw) as Partial<CollapseState>
+    return {
+      campaignDetails: parsed.campaignDetails === true,
+      playerForm: parsed.playerForm === true,
+      roster: parsed.roster === true,
+      monsters: parsed.monsters === true,
+    }
+  } catch (error) {
+    console.error('Failed to parse collapse state from local storage', error)
+    return DEFAULT_COLLAPSE_STATE
+  }
+}
+
 const stringifyDefenseList = (values: string[]): string => {
   if (!Array.isArray(values)) {
     return ''
@@ -117,10 +157,18 @@ export const CampaignManagerView: React.FC = () => {
   const [playerTemplateEdits, setPlayerTemplateEdits] = useState<
     Record<string, PlayerTemplateEditDraft>
   >({})
-  const [isCampaignDetailsCollapsed, setIsCampaignDetailsCollapsed] = useState(false)
-  const [isPlayerFormCollapsed, setIsPlayerFormCollapsed] = useState(false)
-  const [isRosterCollapsed, setIsRosterCollapsed] = useState(false)
-  const [isMonstersCollapsed, setIsMonstersCollapsed] = useState(false)
+  const [isCampaignDetailsCollapsed, setIsCampaignDetailsCollapsed] = useState(
+    () => getStoredCollapseState().campaignDetails,
+  )
+  const [isPlayerFormCollapsed, setIsPlayerFormCollapsed] = useState(
+    () => getStoredCollapseState().playerForm,
+  )
+  const [isRosterCollapsed, setIsRosterCollapsed] = useState(
+    () => getStoredCollapseState().roster,
+  )
+  const [isMonstersCollapsed, setIsMonstersCollapsed] = useState(
+    () => getStoredCollapseState().monsters,
+  )
 
   const damageDefenseOptions = useMemo(
     () => MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'damage'),
@@ -217,6 +265,21 @@ export const CampaignManagerView: React.FC = () => {
     })
     setCampaignDetailsError('')
   }, [activeCampaign])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const payload: CollapseState = {
+      campaignDetails: isCampaignDetailsCollapsed,
+      playerForm: isPlayerFormCollapsed,
+      roster: isRosterCollapsed,
+      monsters: isMonstersCollapsed,
+    }
+
+    window.localStorage.setItem(COLLAPSE_STATE_STORAGE_KEY, JSON.stringify(payload))
+  }, [isCampaignDetailsCollapsed, isPlayerFormCollapsed, isRosterCollapsed, isMonstersCollapsed])
 
   /**
    * Clears monster import feedback when the user selects a different campaign.
