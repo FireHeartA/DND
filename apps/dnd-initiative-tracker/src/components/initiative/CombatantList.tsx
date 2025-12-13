@@ -297,7 +297,11 @@ export const CombatantList: React.FC<CombatantListProps> = ({
                           <span className="combatant-card__meta-item">AC {combatant.armorClass}</span>
                         )}
                         {combatant.sourceTemplateId && (
-                          <span className="combatant-card__meta-item combatant-card__meta-item--tag">Roster</span>
+                          <span
+                            className="combatant-card__meta-item combatant-card__meta-item--tag combatant-card__meta-item--player"
+                          >
+                            Player
+                          </span>
                         )}
                         {combatant.sourceMonsterId && (
                           <span className="combatant-card__meta-item combatant-card__meta-item--tag">Monster</span>
