@@ -2146,15 +2146,14 @@ textarea:focus {
   }
 
   .turn-order {
-    position: relative;
-    top: 0;
-    max-height: none;
-    overflow: visible;
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow: hidden;
   }
 
   .turn-order__list {
-    overflow: visible;
-    max-height: none;
+    overflow-y: auto;
   }
 }
 
