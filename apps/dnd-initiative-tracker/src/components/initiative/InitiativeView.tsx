@@ -94,6 +94,8 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const [bulkDamageError, setBulkDamageError] = useState('')
   const [isBulkDamageVisible, setIsBulkDamageVisible] = useState(false)
   const [autoRemoveDefeated, setAutoRemoveDefeated] = useState(false)
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false)
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null)
 
   /**
    * Provides access to the currently active campaign object.
@@ -1224,6 +1226,32 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   }, [autoRemoveDefeated, combatants, dispatch])
 
   useEffect(() => {
+    if (!isSettingsMenuOpen) {
+      return undefined
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!settingsMenuRef.current?.contains(event.target as Node)) {
+        setIsSettingsMenuOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSettingsMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isSettingsMenuOpen])
+
+  useEffect(() => {
     if (!manualOrder) {
       return
     }
@@ -1437,9 +1465,43 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
           <p>Command the flow of battle by managing heroes and monsters in one place.</p>
         </div>
         <div className="header-actions">
-          <div className="initiative-summary">
-            <span className="summary__label">Creatures</span>
-            <span className="summary__value">{combatants.length}</span>
+          <div className="header-actions__row">
+            <div className="settings-menu" ref={settingsMenuRef}>
+              <button
+                type="button"
+                className={`ghost-button settings-menu__trigger${isSettingsMenuOpen ? ' settings-menu__trigger--open' : ''}`}
+                onClick={() => setIsSettingsMenuOpen((prev) => !prev)}
+                aria-expanded={isSettingsMenuOpen}
+                aria-haspopup="true"
+              >
+                <span className="settings-menu__icon" aria-hidden="true">
+                  ⚙️
+                </span>
+                <span>Settings</span>
+              </button>
+
+              {isSettingsMenuOpen ? (
+                <div className="settings-menu__panel" role="menu">
+                  <ul className="settings-menu__list">
+                    <li>
+                      <label className="settings-menu__option">
+                        <input
+                          type="checkbox"
+                          checked={autoRemoveDefeated}
+                          onChange={(event) => setAutoRemoveDefeated(event.target.checked)}
+                        />
+                        <span>Automatically remove defeated enemies</span>
+                      </label>
+                    </li>
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="initiative-summary">
+              <span className="summary__label">Creatures</span>
+              <span className="summary__value">{combatants.length}</span>
+            </div>
           </div>
           {hasStatsToShow && !shouldShowStats && (
             <button type="button" className="ghost-button" onClick={() => setIsStatsVisible(true)}>
@@ -1705,14 +1767,6 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                     >
                       Reset order
                     </button>
-                    <label className="auto-remove-toggle">
-                      <input
-                        type="checkbox"
-                        checked={autoRemoveDefeated}
-                        onChange={(event) => setAutoRemoveDefeated(event.target.checked)}
-                      />
-                      <span>Automatically remove defeated enemies</span>
-                    </label>
                   </div>
                 </div>
 
