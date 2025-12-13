@@ -1271,6 +1271,7 @@ textarea:focus {
   padding: 1rem 1.25rem;
   position: sticky;
   top: 1rem;
+  z-index: 6;
   box-shadow: 0 14px 26px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
