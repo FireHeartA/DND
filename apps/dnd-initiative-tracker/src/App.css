@@ -1275,8 +1275,9 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  max-height: calc(100vh - 2rem);
+  height: calc(100vh - 2rem);
   overflow: hidden;
+  align-self: start;
 }
 
 .turn-order__header {
@@ -1307,6 +1308,8 @@ textarea:focus {
   gap: 0.5rem;
   overflow-y: auto;
   padding-right: 0.3rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .turn-order__item {
@@ -2148,7 +2151,7 @@ textarea:focus {
   .turn-order {
     position: sticky;
     top: 1rem;
-    max-height: calc(100vh - 2rem);
+    height: calc(100vh - 2rem);
     overflow: hidden;
   }
 
