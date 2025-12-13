@@ -93,6 +93,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const [bulkDamageTargets, setBulkDamageTargets] = useState<Record<string, 'full' | 'half'>>({})
   const [bulkDamageError, setBulkDamageError] = useState('')
   const [isBulkDamageVisible, setIsBulkDamageVisible] = useState(false)
+  const [autoRemoveDefeated, setAutoRemoveDefeated] = useState(false)
 
   /**
    * Provides access to the currently active campaign object.
@@ -1207,6 +1208,22 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   }, [combatants])
 
   useEffect(() => {
+    if (!autoRemoveDefeated) {
+      return
+    }
+
+    const defeatedMonsterIds = combatants
+      .filter((combatant) => combatant.type === 'monster' && combatant.currentHp === 0)
+      .map((combatant) => combatant.id)
+
+    if (defeatedMonsterIds.length === 0) {
+      return
+    }
+
+    defeatedMonsterIds.forEach((id) => dispatch(removeCombatantAction(id)))
+  }, [autoRemoveDefeated, combatants, dispatch])
+
+  useEffect(() => {
     if (!manualOrder) {
       return
     }
@@ -1688,6 +1705,14 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                     >
                       Reset order
                     </button>
+                    <label className="auto-remove-toggle">
+                      <input
+                        type="checkbox"
+                        checked={autoRemoveDefeated}
+                        onChange={(event) => setAutoRemoveDefeated(event.target.checked)}
+                      />
+                      <span>Automatically remove defeated enemies</span>
+                    </label>
                   </div>
                 </div>
 
