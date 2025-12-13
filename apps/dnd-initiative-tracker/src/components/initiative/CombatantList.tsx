@@ -203,11 +203,13 @@ export const CombatantList: React.FC<CombatantListProps> = ({
         return (
           <li
             key={combatant.id}
+            id={`combatant-${combatant.id}`}
             className={`combatant-card${
               combatant.id === activeCombatantId ? ' combatant-card--active' : ''
             }${draggedId === combatant.id ? ' combatant-card--dragging' : ''}${
               dragOver?.id === combatant.id ? ` combatant-card--drop-${dragOver.position}` : ''
             }`}
+            tabIndex={-1}
             draggable
             onDragStart={(event) => handleDragStart(event, combatant.id)}
             onDragOver={(event) => handleDragOver(event, combatant.id)}

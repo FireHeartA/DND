@@ -612,6 +612,25 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
     [initiativeSortedCombatants],
   )
 
+  const handleTurnNameClick = useCallback((combatantId: string) => {
+    const target = document.getElementById(`combatant-${combatantId}`)
+
+    if (!target) {
+      return
+    }
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+    if (target instanceof HTMLElement) {
+      target.focus({ preventScroll: true })
+    }
+
+    target.classList.add('combatant-card--jump-highlight')
+    window.setTimeout(() => {
+      target.classList.remove('combatant-card--jump-highlight')
+    }, 1200)
+  }, [])
+
   const handleResetManualOrder = useCallback(() => {
     setManualOrder(null)
   }, [])
@@ -1785,7 +1804,13 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                             className={`turn-order__item${isActive ? ' turn-order__item--active' : ''}`}
                           >
                             <span className="turn-order__position">{index + 1}</span>
-                            <span className="turn-order__name">{displayName}</span>
+                            <button
+                              type="button"
+                              className="turn-order__name"
+                              onClick={() => handleTurnNameClick(combatant.id)}
+                            >
+                              {displayName}
+                            </button>
                           </li>
                         )
                       })}
