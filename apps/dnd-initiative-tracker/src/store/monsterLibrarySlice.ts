@@ -362,6 +362,7 @@ export interface UpdateMonsterDetailsArgs {
   armorClass?: number | string | null
   hitPoints?: number | string | null
   challengeRating?: string | null
+  challengeXp?: string | null
   damageImmunities?: string | string[] | null
   damageResistances?: string | string[] | null
   damageVulnerabilities?: string | string[] | null
@@ -462,6 +463,7 @@ const monsterLibrarySlice = createSlice({
         armorClass,
         hitPoints,
         challengeRating,
+        challengeXp,
         damageImmunities,
         damageResistances,
         damageVulnerabilities,
@@ -475,6 +477,7 @@ const monsterLibrarySlice = createSlice({
             armorClass,
             hitPoints,
             challengeRating,
+            challengeXp,
             damageImmunities,
             damageResistances,
             damageVulnerabilities,
@@ -490,6 +493,7 @@ const monsterLibrarySlice = createSlice({
           armorClass,
           hitPoints,
           challengeRating,
+          challengeXp,
           damageImmunities,
           damageResistances,
           damageVulnerabilities,
@@ -546,6 +550,10 @@ const monsterLibrarySlice = createSlice({
 
         if (typeof challengeRating !== 'undefined') {
           updates.challengeRating = sanitizeOptionalString(challengeRating)
+        }
+
+        if (typeof challengeXp !== 'undefined') {
+          updates.challengeXp = sanitizeOptionalString(challengeXp)
         }
 
         if (typeof damageImmunities !== 'undefined') {
