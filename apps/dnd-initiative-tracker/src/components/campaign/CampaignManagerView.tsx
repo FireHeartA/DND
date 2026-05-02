@@ -143,28 +143,6 @@ const parseDndBeyondCharacterSnapshot = (markdown: string): Partial<PlayerTempla
   return { name, armorClass, maxHp, playerLevel }
 }
 
-const normalizeDndBeyondCharacterUrl = (rawUrl: string): string => {
-  if (typeof rawUrl !== 'string') {
-    throw new Error('Enter a valid D&D Beyond character URL.')
-  }
-
-  let parsed: URL
-  try {
-    parsed = new URL(rawUrl, 'https://www.dndbeyond.com')
-  } catch {
-    throw new Error('Enter a valid D&D Beyond character URL.')
-  }
-
-  if (!parsed.hostname.endsWith('dndbeyond.com') || !parsed.pathname.includes('/characters/')) {
-    throw new Error('Enter a valid D&D Beyond character URL.')
-  }
-
-  parsed.protocol = 'https:'
-  parsed.hash = ''
-  parsed.search = ''
-  return parsed.toString()
-}
-
 /**
  * Displays the campaign manager view, allowing the user to manage rosters and monsters.
  */
@@ -605,20 +583,18 @@ export const CampaignManagerView: React.FC = () => {
       return
     }
 
-    let normalizedUrl: string
+    let normalized: ReturnType<typeof normalizeDndBeyondUrl>
     try {
-      normalizedUrl = normalizeDndBeyondCharacterUrl(trimmedUrl)
+      normalized = normalizeDndBeyondUrl(trimmedUrl)
     } catch (error) {
-      setPlayerTemplateError(
-        error instanceof Error ? error.message : 'Enter a valid D&D Beyond character URL.',
-      )
+      setPlayerTemplateError(error instanceof Error ? error.message : 'Enter a valid D&D Beyond URL.')
       return
     }
 
     setIsPlayerImporting(true)
     setPlayerTemplateError('')
     try {
-      const response = await fetch(`https://r.jina.ai/${normalizedUrl}`)
+      const response = await fetch(`https://r.jina.ai/${normalized.normalizedUrl}`)
       if (!response.ok) {
         throw new Error('Failed to fetch character data. Check the URL and try again.')
       }
