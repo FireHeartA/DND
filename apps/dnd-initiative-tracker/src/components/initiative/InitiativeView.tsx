@@ -2134,7 +2134,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
           <section className="initiative-monsters">
             <header className="initiative-monsters__header">
               <div>
-                <h3>Campaign bestiary</h3>
+                <h3>Campaign monsters</h3>
                 <p>Drop imported monsters into combat with a single click.</p>
               </div>
               <div className="initiative-monsters__controls">
