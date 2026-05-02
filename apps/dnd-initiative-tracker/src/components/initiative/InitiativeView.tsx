@@ -185,6 +185,28 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
         const monster = combatant.sourceMonsterId ? monsterLibrary.monsters[combatant.sourceMonsterId] : null
         return sum + (monster?.challengeXpValue ?? 0)
       }, 0)
+    const monsterCount = combatants.filter((combatant) => combatant.type === 'monster').length
+    const getBaseMultiplier = (count: number): number => {
+      if (count <= 1) return 1
+      if (count === 2) return 1.5
+      if (count <= 6) return 2
+      if (count <= 10) return 2.5
+      if (count <= 14) return 3
+      return 4
+    }
+    const getAdjustedMultiplier = (count: number, partySize: number): number => {
+      const track = [0.5, 1, 1.5, 2, 2.5, 3, 4, 5]
+      const base = getBaseMultiplier(count)
+      const idx = track.indexOf(base)
+      if (idx === -1) return base
+      if (partySize < 3) {
+        return track[Math.min(track.length - 1, idx + 1)]
+      }
+      if (partySize >= 6) {
+        return track[Math.max(0, idx - 1)]
+      }
+      return base
+    }
     const thresholds = playerLevels.reduce(
       (acc, level) => {
         const row = encounterThresholdsByLevel[Math.min(20, Math.max(1, level))]
@@ -192,9 +214,17 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       },
       { easy: 0, medium: 0, hard: 0, deadly: 0 },
     )
+    const multiplier = getAdjustedMultiplier(monsterCount, playerLevels.length)
+    const adjustedXp = Math.round(monsterXp * multiplier)
     const difficulty =
-      monsterXp >= thresholds.deadly ? 'Deadly' : monsterXp >= thresholds.hard ? 'Hard' : monsterXp >= thresholds.medium ? 'Medium' : monsterXp >= thresholds.easy ? 'Easy' : 'Trivial'
-    return { playerCount: playerLevels.length, monsterXp, thresholds, difficulty }
+      adjustedXp >= thresholds.deadly
+        ? 'Deadly'
+        : adjustedXp >= thresholds.hard
+          ? 'Hard'
+          : adjustedXp >= thresholds.medium
+            ? 'Medium'
+            : 'Easy'
+    return { playerCount: playerLevels.length, monsterXp, adjustedXp, multiplier, monsterCount, thresholds, difficulty }
   }, [combatants, monsterLibrary.monsters])
 
   const combatantDisplayNames = useMemo(() => {
@@ -1483,7 +1513,8 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
             <h3>Encounter difficulty</h3>
             <button type="button" className="ghost-button" onClick={() => setIsEncounterDifficultyVisible(false)}>Close</button>
           </header>
-          <p>Players: {encounterDifficultySummary.playerCount} · Monster XP: {encounterDifficultySummary.monsterXp}</p>
+          <p>Players: {encounterDifficultySummary.playerCount} · Monsters: {encounterDifficultySummary.monsterCount}</p>
+          <p>Base XP: {encounterDifficultySummary.monsterXp} · Multiplier: ×{encounterDifficultySummary.multiplier} · Adjusted XP: {encounterDifficultySummary.adjustedXp}</p>
           <p><strong>{encounterDifficultySummary.difficulty}</strong></p>
           <p>Easy {encounterDifficultySummary.thresholds.easy} · Medium {encounterDifficultySummary.thresholds.medium} · Hard {encounterDifficultySummary.thresholds.hard} · Deadly {encounterDifficultySummary.thresholds.deadly}</p>
         </section>

@@ -44,6 +44,7 @@ interface MonsterEditDraft {
   armorClass: string
   hitPoints: string
   challengeRating: string
+  challengeXpValue: string
   damageImmunities: string[]
   damageResistances: string[]
   damageVulnerabilities: string[]
@@ -813,6 +814,10 @@ export const CampaignManagerView: React.FC = () => {
         armorClass: monster.armorClass !== null ? String(monster.armorClass) : '',
         hitPoints: monster.hitPoints !== null ? String(monster.hitPoints) : '',
         challengeRating: monster.challengeRating || '',
+        challengeXpValue:
+          typeof monster.challengeXpValue === 'number' && Number.isFinite(monster.challengeXpValue)
+            ? String(monster.challengeXpValue)
+            : '',
         damageImmunities: parseDefenseList(monster.damageImmunities),
         damageResistances: parseDefenseList(monster.damageResistances),
         damageVulnerabilities: parseDefenseList(monster.damageVulnerabilities),
@@ -1052,6 +1057,8 @@ export const CampaignManagerView: React.FC = () => {
       const hitPointsInput = typeof draft.hitPoints === 'string' ? draft.hitPoints.trim() : ''
       const challengeRatingInput =
         typeof draft.challengeRating === 'string' ? draft.challengeRating.trim() : ''
+      const challengeXpValueInput =
+        typeof draft.challengeXpValue === 'string' ? draft.challengeXpValue.trim() : ''
 
       const damageImmunities = Array.isArray(draft.damageImmunities)
         ? draft.damageImmunities
@@ -1094,6 +1101,21 @@ export const CampaignManagerView: React.FC = () => {
         }
         hitPointsValue = Math.max(1, Math.trunc(parsedHp))
       }
+      let challengeXpValue: number | null = null
+      if (challengeXpValueInput) {
+        const parsedXp = Number.parseInt(challengeXpValueInput.replace(/,/g, ''), 10)
+        if (!Number.isFinite(parsedXp) || parsedXp < 0) {
+          setMonsterEdits((prev) => ({
+            ...prev,
+            [monsterId]: {
+              ...draft,
+              error: 'XP value must be a non-negative whole number or left blank.',
+            },
+          }))
+          return
+        }
+        challengeXpValue = Math.trunc(parsedXp)
+      }
 
       const baseTags = prepareMonsterTags(Array.isArray(draft.tags) ? draft.tags : [])
       const filteredTags = baseTags.filter((tag) => {
@@ -1134,6 +1156,7 @@ export const CampaignManagerView: React.FC = () => {
           armorClass: armorClassValue,
           hitPoints: hitPointsValue,
           challengeRating: challengeRatingInput,
+          challengeXpValue,
           damageImmunities: damageImmunitiesString,
           damageResistances: damageResistancesString,
           damageVulnerabilities: damageVulnerabilitiesString,
@@ -2167,6 +2190,21 @@ export const CampaignManagerView: React.FC = () => {
                                   }
                                   placeholder="5"
                                   autoComplete="off"
+                                />
+                              </label>
+                              <label>
+                                <span>XP Value</span>
+                                <input
+                                  value={editDraft.challengeXpValue}
+                                  onChange={(event) =>
+                                    handleMonsterEditFieldChange(
+                                      monster.id,
+                                      'challengeXpValue',
+                                      event.target.value,
+                                    )
+                                  }
+                                  placeholder="1800"
+                                  inputMode="numeric"
                                 />
                               </label>
                             </div>
