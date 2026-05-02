@@ -56,6 +56,7 @@ interface PlayerTemplateEditDraft {
   name: string
   maxHp: string
   armorClass: string
+  playerLevel: string
   profileUrl: string
   notes: string
   tags: string[]
@@ -139,6 +140,7 @@ export const CampaignManagerView: React.FC = () => {
     name: '',
     maxHp: '',
     armorClass: '',
+    playerLevel: '',
     profileUrl: '',
     notes: '',
     tags: [] as string[],
@@ -393,7 +395,7 @@ export const CampaignManagerView: React.FC = () => {
    */
   const handlePlayerTemplateFormChange = useCallback(
     (
-      field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes' | 'tagDraft',
+      field: 'name' | 'maxHp' | 'armorClass' | 'playerLevel' | 'profileUrl' | 'notes' | 'tagDraft',
       value: string,
     ) => {
       setPlayerTemplateForm((prev) => ({
@@ -483,6 +485,10 @@ export const CampaignManagerView: React.FC = () => {
       const armorClass = Number.isFinite(armorClassValue)
         ? Math.max(0, Math.trunc(armorClassValue))
         : null
+      const playerLevelValue = Number.parseInt(playerTemplateForm.playerLevel, 10)
+      const playerLevel = Number.isFinite(playerLevelValue)
+        ? Math.max(1, Math.trunc(playerLevelValue))
+        : null
 
       const profileUrl = playerTemplateForm.profileUrl.trim()
       if (profileUrl && !/^https?:\/\//i.test(profileUrl)) {
@@ -497,6 +503,7 @@ export const CampaignManagerView: React.FC = () => {
             name,
             maxHp: Math.trunc(maxHpValue),
             armorClass,
+            playerLevel,
             profileUrl,
             notes: playerTemplateForm.notes,
             tags: playerTemplateForm.tags,
@@ -517,6 +524,7 @@ export const CampaignManagerView: React.FC = () => {
       playerTemplateForm.maxHp,
       playerTemplateForm.name,
       playerTemplateForm.notes,
+      playerTemplateForm.playerLevel,
       playerTemplateForm.profileUrl,
       resetPlayerTemplateForm,
     ],
@@ -558,6 +566,7 @@ export const CampaignManagerView: React.FC = () => {
         name: template.name,
         maxHp: String(template.maxHp),
         armorClass: template.armorClass !== null ? String(template.armorClass) : '',
+        playerLevel: template.playerLevel !== null ? String(template.playerLevel) : '',
         profileUrl: template.profileUrl || '',
         notes: template.notes || '',
         tags: Array.isArray(template.tags) ? template.tags : [],
@@ -596,7 +605,7 @@ export const CampaignManagerView: React.FC = () => {
   const handlePlayerTemplateEditFieldChange = useCallback(
     (
       id: string,
-      field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes' | 'tagDraft',
+      field: 'name' | 'maxHp' | 'armorClass' | 'playerLevel' | 'profileUrl' | 'notes' | 'tagDraft',
       value: string,
     ) => {
       setPlayerTemplateEdits((prev) => {
@@ -742,6 +751,10 @@ export const CampaignManagerView: React.FC = () => {
       const armorClass = Number.isFinite(armorClassValue)
         ? Math.max(0, Math.trunc(armorClassValue))
         : null
+      const playerLevelValue = Number.parseInt(draft.playerLevel, 10)
+      const playerLevel = Number.isFinite(playerLevelValue)
+        ? Math.max(1, Math.trunc(playerLevelValue))
+        : null
 
       const profileUrl = draft.profileUrl.trim()
       if (profileUrl && !/^https?:\/\//i.test(profileUrl)) {
@@ -769,6 +782,7 @@ export const CampaignManagerView: React.FC = () => {
             name,
             maxHp: Math.trunc(maxHpValue),
             armorClass,
+            playerLevel,
             profileUrl,
             notes: draft.notes,
             tags: draft.tags,
@@ -1422,6 +1436,17 @@ export const CampaignManagerView: React.FC = () => {
                           />
                         </label>
                         <label>
+                          <span>Player Level</span>
+                          <input
+                            value={playerTemplateForm.playerLevel}
+                            onChange={(event) =>
+                              handlePlayerTemplateFormChange('playerLevel', event.target.value)
+                            }
+                            placeholder="5"
+                            inputMode="numeric"
+                          />
+                        </label>
+                        <label>
                           <span>Character link</span>
                           <input
                             value={playerTemplateForm.profileUrl}
@@ -1625,6 +1650,9 @@ export const CampaignManagerView: React.FC = () => {
                                       {template.armorClass !== null && (
                                         <span className="stat-chip">AC {template.armorClass}</span>
                                       )}
+                                      {template.playerLevel !== null && (
+                                        <span className="stat-chip">Player Level {template.playerLevel}</span>
+                                      )}
                                     </div>
                                   </>
                                 )}
@@ -1699,6 +1727,21 @@ export const CampaignManagerView: React.FC = () => {
                                       }
                                       inputMode="numeric"
                                       placeholder="15"
+                                    />
+                                  </label>
+                                  <label>
+                                    <span>Player Level</span>
+                                    <input
+                                      value={editDraft?.playerLevel ?? ''}
+                                      onChange={(event) =>
+                                        handlePlayerTemplateEditFieldChange(
+                                          template.id,
+                                          'playerLevel',
+                                          event.target.value,
+                                        )
+                                      }
+                                      inputMode="numeric"
+                                      placeholder="5"
                                     />
                                   </label>
                                   <label>
@@ -2006,7 +2049,9 @@ export const CampaignManagerView: React.FC = () => {
                         <ul className="monster-library__list">
                           {campaignMonsterList.map(({ monster, entry, isFavorite }) => {
                             const displayTags = getMonsterDisplayTags(monster).filter(
-                              (tag) => !isDefenseTag(tag),
+                              (tag) =>
+                                !isDefenseTag(tag) &&
+                                !tag.toLocaleLowerCase().startsWith('url source:'),
                             )
                             const editDraft = monsterEdits[monster.id] || null
                             const isEditing = Boolean(editDraft)
@@ -2049,6 +2094,16 @@ export const CampaignManagerView: React.FC = () => {
                                       {tag}
                                     </span>
                                   ))}
+                                  {monster.sourceUrl && (
+                                    <a
+                                      href={monster.sourceUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="monster-card__link"
+                                    >
+                                      Open monster profile
+                                    </a>
+                                  )}
                                 </div>
                               </div>
                               <div className="monster-card__header-actions">
@@ -2373,16 +2428,6 @@ export const CampaignManagerView: React.FC = () => {
                                       </span>
                                     )}
                                   </div>
-                                  {monster.sourceUrl && (
-                                    <a
-                                      href={monster.sourceUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="monster-card__link"
-                                    >
-                                      View on D&D Beyond
-                                    </a>
-                                  )}
                                 </footer>
                               </>
                             )}
