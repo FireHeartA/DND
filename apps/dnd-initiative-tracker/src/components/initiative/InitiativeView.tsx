@@ -355,18 +355,15 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       })
       .filter(Boolean)
       .sort((a, b) => {
-        const lastA = a!.entry.lastUsedAt || 0
-        const lastB = b!.entry.lastUsedAt || 0
+        const nameCompare = a!.monster.name.localeCompare(b!.monster.name, undefined, {
+          sensitivity: 'base',
+        })
 
-        if (lastA !== lastB) {
-          return lastB - lastA
+        if (nameCompare !== 0) {
+          return nameCompare
         }
 
-        if (a!.entry.usageCount !== b!.entry.usageCount) {
-          return b!.entry.usageCount - a!.entry.usageCount
-        }
-
-        return b!.entry.addedAt - a!.entry.addedAt
+        return a!.entry.addedAt - b!.entry.addedAt
       }) as Array<{
       monster: MonsterDetails
       entry: MonsterLibraryEntry
