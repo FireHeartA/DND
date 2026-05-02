@@ -1478,13 +1478,16 @@ export const CampaignManagerView: React.FC = () => {
                           />
                         </label>
                         <label>
-                          <span>Character link</span>
+                          <span>Player URL</span>
+                          <p className="campaign-form__hint">
+                            Paste a D&D Beyond character URL to import player characters.
+                          </p>
                           <input
                             value={playerTemplateForm.profileUrl}
                             onChange={(event) =>
                               handlePlayerTemplateFormChange('profileUrl', event.target.value)
                             }
-                            placeholder="https://dndbeyond.com/profile/..."
+                            placeholder="https://www.dndbeyond.com/characters/..."
                             inputMode="url"
                           />
                         </label>
