@@ -2422,7 +2422,7 @@ export const CampaignManagerView: React.FC = () => {
                 <div className="monster-library">
                   <div className="monster-library__header section-header">
                     <div>
-                      <h4>Campaign monsters</h4>
+                      <h4>Saved Campaign Monsters</h4>
                       <p>Keep your frequently used foes ready for quick initiative drops.</p>
                     </div>
                     <button
