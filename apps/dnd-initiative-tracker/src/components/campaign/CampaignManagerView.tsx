@@ -2428,6 +2428,16 @@ export const CampaignManagerView: React.FC = () => {
                                       </span>
                                     )}
                                   </div>
+                                  {monster.sourceUrl && (
+                                    <a
+                                      href={monster.sourceUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="monster-card__link"
+                                    >
+                                      Open monster profile
+                                    </a>
+                                  )}
                                 </footer>
                               </>
                             )}
