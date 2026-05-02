@@ -124,6 +124,25 @@ const stringifyDefenseList = (values: string[]): string => {
     .join(', ')
 }
 
+const parseDndBeyondCharacterSnapshot = (markdown: string): Partial<PlayerTemplateEditDraft> => {
+  const normalized = markdown.replace(/\r\n/g, '\n')
+  const extract = (pattern: RegExp): string | null => {
+    const match = normalized.match(pattern)
+    return match?.[1]?.trim() || null
+  }
+
+  const name =
+    extract(/^#\s+(.+)$/m) ||
+    extract(/^Title:\s*(.+)$/m) ||
+    extract(/^\s*Name\s*\n+(.+)$/m) ||
+    ''
+  const armorClass = extract(/Armor Class[:\s]+(\d{1,3})/i) || ''
+  const maxHp = extract(/Hit Points[:\s]+(\d{1,4})/i) || ''
+  const playerLevel = extract(/Level[:\s]+(\d{1,2})/i) || ''
+
+  return { name, armorClass, maxHp, playerLevel }
+}
+
 /**
  * Displays the campaign manager view, allowing the user to manage rosters and monsters.
  */
@@ -152,6 +171,7 @@ export const CampaignManagerView: React.FC = () => {
   })
   const [playerTemplateForm, setPlayerTemplateForm] = useState(createEmptyPlayerTemplateForm())
   const [playerTemplateError, setPlayerTemplateError] = useState('')
+  const [isPlayerImporting, setIsPlayerImporting] = useState(false)
   const [monsterImportUrl, setMonsterImportUrl] = useState('')
   const [monsterImportError, setMonsterImportError] = useState('')
   const [monsterImportSuccess, setMonsterImportSuccess] = useState('')
@@ -555,6 +575,48 @@ export const CampaignManagerView: React.FC = () => {
       resetPlayerTemplateForm,
     ],
   )
+
+  const handleImportPlayerFromUrl = useCallback(async () => {
+    const trimmedUrl = playerTemplateForm.profileUrl.trim()
+    if (!trimmedUrl) {
+      setPlayerTemplateError('Provide a D&D Beyond character URL to import.')
+      return
+    }
+
+    let normalized: ReturnType<typeof normalizeDndBeyondUrl>
+    try {
+      normalized = normalizeDndBeyondUrl(trimmedUrl)
+    } catch (error) {
+      setPlayerTemplateError(error instanceof Error ? error.message : 'Enter a valid D&D Beyond URL.')
+      return
+    }
+
+    setIsPlayerImporting(true)
+    setPlayerTemplateError('')
+    try {
+      const response = await fetch(`https://r.jina.ai/${normalized.normalizedUrl}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch character data. Check the URL and try again.')
+      }
+      const text = await response.text()
+      const snapshot = parseDndBeyondCharacterSnapshot(text)
+      setPlayerTemplateForm((prev) => ({
+        ...prev,
+        name: snapshot.name || prev.name,
+        maxHp: snapshot.maxHp || prev.maxHp,
+        armorClass: snapshot.armorClass || prev.armorClass,
+        playerLevel: snapshot.playerLevel || prev.playerLevel,
+        profileUrl: trimmedUrl,
+      }))
+    } catch (error) {
+      console.error('Failed to import character', error)
+      setPlayerTemplateError(
+        error instanceof Error ? error.message : 'Something went wrong while importing the character.',
+      )
+    } finally {
+      setIsPlayerImporting(false)
+    }
+  }, [playerTemplateForm.profileUrl])
 
   /**
    * Removes a player template from the active campaign roster.
@@ -1438,7 +1500,7 @@ export const CampaignManagerView: React.FC = () => {
                   {!isPlayerFormCollapsed && (
                     <>
                       <div className="form-grid campaign-form__grid">
-                        <label>
+                        <label className="campaign-form__notes">
                           <span>Player URL</span>
                           <p className="campaign-form__hint">
                             Paste a D&D Beyond character URL to import player characters.
@@ -1451,6 +1513,16 @@ export const CampaignManagerView: React.FC = () => {
                             placeholder="https://www.dndbeyond.com/characters/..."
                             inputMode="url"
                           />
+                          <div className="campaign-form__actions">
+                            <button
+                              type="button"
+                              className="ghost-button"
+                              onClick={handleImportPlayerFromUrl}
+                              disabled={isPlayerImporting}
+                            >
+                              {isPlayerImporting ? 'Importing…' : 'Import player data'}
+                            </button>
+                          </div>
                         </label>
                         <label>
                           <span>Name</span>
@@ -1492,10 +1564,7 @@ export const CampaignManagerView: React.FC = () => {
                           />
                         </label>
                         <label>
-                          <span>Player URL</span>
-                          <p className="campaign-form__hint">
-                            Paste a D&D Beyond character URL to import player characters.
-                          </p>
+                          <span>Character link</span>
                           <input
                             value={playerTemplateForm.profileUrl}
                             onChange={(event) =>
