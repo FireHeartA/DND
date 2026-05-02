@@ -2049,7 +2049,9 @@ export const CampaignManagerView: React.FC = () => {
                         <ul className="monster-library__list">
                           {campaignMonsterList.map(({ monster, entry, isFavorite }) => {
                             const displayTags = getMonsterDisplayTags(monster).filter(
-                              (tag) => !isDefenseTag(tag),
+                              (tag) =>
+                                !isDefenseTag(tag) &&
+                                !tag.toLocaleLowerCase().startsWith('url source:'),
                             )
                             const editDraft = monsterEdits[monster.id] || null
                             const isEditing = Boolean(editDraft)
@@ -2092,6 +2094,16 @@ export const CampaignManagerView: React.FC = () => {
                                       {tag}
                                     </span>
                                   ))}
+                                  {monster.sourceUrl && (
+                                    <a
+                                      href={monster.sourceUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="monster-card__link"
+                                    >
+                                      Open monster profile
+                                    </a>
+                                  )}
                                 </div>
                               </div>
                               <div className="monster-card__header-actions">
