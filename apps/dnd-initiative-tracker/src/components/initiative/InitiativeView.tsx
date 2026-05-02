@@ -87,6 +87,8 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const [monsterInitiatives, setMonsterInitiatives] = useState<Record<string, string>>({})
   const [monsterErrors, setMonsterErrors] = useState<Record<string, string>>({})
   const [isAddPanelCollapsed, setIsAddPanelCollapsed] = useState(true)
+  const [isCampaignRosterCollapsed, setIsCampaignRosterCollapsed] = useState(false)
+  const [isCampaignBestiaryCollapsed, setIsCampaignBestiaryCollapsed] = useState(false)
   const [manualOrder, setManualOrder] = useState<string[] | null>(null)
   const [bulkDamageValue, setBulkDamageValue] = useState('')
   const [bulkDamageType, setBulkDamageType] = useState('')
@@ -1894,9 +1896,18 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                 <button type="button" className="ghost-button" onClick={onNavigateToCampaigns}>
                   Manage campaigns
                 </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setIsCampaignRosterCollapsed((previous) => !previous)}
+                  aria-expanded={!isCampaignRosterCollapsed}
+                >
+                  {isCampaignRosterCollapsed ? 'Expand' : 'Minimize'}
+                </button>
               </div>
             </header>
-            {activeCampaign ? (
+            {!isCampaignRosterCollapsed ? (
+              activeCampaign ? (
               activeCampaignRoster.length === 0 ? (
                 <div className="initiative-campaign__empty">
                   <p>
@@ -1983,7 +1994,8 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
               <div className="initiative-campaign__empty">
                 <p>Create a campaign to quickly load recurring party members.</p>
               </div>
-            )}
+              )
+            ) : null}
           </section>
 
           <section className="initiative-monsters">
@@ -1992,11 +2004,22 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                 <h3>Campaign bestiary</h3>
                 <p>Drop imported monsters into combat with a single click.</p>
               </div>
-              <button type="button" className="ghost-button" onClick={onNavigateToCampaigns}>
-                Manage monsters
-              </button>
+              <div className="initiative-monsters__controls">
+                <button type="button" className="ghost-button" onClick={onNavigateToCampaigns}>
+                  Manage monsters
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setIsCampaignBestiaryCollapsed((previous) => !previous)}
+                  aria-expanded={!isCampaignBestiaryCollapsed}
+                >
+                  {isCampaignBestiaryCollapsed ? 'Expand' : 'Minimize'}
+                </button>
+              </div>
             </header>
-            {!activeCampaign ? (
+            {!isCampaignBestiaryCollapsed ? (
+              !activeCampaign ? (
               <div className="initiative-monsters__empty">
                 <p>Select a campaign to access its monsters.</p>
               </div>
@@ -2081,7 +2104,8 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   )
                 })}
               </ul>
-            )}
+              )
+            ) : null}
           </section>
 
           <section className="initiative-favorites">
