@@ -490,6 +490,7 @@ export interface ParsedMonsterData {
   languages: string
   challengeRating: string
   challengeXp: string
+  challengeXpValue: number | null
   proficiencyBonus: string
   traits: string[]
   actions: string[]
@@ -668,11 +669,14 @@ export const parseDndBeyondMonster = (markdown: string, sourceUrl: string): Pars
 
   let challengeRating = ''
   let challengeXp = ''
+  let challengeXpValue: number | null = null
   if (challengeLine) {
     const match = challengeLine.match(/^(.*?)(?:\s*\(([^)]+)\))?$/)
     if (match) {
       challengeRating = match[1].trim()
       challengeXp = match[2] ? match[2].trim() : ''
+      const xpMatch = challengeXp.match(/([\d,]+)/)
+      challengeXpValue = xpMatch ? parseNumeric(xpMatch[1].replace(/,/g, '')) : null
     } else {
       challengeRating = challengeLine
     }
@@ -755,6 +759,7 @@ export const parseDndBeyondMonster = (markdown: string, sourceUrl: string): Pars
     languages,
     challengeRating,
     challengeXp,
+    challengeXpValue,
     proficiencyBonus,
     traits: sections.traits,
     actions: sections.actions,

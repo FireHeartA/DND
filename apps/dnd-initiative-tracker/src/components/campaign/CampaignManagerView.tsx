@@ -55,6 +55,7 @@ interface MonsterEditDraft {
 interface PlayerTemplateEditDraft {
   name: string
   maxHp: string
+  characterLevel: string
   armorClass: string
   profileUrl: string
   notes: string
@@ -138,6 +139,7 @@ export const CampaignManagerView: React.FC = () => {
   const createEmptyPlayerTemplateForm = () => ({
     name: '',
     maxHp: '',
+    characterLevel: '1',
     armorClass: '',
     profileUrl: '',
     notes: '',
@@ -496,6 +498,7 @@ export const CampaignManagerView: React.FC = () => {
           character: {
             name,
             maxHp: Math.trunc(maxHpValue),
+            characterLevel: Math.min(20, Math.max(1, Number.parseInt(playerTemplateForm.characterLevel || '1', 10) || 1)),
             armorClass,
             profileUrl,
             notes: playerTemplateForm.notes,
@@ -557,6 +560,7 @@ export const CampaignManagerView: React.FC = () => {
       [template.id]: {
         name: template.name,
         maxHp: String(template.maxHp),
+        characterLevel: String(template.characterLevel ?? 1),
         armorClass: template.armorClass !== null ? String(template.armorClass) : '',
         profileUrl: template.profileUrl || '',
         notes: template.notes || '',

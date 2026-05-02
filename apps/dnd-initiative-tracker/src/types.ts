@@ -26,6 +26,7 @@ export interface Combatant {
   sourceCampaignId: string | null
   sourceMonsterId: string | null
   monsterInstanceNumber: number | null
+  characterLevel: number | null
 }
 
 export interface PlayerTemplate {
@@ -55,6 +56,7 @@ export interface CampaignCharacter {
   damageResistances: string[]
   damageVulnerabilities: string[]
   createdAt: number
+  characterLevel: number
 }
 
 export interface Campaign {
@@ -102,6 +104,7 @@ export interface MonsterDetails {
   languages: string
   challengeRating: string
   challengeXp: string
+  challengeXpValue: number | null
   proficiencyBonus: string
   traits: string[]
   actions: string[]

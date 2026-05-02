@@ -175,6 +175,7 @@ const sanitizeMonster = (monster: unknown): MonsterDetails | null => {
     (candidate as { challengeRating?: string }).challengeRating,
   )
   const challengeXp = sanitizeOptionalString((candidate as { challengeXp?: string }).challengeXp)
+  const challengeXpValue = sanitizeNumber((candidate as { challengeXpValue?: unknown }).challengeXpValue)
   const proficiencyBonus = sanitizeOptionalString(
     (candidate as { proficiencyBonus?: string }).proficiencyBonus,
   )
@@ -228,6 +229,7 @@ const sanitizeMonster = (monster: unknown): MonsterDetails | null => {
     languages,
     challengeRating,
     challengeXp,
+    challengeXpValue,
     proficiencyBonus,
     traits,
     actions,

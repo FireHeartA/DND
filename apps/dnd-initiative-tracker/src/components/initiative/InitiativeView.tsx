@@ -96,6 +96,10 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const [bulkDamageError, setBulkDamageError] = useState('')
   const [isBulkDamageVisible, setIsBulkDamageVisible] = useState(false)
   const [autoRemoveDefeated, setAutoRemoveDefeated] = useState(false)
+  const [isEncounterDifficultyVisible, setIsEncounterDifficultyVisible] = useState(false)
+  const encounterThresholdsByLevel: Record<number, { easy: number; medium: number; hard: number; deadly: number }> = {
+    1: { easy: 25, medium: 50, hard: 75, deadly: 100 }, 2: { easy: 50, medium: 100, hard: 150, deadly: 200 }, 3: { easy: 75, medium: 150, hard: 225, deadly: 400 }, 4: { easy: 125, medium: 250, hard: 375, deadly: 500 }, 5: { easy: 250, medium: 500, hard: 750, deadly: 1100 }, 6: { easy: 300, medium: 600, hard: 900, deadly: 1400 }, 7: { easy: 350, medium: 750, hard: 1100, deadly: 1700 }, 8: { easy: 450, medium: 900, hard: 1400, deadly: 2100 }, 9: { easy: 550, medium: 1100, hard: 1600, deadly: 2400 }, 10: { easy: 600, medium: 1200, hard: 1900, deadly: 2800 }, 11: { easy: 800, medium: 1600, hard: 2400, deadly: 3600 }, 12: { easy: 1000, medium: 2000, hard: 3000, deadly: 4500 }, 13: { easy: 1100, medium: 2200, hard: 3400, deadly: 5100 }, 14: { easy: 1250, medium: 2500, hard: 3800, deadly: 5700 }, 15: { easy: 1400, medium: 2800, hard: 4300, deadly: 6400 }, 16: { easy: 1600, medium: 3200, hard: 4800, deadly: 7200 }, 17: { easy: 2000, medium: 3900, hard: 5900, deadly: 8800 }, 18: { easy: 2100, medium: 4200, hard: 6300, deadly: 9500 }, 19: { easy: 2400, medium: 4900, hard: 7300, deadly: 10900 }, 20: { easy: 2800, medium: 5700, hard: 8500, deadly: 12700 },
+  }
 
   /**
    * Provides access to the currently active campaign object.
@@ -171,6 +175,27 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const isManualOrderActive = manualOrder !== null
   const bulkSelectionCount = useMemo(() => Object.keys(bulkDamageTargets).length, [bulkDamageTargets])
   const hasBulkDamageInput = bulkDamageValue.trim().length > 0
+  const encounterDifficultySummary = useMemo(() => {
+    const playerLevels = combatants
+      .filter((combatant) => combatant.type === 'player')
+      .map((combatant) => combatant.characterLevel ?? 1)
+    const monsterXp = combatants
+      .filter((combatant) => combatant.type === 'monster' && combatant.sourceMonsterId)
+      .reduce((sum, combatant) => {
+        const monster = combatant.sourceMonsterId ? monsterLibrary.monsters[combatant.sourceMonsterId] : null
+        return sum + (monster?.challengeXpValue ?? 0)
+      }, 0)
+    const thresholds = playerLevels.reduce(
+      (acc, level) => {
+        const row = encounterThresholdsByLevel[Math.min(20, Math.max(1, level))]
+        return { easy: acc.easy + row.easy, medium: acc.medium + row.medium, hard: acc.hard + row.hard, deadly: acc.deadly + row.deadly }
+      },
+      { easy: 0, medium: 0, hard: 0, deadly: 0 },
+    )
+    const difficulty =
+      monsterXp >= thresholds.deadly ? 'Deadly' : monsterXp >= thresholds.hard ? 'Hard' : monsterXp >= thresholds.medium ? 'Medium' : monsterXp >= thresholds.easy ? 'Easy' : 'Trivial'
+    return { playerCount: playerLevels.length, monsterXp, thresholds, difficulty }
+  }, [combatants, monsterLibrary.monsters])
 
   const combatantDisplayNames = useMemo(() => {
     const maxMonsterInstanceByName = new Map<string, number>()
@@ -979,6 +1004,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
           damageImmunities: template.damageImmunities,
           damageResistances: template.damageResistances,
           damageVulnerabilities: template.damageVulnerabilities,
+          characterLevel: template.characterLevel,
           sourceTemplateId: template.id,
           sourceCampaignId: activeCampaign.id,
         }),
@@ -1446,8 +1472,22 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
               View last combat stats
             </button>
           )}
+          <button type="button" className="ghost-button" onClick={() => setIsEncounterDifficultyVisible(true)}>
+            Encounter difficulty
+          </button>
         </div>
       </section>
+      {isEncounterDifficultyVisible && (
+        <section className="combat-stats">
+          <header className="combat-stats__header">
+            <h3>Encounter difficulty</h3>
+            <button type="button" className="ghost-button" onClick={() => setIsEncounterDifficultyVisible(false)}>Close</button>
+          </header>
+          <p>Players: {encounterDifficultySummary.playerCount} · Monster XP: {encounterDifficultySummary.monsterXp}</p>
+          <p><strong>{encounterDifficultySummary.difficulty}</strong></p>
+          <p>Easy {encounterDifficultySummary.thresholds.easy} · Medium {encounterDifficultySummary.thresholds.medium} · Hard {encounterDifficultySummary.thresholds.hard} · Deadly {encounterDifficultySummary.thresholds.deadly}</p>
+        </section>
+      )}
 
       {shouldShowStats ? (
         <section className="combat-stats">

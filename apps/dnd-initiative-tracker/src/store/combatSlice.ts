@@ -77,6 +77,7 @@ const createCombatant = (
   sourceCampaignId: fields.sourceCampaignId,
   sourceMonsterId: fields.sourceMonsterId,
   monsterInstanceNumber: fields.monsterInstanceNumber ?? null,
+  characterLevel: Number.isFinite(fields.characterLevel) ? Math.min(20, Math.max(1, Math.trunc(Number(fields.characterLevel)))) : null,
 })
 
 /**
@@ -190,6 +191,10 @@ const sanitizeCombatant = (value: unknown): Combatant | null => {
           ? Math.max(1, Math.trunc(Number(candidate.monsterInstanceNumber)))
           : null
         : null,
+    characterLevel:
+      Number.isFinite(candidate.characterLevel) && candidate.type !== 'monster'
+        ? Math.min(20, Math.max(1, Math.trunc(Number(candidate.characterLevel))))
+        : null,
     createdAt: Number.isFinite(candidate.createdAt)
       ? Math.trunc(Number(candidate.createdAt))
       : Date.now(),
@@ -251,6 +256,7 @@ export interface AddCombatantArgs {
   sourceTemplateId?: string | null
   sourceCampaignId?: string | null
   sourceMonsterId?: string | null
+  characterLevel?: number | null
 }
 
 export interface UpdateInitiativeArgs {
@@ -301,6 +307,7 @@ const combatSlice = createSlice({
           sourceTemplateId = null,
           sourceCampaignId = null,
           sourceMonsterId = null,
+          characterLevel = null,
         } = action.payload
 
         const monsterInstanceNumber =
@@ -329,6 +336,7 @@ const combatSlice = createSlice({
           sourceCampaignId,
           sourceMonsterId,
           monsterInstanceNumber,
+          characterLevel,
         })
 
         state.combatants.push(entry)

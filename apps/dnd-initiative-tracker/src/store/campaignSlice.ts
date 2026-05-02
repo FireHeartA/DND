@@ -90,6 +90,14 @@ const sanitizeDefenseList = (value: unknown): string[] => {
   return normalized
 }
 
+const sanitizeCharacterLevel = (value: unknown): number => {
+  const parsed = Number.parseInt(String(value ?? ''), 10)
+  if (!Number.isFinite(parsed)) {
+    return 1
+  }
+  return Math.min(20, Math.max(1, Math.trunc(parsed)))
+}
+
 /**
  * Converts untrusted campaign character data into a safe template entry.
  */
@@ -124,6 +132,7 @@ const sanitizeCharacter = (character: unknown): CampaignCharacter | null => {
       (candidate as { damageVulnerabilities?: unknown }).damageVulnerabilities,
     ),
     createdAt: Number.isFinite(createdAtValue) ? createdAtValue : Date.now(),
+    characterLevel: sanitizeCharacterLevel((candidate as { characterLevel?: unknown }).characterLevel),
   }
 }
 
@@ -188,10 +197,11 @@ export interface RemovePlayerCharacterArgs {
 export interface UpdatePlayerCharacterArgs {
   campaignId: string
   characterId: string
-  character: {
-    name: string
-    maxHp: number
-    armorClass: number | null
+    character: {
+      name: string
+      maxHp: number
+      characterLevel: number
+      armorClass: number | null
     profileUrl: string
     notes: string
     tags: string[]
@@ -282,6 +292,7 @@ const campaignsSlice = createSlice({
               id: nanoid(),
               name: character.name,
               maxHp: character.maxHp,
+              characterLevel: sanitizeCharacterLevel(character.characterLevel),
               armorClass: character.armorClass,
               profileUrl: sanitizeProfileUrl(character.profileUrl),
               notes: character.notes,
@@ -345,6 +356,7 @@ const campaignsSlice = createSlice({
 
       existing.name = sanitizedName
       existing.maxHp = Math.trunc(maxHpValue)
+      existing.characterLevel = sanitizeCharacterLevel(character.characterLevel)
       existing.armorClass = Number.isFinite(armorClassValue)
         ? Math.max(0, Math.trunc(armorClassValue))
         : null
