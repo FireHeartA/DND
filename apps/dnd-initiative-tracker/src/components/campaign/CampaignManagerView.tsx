@@ -259,21 +259,23 @@ export const CampaignManagerView: React.FC = () => {
 
   const filteredCampaignMonsterList = useMemo(() => {
     const query = campaignMonsterSearch.trim().toLocaleLowerCase()
-    if (!query) {
-      return campaignMonsterList
-    }
+    const filteredMonsters = !query
+      ? campaignMonsterList
+      : campaignMonsterList.filter(({ monster }) => {
+          const haystack = [
+            monster.name,
+            monster.description,
+            monster.challengeRating,
+            ...getMonsterDisplayTags(monster),
+          ]
+            .join(' ')
+            .toLocaleLowerCase()
+          return haystack.includes(query)
+        })
 
-    return campaignMonsterList.filter(({ monster }) => {
-      const haystack = [
-        monster.name,
-        monster.description,
-        monster.challengeRating,
-        ...getMonsterDisplayTags(monster),
-      ]
-        .join(' ')
-        .toLocaleLowerCase()
-      return haystack.includes(query)
-    })
+    return [...filteredMonsters].sort((a, b) =>
+      a.monster.name.localeCompare(b.monster.name, undefined, { sensitivity: 'base' }),
+    )
   }, [campaignMonsterList, campaignMonsterSearch])
 
   /**
