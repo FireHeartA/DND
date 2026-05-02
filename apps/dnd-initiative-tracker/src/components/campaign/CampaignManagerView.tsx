@@ -160,6 +160,8 @@ export const CampaignManagerView: React.FC = () => {
   const [playerTemplateEdits, setPlayerTemplateEdits] = useState<
     Record<string, PlayerTemplateEditDraft>
   >({})
+  const [pendingPlayerTemplateRemovalId, setPendingPlayerTemplateRemovalId] = useState<string | null>(null)
+  const [pendingMonsterRemovalId, setPendingMonsterRemovalId] = useState<string | null>(null)
   const [isCampaignDetailsCollapsed, setIsCampaignDetailsCollapsed] = useState(
     () => getStoredCollapseState().campaignDetails,
   )
@@ -534,7 +536,7 @@ export const CampaignManagerView: React.FC = () => {
   /**
    * Removes a player template from the active campaign roster.
    */
-  const handleRemovePlayerTemplate = useCallback(
+  const handleConfirmRemovePlayerTemplate = useCallback(
     (id: string) => {
       if (!activeCampaignId) {
         return
@@ -553,6 +555,7 @@ export const CampaignManagerView: React.FC = () => {
           characterId: id,
         }),
       )
+      setPendingPlayerTemplateRemovalId((prev) => (prev === id ? null : prev))
     },
     [activeCampaignId, dispatch],
   )
@@ -1166,7 +1169,7 @@ export const CampaignManagerView: React.FC = () => {
   /**
    * Removes a monster from the active campaign library.
    */
-  const handleRemoveMonsterTemplateEntry = useCallback(
+  const handleConfirmRemoveMonsterTemplateEntry = useCallback(
     (monsterId: string) => {
       if (!activeCampaign) {
         return
@@ -1177,6 +1180,7 @@ export const CampaignManagerView: React.FC = () => {
           monsterId,
         }),
       )
+      setPendingMonsterRemovalId((prev) => (prev === monsterId ? null : prev))
     },
     [activeCampaign, dispatch],
   )
@@ -1688,13 +1692,32 @@ export const CampaignManagerView: React.FC = () => {
                                     >
                                       Edit
                                     </button>
-                                    <button
-                                      type="button"
-                                      className="ghost-button"
-                                      onClick={() => handleRemovePlayerTemplate(template.id)}
-                                    >
-                                      Remove
-                                    </button>
+                                    {pendingPlayerTemplateRemovalId === template.id ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          className="primary-button"
+                                          onClick={() => handleConfirmRemovePlayerTemplate(template.id)}
+                                        >
+                                          Yes
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="ghost-button"
+                                          onClick={() => setPendingPlayerTemplateRemovalId(null)}
+                                        >
+                                          No
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="ghost-button"
+                                        onClick={() => setPendingPlayerTemplateRemovalId(template.id)}
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
                                   </>
                                 )}
                               </div>
@@ -2131,13 +2154,32 @@ export const CampaignManagerView: React.FC = () => {
                                 >
                                   {isEditing ? 'Cancel edit' : 'Edit details'}
                                 </button>
-                                <button
-                                  type="button"
-                                  className="ghost-button"
-                                  onClick={() => handleRemoveMonsterTemplateEntry(monster.id)}
-                                >
-                                  Remove
-                                </button>
+                                {pendingMonsterRemovalId === monster.id ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="primary-button"
+                                      onClick={() => handleConfirmRemoveMonsterTemplateEntry(monster.id)}
+                                    >
+                                      Yes
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-button"
+                                      onClick={() => setPendingMonsterRemovalId(null)}
+                                    >
+                                      No
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="ghost-button"
+                                    onClick={() => setPendingMonsterRemovalId(monster.id)}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
                               </div>
                             </header>
                             {isEditing ? (
