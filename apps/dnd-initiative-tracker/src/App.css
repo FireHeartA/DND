@@ -1332,7 +1332,7 @@ textarea:focus {
 }
 
 .turn-order__item--active {
-  border-color: rgba(255, 215, 141, 0.85);
+  border-color: rgba(96, 165, 250, 0.85);
   box-shadow: 0 6px 18px rgba(255, 189, 115, 0.25);
   transform: translateY(-1px);
 }
@@ -1374,7 +1374,7 @@ textarea:focus {
 }
 
 .turn-order__name:focus-visible {
-  outline: 2px solid rgba(255, 215, 141, 0.85);
+  outline: 2px solid rgba(96, 165, 250, 0.85);
   outline-offset: 2px;
 }
 
@@ -1657,18 +1657,18 @@ textarea:focus {
 }
 
 .combatant-card--jump-highlight {
-  box-shadow: 0 0 0 2px rgba(255, 215, 141, 0.6), 0 12px 24px rgba(0, 0, 0, 0.35);
-  outline: 2px solid rgba(255, 215, 141, 0.85);
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.6), 0 12px 24px rgba(0, 0, 0, 0.35);
+  outline: 2px solid rgba(96, 165, 250, 0.85);
   outline-offset: 3px;
   animation: combatant-card-highlight 1.2s ease-out;
 }
 
 @keyframes combatant-card-highlight {
   0% {
-    outline-color: rgba(255, 215, 141, 0.95);
+    outline-color: rgba(96, 165, 250, 0.95);
   }
   100% {
-    outline-color: rgba(255, 215, 141, 0);
+    outline-color: rgba(96, 165, 250, 0);
   }
 }
 
