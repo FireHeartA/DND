@@ -146,33 +146,11 @@ const parseDndBeyondCharacterSnapshot = (markdown: string): Partial<PlayerTempla
   return { name, armorClass, maxHp, playerLevel }
 }
 
-const normalizeDndBeyondCharacterUrl = (rawUrl: string): string => {
-  if (typeof rawUrl !== 'string') {
-    throw new Error('Enter a valid D&D Beyond character URL.')
-  }
-
-  let parsed: URL
-  try {
-    parsed = new URL(rawUrl, 'https://www.dndbeyond.com')
-  } catch {
-    throw new Error('Enter a valid D&D Beyond character URL.')
-  }
-
-  if (!parsed.hostname.endsWith('dndbeyond.com') || !parsed.pathname.includes('/characters/')) {
-    throw new Error('Enter a valid D&D Beyond character URL.')
-  }
-
-  parsed.protocol = 'https:'
-  parsed.hash = ''
-  parsed.search = ''
-  return parsed.toString()
-}
-
 const importDndBeyondCharacterSnapshot = async (
   characterUrl: string,
 ): Promise<Partial<PlayerTemplateEditDraft>> => {
-  const normalizedUrl = normalizeDndBeyondCharacterUrl(characterUrl)
-  const response = await fetch(`https://r.jina.ai/${normalizedUrl}`)
+  const normalized = normalizeDndBeyondUrl(characterUrl)
+  const response = await fetch(`https://r.jina.ai/${normalized.normalizedUrl}`)
   if (!response.ok) {
     throw new Error('Failed to fetch character data. Check the URL and try again.')
   }
