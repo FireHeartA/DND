@@ -1311,7 +1311,7 @@ textarea:focus {
 
 .turn-order__list {
   margin: 0;
-  padding: 0;
+  padding: 0.2rem 0 0;
   list-style: none;
   display: grid;
   gap: 0.5rem;
