@@ -395,7 +395,7 @@ export const CampaignManagerView: React.FC = () => {
    */
   const handlePlayerTemplateFormChange = useCallback(
     (
-      field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes' | 'tagDraft',
+      field: 'name' | 'maxHp' | 'characterLevel' | 'armorClass' | 'profileUrl' | 'notes' | 'tagDraft',
       value: string,
     ) => {
       setPlayerTemplateForm((prev) => ({
@@ -600,7 +600,7 @@ export const CampaignManagerView: React.FC = () => {
   const handlePlayerTemplateEditFieldChange = useCallback(
     (
       id: string,
-      field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes' | 'tagDraft',
+      field: 'name' | 'maxHp' | 'characterLevel' | 'armorClass' | 'profileUrl' | 'notes' | 'tagDraft',
       value: string,
     ) => {
       setPlayerTemplateEdits((prev) => {
@@ -772,6 +772,7 @@ export const CampaignManagerView: React.FC = () => {
           character: {
             name,
             maxHp: Math.trunc(maxHpValue),
+            characterLevel: Math.min(20, Math.max(1, Number.parseInt(draft.characterLevel || '1', 10) || 1)),
             armorClass,
             profileUrl,
             notes: draft.notes,
@@ -1426,6 +1427,17 @@ export const CampaignManagerView: React.FC = () => {
                           />
                         </label>
                         <label>
+                          <span>Character level</span>
+                          <input
+                            value={playerTemplateForm.characterLevel}
+                            onChange={(event) =>
+                              handlePlayerTemplateFormChange('characterLevel', event.target.value)
+                            }
+                            placeholder="5"
+                            inputMode="numeric"
+                          />
+                        </label>
+                        <label>
                           <span>Character link</span>
                           <input
                             value={playerTemplateForm.profileUrl}
@@ -1703,6 +1715,21 @@ export const CampaignManagerView: React.FC = () => {
                                       }
                                       inputMode="numeric"
                                       placeholder="15"
+                                    />
+                                  </label>
+                                  <label>
+                                    <span>Character level</span>
+                                    <input
+                                      value={editDraft?.characterLevel ?? ''}
+                                      onChange={(event) =>
+                                        handlePlayerTemplateEditFieldChange(
+                                          template.id,
+                                          'characterLevel',
+                                          event.target.value,
+                                        )
+                                      }
+                                      inputMode="numeric"
+                                      placeholder="5"
                                     />
                                   </label>
                                   <label>
