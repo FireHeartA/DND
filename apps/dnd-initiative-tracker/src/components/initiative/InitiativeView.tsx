@@ -143,6 +143,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const [isAddPanelCollapsed, setIsAddPanelCollapsed] = useState(true)
   const [isCampaignRosterCollapsed, setIsCampaignRosterCollapsed] = useState(false)
   const [isCampaignBestiaryCollapsed, setIsCampaignBestiaryCollapsed] = useState(false)
+  const [campaignMonsterSearch, setCampaignMonsterSearch] = useState('')
   const [manualOrder, setManualOrder] = useState<string[] | null>(null)
   const [bulkDamageValue, setBulkDamageValue] = useState('')
   const [bulkDamageType, setBulkDamageType] = useState('')
@@ -372,6 +373,26 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       isFavorite: boolean
     }>
   }, [activeCampaign, monsterLibrary])
+
+
+  const filteredCampaignMonsterList = useMemo(() => {
+    const query = campaignMonsterSearch.trim().toLocaleLowerCase()
+    if (!query) {
+      return campaignMonsterList
+    }
+
+    return campaignMonsterList.filter(({ monster }) => {
+      const haystack = [
+        monster.name,
+        monster.description,
+        monster.challengeRating,
+        ...getMonsterDisplayTags(monster),
+      ]
+        .join(' ')
+        .toLocaleLowerCase()
+      return haystack.includes(query)
+    })
+  }, [campaignMonsterList, campaignMonsterSearch])
 
   /**
    * Prepares the list of favorite monsters regardless of campaign linkage.
@@ -2161,8 +2182,24 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                 <p>Import monsters in the campaign manager to build your bestiary.</p>
               </div>
             ) : (
+              <>
+                <label className="form-row">
+                  <span>Search campaign monsters</span>
+                  <input
+                    type="search"
+                    value={campaignMonsterSearch}
+                    onChange={(event) => setCampaignMonsterSearch(event.target.value)}
+                    placeholder="Search by name, CR, or tag"
+                    autoComplete="off"
+                  />
+                </label>
+                {filteredCampaignMonsterList.length === 0 ? (
+                  <div className="initiative-monsters__empty">
+                    <p>No campaign monsters match “{campaignMonsterSearch.trim()}”.</p>
+                  </div>
+                ) : (
               <ul className="monster-quick-list">
-                {campaignMonsterList.map(({ monster, isFavorite }) => {
+                {filteredCampaignMonsterList.map(({ monster, isFavorite }) => {
                   const initiativeValue = monsterInitiatives[monster.id] ?? ''
                   const displayTags = getMonsterDisplayTags(monster).filter((tag) => !isDefenseTag(tag))
                   const defenseSelections: DefenseSelections = {
@@ -2237,6 +2274,8 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                   )
                 })}
               </ul>
+                )}
+              </>
               )
             ) : null}
           </section>
