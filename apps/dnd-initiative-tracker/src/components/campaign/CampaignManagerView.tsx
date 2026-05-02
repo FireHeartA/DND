@@ -44,6 +44,7 @@ interface MonsterEditDraft {
   armorClass: string
   hitPoints: string
   challengeRating: string
+  challengeXp: string
   damageImmunities: string[]
   damageResistances: string[]
   damageVulnerabilities: string[]
@@ -823,6 +824,7 @@ export const CampaignManagerView: React.FC = () => {
         armorClass: monster.armorClass !== null ? String(monster.armorClass) : '',
         hitPoints: monster.hitPoints !== null ? String(monster.hitPoints) : '',
         challengeRating: monster.challengeRating || '',
+        challengeXp: monster.challengeXp || '',
         damageImmunities: parseDefenseList(monster.damageImmunities),
         damageResistances: parseDefenseList(monster.damageResistances),
         damageVulnerabilities: parseDefenseList(monster.damageVulnerabilities),
@@ -1062,6 +1064,7 @@ export const CampaignManagerView: React.FC = () => {
       const hitPointsInput = typeof draft.hitPoints === 'string' ? draft.hitPoints.trim() : ''
       const challengeRatingInput =
         typeof draft.challengeRating === 'string' ? draft.challengeRating.trim() : ''
+      const challengeXpInput = typeof draft.challengeXp === 'string' ? draft.challengeXp.trim() : ''
 
       const damageImmunities = Array.isArray(draft.damageImmunities)
         ? draft.damageImmunities
@@ -1144,6 +1147,7 @@ export const CampaignManagerView: React.FC = () => {
           armorClass: armorClassValue,
           hitPoints: hitPointsValue,
           challengeRating: challengeRatingInput,
+          challengeXp: challengeXpInput,
           damageImmunities: damageImmunitiesString,
           damageResistances: damageResistancesString,
           damageVulnerabilities: damageVulnerabilitiesString,
@@ -2206,7 +2210,7 @@ export const CampaignManagerView: React.FC = () => {
                                 />
                               </label>
                               <label>
-                                <span>Challenge Rating</span>
+                                <span>CR</span>
                                 <input
                                   value={editDraft.challengeRating}
                                   onChange={(event) =>
@@ -2217,6 +2221,22 @@ export const CampaignManagerView: React.FC = () => {
                                     )
                                   }
                                   placeholder="5"
+                                  autoComplete="off"
+                                />
+                              </label>
+                              <label>
+                                <span>XP</span>
+                                <input
+                                  value={editDraft.challengeXp}
+                                  onChange={(event) =>
+                                    handleMonsterEditFieldChange(
+                                      monster.id,
+                                      'challengeXp',
+                                      event.target.value,
+                                    )
+                                  }
+                                  placeholder="1800"
+                                  inputMode="numeric"
                                   autoComplete="off"
                                 />
                               </label>
@@ -2428,16 +2448,6 @@ export const CampaignManagerView: React.FC = () => {
                                       </span>
                                     )}
                                   </div>
-                                  {monster.sourceUrl && (
-                                    <a
-                                      href={monster.sourceUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="monster-card__link"
-                                    >
-                                      Open monster profile
-                                    </a>
-                                  )}
                                 </footer>
                               </>
                             )}
