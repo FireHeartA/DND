@@ -49,6 +49,11 @@ export const QuestLogView: React.FC = () => {
     )
   }
 
+
+  const handleDeleteEntry = (id: string) => {
+    setEntries((previous) => previous.filter((entry) => entry.id !== id))
+  }
+
   return (
     <section className="quest-log">
       <header className="quest-log__header">
@@ -89,6 +94,14 @@ export const QuestLogView: React.FC = () => {
               key={entry.id}
               className={`quest-log__entry quest-log__entry--${entry.status}`}
             >
+              <button
+                type="button"
+                className="quest-log__delete-button"
+                aria-label="Delete quest"
+                onClick={() => handleDeleteEntry(entry.id)}
+              >
+                ×
+              </button>
               <div className="quest-log__entry-body">
                 <p className="quest-log__entry-text">{entry.text}</p>
               </div>
