@@ -2402,6 +2402,30 @@ textarea:focus {
   margin-top: 0.75rem;
 }
 
+.quest-log__entry-secondary-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.quest-log__delete-button {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(116, 52, 52, 0.4);
+  background: rgba(255, 247, 228, 0.85);
+  color: #5e2626;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.quest-log__delete-button:hover {
+  background: #ffe5e5;
+}
+
 .quest-log__complete-button {
   background: linear-gradient(135deg, #56c68c, #3a9f68);
   color: #0f1c12;

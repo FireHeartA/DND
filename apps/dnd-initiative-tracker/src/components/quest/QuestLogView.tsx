@@ -49,6 +49,11 @@ export const QuestLogView: React.FC = () => {
     )
   }
 
+
+  const handleDeleteEntry = (id: string) => {
+    setEntries((previous) => previous.filter((entry) => entry.id !== id))
+  }
+
   return (
     <section className="quest-log">
       <header className="quest-log__header">
@@ -100,13 +105,23 @@ export const QuestLogView: React.FC = () => {
                 >
                   Completed
                 </button>
-                <button
-                  type="button"
-                  className="danger-button"
-                  onClick={() => handleStatusChange(entry.id, 'failed')}
-                >
-                  Failed
-                </button>
+                <div className="quest-log__entry-secondary-actions">
+                  <button
+                    type="button"
+                    className="quest-log__delete-button"
+                    aria-label="Delete quest"
+                    onClick={() => handleDeleteEntry(entry.id)}
+                  >
+                    ×
+                  </button>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={() => handleStatusChange(entry.id, 'failed')}
+                  >
+                    Failed
+                  </button>
+                </div>
               </div>
             </article>
           ))
