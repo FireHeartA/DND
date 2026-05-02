@@ -108,6 +108,7 @@ const sanitizeCharacter = (character: unknown): CampaignCharacter | null => {
   }
 
   const armorClassValue = Number.parseInt(String(candidate.armorClass ?? ''), 10)
+  const playerLevelValue = Number.parseInt(String(candidate.playerLevel ?? ''), 10)
   const createdAtValue = Number.parseInt(String(candidate.createdAt ?? ''), 10)
 
   return {
@@ -115,6 +116,7 @@ const sanitizeCharacter = (character: unknown): CampaignCharacter | null => {
     name,
     maxHp,
     armorClass: Number.isFinite(armorClassValue) ? Math.max(0, Math.trunc(armorClassValue)) : null,
+    playerLevel: Number.isFinite(playerLevelValue) ? Math.max(1, Math.trunc(playerLevelValue)) : null,
     profileUrl: sanitizeProfileUrl(candidate.profileUrl),
     notes: typeof candidate.notes === 'string' ? candidate.notes : '',
     tags: sanitizeTagList(candidate.tags),
@@ -192,6 +194,7 @@ export interface UpdatePlayerCharacterArgs {
     name: string
     maxHp: number
     armorClass: number | null
+    playerLevel: number | null
     profileUrl: string
     notes: string
     tags: string[]
@@ -283,6 +286,7 @@ const campaignsSlice = createSlice({
               name: character.name,
               maxHp: character.maxHp,
               armorClass: character.armorClass,
+              playerLevel: character.playerLevel ?? null,
               profileUrl: sanitizeProfileUrl(character.profileUrl),
               notes: character.notes,
               tags: sanitizeTagList(character.tags),
@@ -342,11 +346,15 @@ const campaignsSlice = createSlice({
       }
 
       const armorClassValue = Number.parseInt(String(character.armorClass ?? ''), 10)
+      const playerLevelValue = Number.parseInt(String(character.playerLevel ?? ''), 10)
 
       existing.name = sanitizedName
       existing.maxHp = Math.trunc(maxHpValue)
       existing.armorClass = Number.isFinite(armorClassValue)
         ? Math.max(0, Math.trunc(armorClassValue))
+        : null
+      existing.playerLevel = Number.isFinite(playerLevelValue)
+        ? Math.max(1, Math.trunc(playerLevelValue))
         : null
       existing.profileUrl = sanitizeProfileUrl(character.profileUrl)
       existing.notes = typeof character.notes === 'string' ? character.notes : ''
