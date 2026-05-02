@@ -25,6 +25,7 @@ export interface Combatant {
   sourceTemplateId: string | null
   sourceCampaignId: string | null
   sourceMonsterId: string | null
+  monsterInstanceNumber: number | null
 }
 
 export interface PlayerTemplate {

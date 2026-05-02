@@ -171,8 +171,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const hasBulkDamageInput = bulkDamageValue.trim().length > 0
 
   const combatantDisplayNames = useMemo(() => {
-    const totals = new Map<string, number>()
-    const running = new Map<string, number>()
+    const maxMonsterInstanceByName = new Map<string, number>()
     const names: Record<string, string> = {}
 
     orderedCombatants.forEach((combatant) => {
@@ -180,17 +179,16 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
         return
       }
 
-      const current = totals.get(combatant.name) ?? 0
-      totals.set(combatant.name, current + 1)
+      const instance = combatant.monsterInstanceNumber ?? 0
+      const current = maxMonsterInstanceByName.get(combatant.name) ?? 0
+      maxMonsterInstanceByName.set(combatant.name, Math.max(current, instance))
     })
 
     orderedCombatants.forEach((combatant) => {
       if (combatant.type === 'monster') {
-        const total = totals.get(combatant.name) ?? 0
-        if (total > 1) {
-          const index = (running.get(combatant.name) ?? 0) + 1
-          running.set(combatant.name, index)
-          names[combatant.id] = `${combatant.name} (${index})`
+        const maxInstance = maxMonsterInstanceByName.get(combatant.name) ?? 0
+        if (maxInstance > 1 && combatant.monsterInstanceNumber !== null) {
+          names[combatant.id] = `${combatant.name} (${combatant.monsterInstanceNumber})`
           return
         }
       }
