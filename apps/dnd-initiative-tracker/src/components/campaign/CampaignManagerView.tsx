@@ -75,6 +75,7 @@ type CollapseState = {
   playerForm: boolean
   roster: boolean
   monsters: boolean
+  manualMonsterForm: boolean
 }
 
 const COLLAPSE_STATE_STORAGE_KEY = 'campaign-manager-collapse-state'
@@ -84,6 +85,7 @@ const DEFAULT_COLLAPSE_STATE: CollapseState = {
   playerForm: false,
   roster: false,
   monsters: false,
+  manualMonsterForm: false,
 }
 
 const getStoredCollapseState = (): CollapseState => {
@@ -103,6 +105,7 @@ const getStoredCollapseState = (): CollapseState => {
       playerForm: parsed.playerForm === true,
       roster: parsed.roster === true,
       monsters: parsed.monsters === true,
+      manualMonsterForm: parsed.manualMonsterForm === true,
     }
   } catch (error) {
     console.error('Failed to parse collapse state from local storage', error)
@@ -213,6 +216,9 @@ export const CampaignManagerView: React.FC = () => {
   )
   const [isMonstersCollapsed, setIsMonstersCollapsed] = useState(
     () => getStoredCollapseState().monsters,
+  )
+  const [isManualMonsterFormCollapsed, setIsManualMonsterFormCollapsed] = useState(
+    () => getStoredCollapseState().manualMonsterForm,
   )
   const [campaignMonsterSearch, setCampaignMonsterSearch] = useState('')
 
@@ -344,10 +350,11 @@ export const CampaignManagerView: React.FC = () => {
       playerForm: isPlayerFormCollapsed,
       roster: isRosterCollapsed,
       monsters: isMonstersCollapsed,
+      manualMonsterForm: isManualMonsterFormCollapsed,
     }
 
     window.localStorage.setItem(COLLAPSE_STATE_STORAGE_KEY, JSON.stringify(payload))
-  }, [isCampaignDetailsCollapsed, isPlayerFormCollapsed, isRosterCollapsed, isMonstersCollapsed])
+  }, [isCampaignDetailsCollapsed, isPlayerFormCollapsed, isRosterCollapsed, isMonstersCollapsed, isManualMonsterFormCollapsed])
 
   /**
    * Clears monster import feedback when the user selects a different campaign.
@@ -2270,10 +2277,21 @@ export const CampaignManagerView: React.FC = () => {
                   </div>
                 </form>
                 <form className="campaign-form" onSubmit={handleAddMonsterManually}>
-                  <h4>Add monster manually</h4>
+                  <div className="section-header">
+                    <h4>Add monster manually</h4>
+                    <button
+                      type="button"
+                      className="section-toggle"
+                      onClick={() => setIsManualMonsterFormCollapsed((prev) => !prev)}
+                    >
+                      {isManualMonsterFormCollapsed ? 'Expand' : 'Minimize'}
+                    </button>
+                  </div>
+                  {!isManualMonsterFormCollapsed && (
+                    <>
                   <div className="form-grid campaign-form__grid">
                     <label><span>Name</span><input value={manualMonsterForm.name} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, name: event.target.value }))} /></label>
-                    <label><span>Type line</span><input value={manualMonsterForm.typeLine} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, typeLine: event.target.value }))} placeholder="Large dragon, chaotic evil" /></label>
+                    <label><span>Creature Type</span><input value={manualMonsterForm.typeLine} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, typeLine: event.target.value }))} placeholder="Large dragon, chaotic evil" /></label>
                     <label><span>Armor Class</span><input value={manualMonsterForm.armorClass} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, armorClass: event.target.value }))} inputMode="numeric" /></label>
                     <label><span>Hit Points</span><input value={manualMonsterForm.hitPoints} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, hitPoints: event.target.value }))} inputMode="numeric" /></label>
                     <label><span>Speed</span><input value={manualMonsterForm.speed} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, speed: event.target.value }))} placeholder="40 ft., fly 80 ft." /></label>
@@ -2301,6 +2319,8 @@ export const CampaignManagerView: React.FC = () => {
                     <button type="submit" className="primary-button">Add monster</button>
                     <button type="button" className="ghost-button" onClick={() => { setManualMonsterForm(createEmptyManualMonsterForm()); setManualMonsterError(''); setManualMonsterSuccess('') }}>Clear</button>
                   </div>
+                    </>
+                  )}
                 </form>
 
                 <div className="monster-library">
