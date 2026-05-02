@@ -1438,7 +1438,7 @@ export const CampaignManagerView: React.FC = () => {
                   {!isPlayerFormCollapsed && (
                     <>
                       <div className="form-grid campaign-form__grid">
-                        <label>
+                        <label className="campaign-form__notes">
                           <span>Player URL</span>
                           <p className="campaign-form__hint">
                             Paste a D&D Beyond character URL to import player characters.
@@ -1492,10 +1492,7 @@ export const CampaignManagerView: React.FC = () => {
                           />
                         </label>
                         <label>
-                          <span>Player URL</span>
-                          <p className="campaign-form__hint">
-                            Paste a D&D Beyond character URL to import player characters.
-                          </p>
+                          <span>Character link</span>
                           <input
                             value={playerTemplateForm.profileUrl}
                             onChange={(event) =>
