@@ -174,6 +174,7 @@ export const CampaignManagerView: React.FC = () => {
   const [isMonstersCollapsed, setIsMonstersCollapsed] = useState(
     () => getStoredCollapseState().monsters,
   )
+  const [campaignMonsterSearch, setCampaignMonsterSearch] = useState('')
 
   const damageDefenseOptions = useMemo(
     () => MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'damage'),
@@ -254,6 +255,26 @@ export const CampaignManagerView: React.FC = () => {
       isFavorite: boolean
     }>
   }, [activeCampaign, monsterLibrary])
+
+
+  const filteredCampaignMonsterList = useMemo(() => {
+    const query = campaignMonsterSearch.trim().toLocaleLowerCase()
+    if (!query) {
+      return campaignMonsterList
+    }
+
+    return campaignMonsterList.filter(({ monster }) => {
+      const haystack = [
+        monster.name,
+        monster.description,
+        monster.challengeRating,
+        ...getMonsterDisplayTags(monster),
+      ]
+        .join(' ')
+        .toLocaleLowerCase()
+      return haystack.includes(query)
+    })
+  }, [campaignMonsterList, campaignMonsterSearch])
 
   /**
    * Updates the campaign details draft whenever the active campaign changes.
@@ -2073,8 +2094,24 @@ export const CampaignManagerView: React.FC = () => {
                           <p>No monsters imported yet. Paste a D&D Beyond URL above to add one.</p>
                         </div>
                       ) : (
+                        <>
+                          <label className="form-row">
+                            <span>Search campaign monsters</span>
+                            <input
+                              type="search"
+                              value={campaignMonsterSearch}
+                              onChange={(event) => setCampaignMonsterSearch(event.target.value)}
+                              placeholder="Search by name, CR, or tag"
+                              autoComplete="off"
+                            />
+                          </label>
+                          {filteredCampaignMonsterList.length === 0 ? (
+                            <div className="monster-library__empty">
+                              <p>No campaign monsters match “{campaignMonsterSearch.trim()}”.</p>
+                            </div>
+                          ) : (
                         <ul className="monster-library__list">
-                          {campaignMonsterList.map(({ monster, entry, isFavorite }) => {
+                          {filteredCampaignMonsterList.map(({ monster, entry, isFavorite }) => {
                             const displayTags = getMonsterDisplayTags(monster).filter(
                               (tag) =>
                                 !isDefenseTag(tag) &&
@@ -2497,6 +2534,8 @@ export const CampaignManagerView: React.FC = () => {
                         )
                       })}
                     </ul>
+                          )}
+                        </>
                       )}
                     </>
                   )}
