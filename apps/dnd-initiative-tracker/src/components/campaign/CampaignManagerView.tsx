@@ -176,6 +176,24 @@ export const CampaignManagerView: React.FC = () => {
   const [monsterImportError, setMonsterImportError] = useState('')
   const [monsterImportSuccess, setMonsterImportSuccess] = useState('')
   const [isMonsterImporting, setIsMonsterImporting] = useState(false)
+  const createEmptyManualMonsterForm = () => ({
+    name: '',
+    creatureType: '',
+    description: '',
+    armorClass: '',
+    hitPoints: '',
+    challengeRating: '',
+    challengeXp: '',
+    tagDraft: '',
+    tags: [] as string[],
+    damageImmunities: [] as string[],
+    damageResistances: [] as string[],
+    damageVulnerabilities: [] as string[],
+  })
+  const [manualMonsterForm, setManualMonsterForm] = useState(createEmptyManualMonsterForm())
+  const [manualMonsterError, setManualMonsterError] = useState('')
+  const [manualMonsterSuccess, setManualMonsterSuccess] = useState('')
+  const [isManualMonsterFormCollapsed, setIsManualMonsterFormCollapsed] = useState(false)
   const [monsterEdits, setMonsterEdits] = useState<Record<string, MonsterEditDraft>>({})
   const [playerTemplateEdits, setPlayerTemplateEdits] = useState<
     Record<string, PlayerTemplateEditDraft>
@@ -1354,6 +1372,89 @@ export const CampaignManagerView: React.FC = () => {
     setMonsterImportSuccess('')
   }, [])
 
+  const handleManualMonsterDefenseToggle = useCallback(
+    (field: PlayerDefenseField, value: string) => {
+      const normalized = value.trim().toLowerCase()
+      if (!normalized) {
+        return
+      }
+      setManualMonsterForm((prev) => {
+        const current = prev[field]
+        const exists = current.includes(normalized)
+        return {
+          ...prev,
+          [field]: exists ? current.filter((entry) => entry !== normalized) : [...current, normalized],
+        }
+      })
+    },
+    [],
+  )
+
+  const handleAddMonsterManually = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (!activeCampaign) {
+        setManualMonsterError('Select a campaign before adding monsters.')
+        return
+      }
+      const name = manualMonsterForm.name.trim()
+      if (!name) {
+        setManualMonsterError('Monster name is required.')
+        return
+      }
+      const armorClass = Number.parseInt(manualMonsterForm.armorClass, 10)
+      const hitPoints = Number.parseInt(manualMonsterForm.hitPoints, 10)
+      dispatch(
+        importMonsterAction({
+          campaignId: activeCampaign.id,
+          monster: {
+            name,
+            sourceUrl: '',
+            typeLine: manualMonsterForm.creatureType.trim(),
+            armorClass: Number.isFinite(armorClass) ? armorClass : null,
+            armorNotes: '',
+            hitPoints: Number.isFinite(hitPoints) ? hitPoints : null,
+            hitDice: '',
+            speed: '',
+            abilityScores: { str: null, dex: null, con: null, int: null, wis: null, cha: null },
+            savingThrows: '',
+            skills: '',
+            damageVulnerabilities: stringifyDefenseList(manualMonsterForm.damageVulnerabilities),
+            damageResistances: stringifyDefenseList(manualMonsterForm.damageResistances),
+            damageImmunities: stringifyDefenseList(manualMonsterForm.damageImmunities),
+            conditionImmunities: '',
+            senses: '',
+            languages: '',
+            challengeRating: manualMonsterForm.challengeRating.trim(),
+            challengeXp: manualMonsterForm.challengeXp.trim(),
+            proficiencyBonus: '',
+            traits: [],
+            actions: [],
+            bonusActions: [],
+            reactions: [],
+            legendaryActions: [],
+            mythicActions: [],
+            lairActions: [],
+            regionalEffects: [],
+            description: [],
+            habitat: '',
+            source: 'Manual entry',
+            tags: prepareMonsterTags(manualMonsterForm.tags),
+            notes: manualMonsterForm.description.trim(),
+            importedAt: Date.now(),
+            updatedAt: Date.now(),
+            totalUsageCount: 0,
+            lastUsedAt: null,
+          },
+        }),
+      )
+      setManualMonsterError('')
+      setManualMonsterSuccess(`Added ${name} to ${activeCampaign.name}.`)
+      setManualMonsterForm(createEmptyManualMonsterForm())
+    },
+    [activeCampaign, dispatch, manualMonsterForm],
+  )
+
   return (
     <>
       <section className="main__header">
@@ -2159,6 +2260,90 @@ export const CampaignManagerView: React.FC = () => {
                       Clear
                     </button>
                   </div>
+                </form>
+                <form className="campaign-form" onSubmit={handleAddMonsterManually}>
+                  <div className="section-header">
+                    <h4>Add monster manually</h4>
+                    <button
+                      type="button"
+                      className="section-toggle"
+                      onClick={() => setIsManualMonsterFormCollapsed((prev) => !prev)}
+                    >
+                      {isManualMonsterFormCollapsed ? 'Expand' : 'Minimize'}
+                    </button>
+                  </div>
+                  {!isManualMonsterFormCollapsed && (
+                    <>
+                  <div className="monster-card__edit-form">
+                    <label>
+                      <span>Monster name</span>
+                      <input value={manualMonsterForm.name} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Gray Ooze" autoComplete="off" />
+                    </label>
+                    <label>
+                      <span>Creature Type</span>
+                      <input value={manualMonsterForm.creatureType} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, creatureType: event.target.value }))} placeholder="Large ooze, unaligned" autoComplete="off" />
+                    </label>
+                    <label className="monster-card__edit-description">
+                      <span>Description</span>
+                      <textarea value={manualMonsterForm.description} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, description: event.target.value }))} placeholder="Background lore, lair notes, or encounter reminders." rows={4} />
+                    </label>
+                    <div className="monster-card__edit-stats">
+                      <label><span>Armor Class</span><input value={manualMonsterForm.armorClass} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, armorClass: event.target.value }))} placeholder="15" inputMode="numeric" /></label>
+                      <label><span>Hit Points</span><input value={manualMonsterForm.hitPoints} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, hitPoints: event.target.value }))} placeholder="99" inputMode="numeric" /></label>
+                      <label><span>CR</span><input value={manualMonsterForm.challengeRating} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, challengeRating: event.target.value }))} placeholder="5" autoComplete="off" /></label>
+                      <label><span>XP</span><input value={manualMonsterForm.challengeXp} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, challengeXp: event.target.value }))} placeholder="1800" inputMode="numeric" autoComplete="off" /></label>
+                    </div>
+                  </div>
+                  {manualMonsterError && <p className="form-error">{manualMonsterError}</p>}
+                  {manualMonsterSuccess && <p className="form-success">{manualMonsterSuccess}</p>}
+                  <div className="monster-card__defenses">
+                    {(
+                      [
+                        { field: 'damageImmunities' as const, label: 'Immunities', helper: 'Attacks or conditions that have no effect.' },
+                        { field: 'damageResistances' as const, label: 'Resistances', helper: 'Sources that deal reduced damage.' },
+                        { field: 'damageVulnerabilities' as const, label: 'Vulnerabilities', helper: 'Sources that deal increased damage.' },
+                      ] as const
+                    ).map(({ field, label, helper }) => (
+                      <div key={field} className="monster-card__defense-row">
+                        <div className="monster-card__defense-label"><span>{label}</span><p>{helper}</p></div>
+                        <div className="monster-card__defense-controls">
+                          <label className="monster-card__defense-select">
+                            <span>Select a condition</span>
+                            <select defaultValue="" onChange={(event) => { handleManualMonsterDefenseToggle(field, event.target.value); event.currentTarget.value = '' }}>
+                              <option value="" disabled>Choose an option…</option>
+                              <optgroup label="Damage types">
+                                {damageDefenseOptions.map((option) => <option key={`${field}-${option.value}`} value={option.value} disabled={manualMonsterForm[field].includes(option.value)}>{option.label}</option>)}
+                              </optgroup>
+                              <optgroup label="Conditions">
+                                {conditionDefenseOptions.map((option) => <option key={`${field}-${option.value}`} value={option.value} disabled={manualMonsterForm[field].includes(option.value)}>{option.label}</option>)}
+                              </optgroup>
+                            </select>
+                          </label>
+                          <div className="monster-card__defense-chips">
+                            {manualMonsterForm[field].length > 0 ? manualMonsterForm[field].map((value) => { const { backgroundColor, borderColor, color, option } = getDefenseChipStyle(value); return <span key={`${field}-${value}`} className="monster-card__defense-chip" style={{ backgroundColor, borderColor, color }}><span className="monster-card__defense-icon" aria-hidden="true">{option?.icon || '◆'}</span><span>{option?.label || value}</span><button type="button" onClick={() => handleManualMonsterDefenseToggle(field, value)} aria-label={`Remove ${option?.label || value}`}>×</button></span> }) : <span className="monster-card__edit-tags-empty">No selections yet.</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <label className="monster-card__edit-tags">
+                    <span>Tags</span>
+                    <div className="monster-card__edit-tags-list">
+                      {manualMonsterForm.tags.length > 0 ? manualMonsterForm.tags.map((tag) => (
+                        <span key={tag} className="monster-card__edit-tag stat-chip">{tag}<button type="button" onClick={() => setManualMonsterForm((prev) => ({ ...prev, tags: prev.tags.filter((entry) => entry !== tag) }))} aria-label={`Remove tag ${tag}`}>×</button></span>
+                      )) : <span className="monster-card__edit-tags-empty">No tags yet.</span>}
+                    </div>
+                    <div className="monster-card__edit-tags-input">
+                      <input value={manualMonsterForm.tagDraft} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, tagDraft: event.target.value }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); const nextTag = normalizeMonsterTag(manualMonsterForm.tagDraft); if (!nextTag || manualMonsterForm.tags.includes(nextTag)) return; setManualMonsterForm((prev) => ({ ...prev, tags: [...prev.tags, nextTag], tagDraft: '' })) } }} placeholder="Add a tag and press Enter" />
+                      <button type="button" className="ghost-button" onClick={() => { const nextTag = normalizeMonsterTag(manualMonsterForm.tagDraft); if (!nextTag || manualMonsterForm.tags.includes(nextTag)) return; setManualMonsterForm((prev) => ({ ...prev, tags: [...prev.tags, nextTag], tagDraft: '' })) }}>Add tag</button>
+                    </div>
+                  </label>
+                  <div className="monster-card__edit-actions">
+                    <button type="submit" className="primary-button">Add monster</button>
+                    <button type="button" className="ghost-button" onClick={() => { setManualMonsterForm(createEmptyManualMonsterForm()); setManualMonsterError(''); setManualMonsterSuccess('') }}>Clear</button>
+                  </div>
+                    </>
+                  )}
                 </form>
 
                 <div className="monster-library">
