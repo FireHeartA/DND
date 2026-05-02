@@ -44,7 +44,10 @@ const sanitizeProfileUrl = (value: unknown): string => {
  * Creates a combatant record with the base fields required by the tracker.
  */
 const createCombatant = (
-  fields: Omit<Combatant, 'id' | 'currentHp' | 'createdAt' | 'deathSaveSuccesses' | 'deathSaveFailures'> & {
+  fields: Omit<
+    Combatant,
+    'id' | 'currentHp' | 'createdAt' | 'deathSaveSuccesses' | 'deathSaveFailures'
+  > & {
     id?: string
     currentHp?: number
     createdAt?: number
@@ -73,6 +76,7 @@ const createCombatant = (
   sourceTemplateId: fields.sourceTemplateId,
   sourceCampaignId: fields.sourceCampaignId,
   sourceMonsterId: fields.sourceMonsterId,
+  monsterInstanceNumber: fields.monsterInstanceNumber ?? null,
 })
 
 /**
@@ -179,6 +183,12 @@ const sanitizeCombatant = (value: unknown): Combatant | null => {
     sourceMonsterId:
       typeof candidate.sourceMonsterId === 'string' && candidate.sourceMonsterId
         ? candidate.sourceMonsterId
+        : null,
+    monsterInstanceNumber:
+      candidate.type === 'monster'
+        ? Number.isFinite(candidate.monsterInstanceNumber)
+          ? Math.max(1, Math.trunc(Number(candidate.monsterInstanceNumber)))
+          : null
         : null,
     createdAt: Number.isFinite(candidate.createdAt)
       ? Math.trunc(Number(candidate.createdAt))
@@ -293,6 +303,16 @@ const combatSlice = createSlice({
           sourceMonsterId = null,
         } = action.payload
 
+        const monsterInstanceNumber =
+          type === 'monster'
+            ? state.combatants
+                .filter((combatant) => combatant.type === 'monster' && combatant.name === name.trim())
+                .reduce((highest, combatant) => {
+                  const instance = combatant.monsterInstanceNumber ?? 0
+                  return instance > highest ? instance : highest
+                }, 0) + 1
+            : null
+
         const entry = createCombatant({
           name: name.trim(),
           maxHp: Math.max(1, Math.trunc(maxHp)),
@@ -308,6 +328,7 @@ const combatSlice = createSlice({
           sourceTemplateId,
           sourceCampaignId,
           sourceMonsterId,
+          monsterInstanceNumber,
         })
 
         state.combatants.push(entry)
@@ -473,12 +494,32 @@ const combatSlice = createSlice({
       const sanitizedCombatants = Array.isArray(combatants)
         ? (combatants.map(sanitizeCombatant).filter(Boolean) as Combatant[])
         : []
+      const normalizedCombatants = sanitizedCombatants.map((combatant, index, allCombatants) => {
+        if (combatant.type !== 'monster' || combatant.monsterInstanceNumber !== null) {
+          return combatant
+        }
+
+        const fallbackNumber =
+          allCombatants
+            .slice(0, index + 1)
+            .filter(
+              (entry) =>
+                entry.type === 'monster' &&
+                entry.name === combatant.name &&
+                entry.monsterInstanceNumber === null,
+            ).length || 1
+
+        return {
+          ...combatant,
+          monsterInstanceNumber: fallbackNumber,
+        }
+      })
 
       const sanitizedTemplates = Array.isArray(playerTemplates)
         ? (playerTemplates.map(sanitizeTemplate).filter(Boolean) as PlayerTemplate[])
         : []
 
-      state.combatants = sanitizedCombatants
+      state.combatants = normalizedCombatants
       state.playerTemplates = sanitizedTemplates
     },
   },
