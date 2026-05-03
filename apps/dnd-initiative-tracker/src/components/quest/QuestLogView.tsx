@@ -111,7 +111,7 @@ export const QuestLogView: React.FC = () => {
       <header className="quest-log__header">
         <div>
           <p className="eyebrow">Campaign journal</p>
-          <h2>Quest logs</h2>
+          <h2>Quest Logs</h2>
         </div>
         <p className="quest-log__lede">
           Chronicle your party&apos;s adventures, track objectives, and keep the tale alive between sessions.
