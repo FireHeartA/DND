@@ -2472,6 +2472,16 @@ textarea:focus {
   min-height: 1.8rem;
   padding: 0.2rem 0.55rem;
   font-size: 0.75rem;
+  color: #000;
+}
+
+.quest-log__inline-confirm .primary-button {
+  background: linear-gradient(135deg, #9be685, #58c549);
+}
+
+.quest-log__inline-confirm .ghost-button {
+  background: linear-gradient(135deg, #ff8f8f, #e05252);
+  border-color: rgba(122, 19, 19, 0.35);
 }
 
 .quest-log__complete-button {
