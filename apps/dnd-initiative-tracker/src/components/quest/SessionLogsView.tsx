@@ -19,6 +19,7 @@ export const SessionLogsView: React.FC = () => {
   const [summary, setSummary] = useState('')
   const [status, setStatus] = useState('')
   const [entriesByCampaign, setEntriesByCampaign] = useState<Record<string, SessionEntry[]>>({})
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const activeCampaign = useMemo(() => {
     return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
@@ -72,12 +73,14 @@ export const SessionLogsView: React.FC = () => {
   }
 
   const handleDeleteEntry = (id: string) => {
-    if (!activeCampaignId) {
+    if (pendingDeleteId === id) {
       return
     }
+    setPendingDeleteId(id)
+  }
 
-    const confirmed = window.confirm('Delete this session log?')
-    if (!confirmed) {
+  const confirmDeleteEntry = (id: string) => {
+    if (!activeCampaignId) {
       return
     }
 
@@ -88,6 +91,11 @@ export const SessionLogsView: React.FC = () => {
         [activeCampaignId]: existing.filter((entry) => entry.id !== id),
       }
     })
+    setPendingDeleteId(null)
+  }
+
+  const cancelDeleteEntry = () => {
+    setPendingDeleteId(null)
   }
 
   return (
@@ -160,14 +168,25 @@ export const SessionLogsView: React.FC = () => {
         {activeEntries.length > 0 ? (
           activeEntries.map((entry) => (
             <article key={entry.id} className="quest-log__entry">
-              <button
-                type="button"
-                className="quest-log__delete-button"
-                aria-label="Delete session log"
-                onClick={() => handleDeleteEntry(entry.id)}
-              >
-                ×
-              </button>
+              {pendingDeleteId === entry.id ? (
+                <div className="quest-log__inline-confirm">
+                  <button type="button" className="primary-button" onClick={() => confirmDeleteEntry(entry.id)}>
+                    Yes
+                  </button>
+                  <button type="button" className="ghost-button" onClick={cancelDeleteEntry}>
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="quest-log__delete-button"
+                  aria-label="Delete session log"
+                  onClick={() => handleDeleteEntry(entry.id)}
+                >
+                  ×
+                </button>
+              )}
               <div className="quest-log__entry-body">
                 <h3 className="quest-log__entry-title">{entry.session}</h3>
                 <p className="quest-log__entry-text">{entry.summary}</p>
