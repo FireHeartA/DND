@@ -52,6 +52,27 @@ export const TreasureLedgerView: React.FC = () => {
     setItems((previous) => previous.map((item) => (item.id === id ? { ...item, [key]: value } : item)))
   }
 
+  const toggleClaimedStatus = (listId: string, itemId: string, isClaimed: boolean) => {
+    if (!activeCampaignId) {
+      return
+    }
+
+    setListsByCampaign((previous) => {
+      const existing = previous[activeCampaignId] || []
+      return {
+        ...previous,
+        [activeCampaignId]: existing.map((list) =>
+          list.id === listId
+            ? {
+                ...list,
+                items: list.items.map((item) => (item.id === itemId ? { ...item, isClaimed } : item)),
+              }
+            : list
+        ),
+      }
+    })
+  }
+
   const addItemRow = () => setItems((previous) => [...previous, createEmptyItem()])
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -157,10 +178,6 @@ export const TreasureLedgerView: React.FC = () => {
 
           {items.map((item) => (
             <div key={item.id} className="treasure-ledger__row">
-              <label className="treasure-ledger__checkbox-label">
-                <input type="checkbox" checked={item.isClaimed} onChange={(event) => updateItem(item.id, 'isClaimed', event.target.checked)} />
-                Claimed
-              </label>
               <input className="quest-log__input" placeholder="Treasure" value={item.treasure} onChange={(event) => updateItem(item.id, 'treasure', event.target.value)} />
               <input className="quest-log__input" placeholder="Location" value={item.location} onChange={(event) => updateItem(item.id, 'location', event.target.value)} />
               <input className="quest-log__input" placeholder="Gold value" value={item.goldValue} onChange={(event) => updateItem(item.id, 'goldValue', event.target.value)} />
@@ -195,7 +212,12 @@ export const TreasureLedgerView: React.FC = () => {
                 <ul className="treasure-ledger__list">
                   {list.items.map((item) => (
                     <li key={item.id} className="treasure-ledger__list-item">
-                      <input type="checkbox" checked={item.isClaimed} readOnly />
+                      <input
+                        type="checkbox"
+                        checked={item.isClaimed}
+                        onChange={(event) => toggleClaimedStatus(list.id, item.id, event.target.checked)}
+                        aria-label={`Mark ${item.treasure || 'treasure'} as claimed`}
+                      />
                       <span>{item.treasure || '—'}</span>
                       <span>{item.location || '—'}</span>
                       <span>{item.goldValue || '—'}</span>
