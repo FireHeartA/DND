@@ -1,4 +1,8 @@
 import { FormEvent, useMemo, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
+import type { AppDispatch } from '../../store'
+import type { RootState } from '../../types'
 
 type QuestEntry = {
   id: string
@@ -8,12 +12,27 @@ type QuestEntry = {
 }
 
 export const QuestLogView: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>()
+  const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
+  const activeCampaignId = useSelector((state: RootState) => state.campaigns.activeCampaignId)
+
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState('')
-  const [entries, setEntries] = useState<QuestEntry[]>([])
+  const [entriesByCampaign, setEntriesByCampaign] = useState<Record<string, QuestEntry[]>>({})
 
-  const hasEntries = useMemo(() => entries.length > 0, [entries])
+  const activeCampaign = useMemo(() => {
+    return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
+  }, [campaigns, activeCampaignId])
+
+  const activeEntries = useMemo(() => {
+    if (!activeCampaignId) {
+      return []
+    }
+    return entriesByCampaign[activeCampaignId] || []
+  }, [entriesByCampaign, activeCampaignId])
+
+  const hasEntries = useMemo(() => activeEntries.length > 0, [activeEntries])
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -25,15 +44,21 @@ export const QuestLogView: React.FC = () => {
       return
     }
 
-    setEntries((previous) => [
-      {
-        id: crypto.randomUUID(),
-        title: trimmedTitle || 'Untitled quest',
-        text: trimmedNotes,
-        status: 'pending',
-      },
-      ...previous,
-    ])
+    setEntriesByCampaign((previous) => {
+      const existing = previous[activeCampaignId] || []
+      return {
+        ...previous,
+        [activeCampaignId]: [
+          {
+            id: crypto.randomUUID(),
+            title: trimmedTitle || 'Untitled quest',
+            text: trimmedNotes,
+            status: 'pending',
+          },
+          ...existing,
+        ],
+      }
+    })
 
     setTitle('')
     setNotes('')
@@ -42,21 +67,39 @@ export const QuestLogView: React.FC = () => {
   }
 
   const handleStatusChange = (id: string, newStatus: QuestEntry['status']) => {
-    setEntries((previous) =>
-      previous.map((entry) =>
-        entry.id === id
-          ? {
-              ...entry,
-              status: newStatus,
-            }
-          : entry
-      )
-    )
+    if (!activeCampaignId) {
+      return
+    }
+
+    setEntriesByCampaign((previous) => {
+      const existing = previous[activeCampaignId] || []
+      return {
+        ...previous,
+        [activeCampaignId]: existing.map((entry) =>
+          entry.id === id
+            ? {
+                ...entry,
+                status: newStatus,
+              }
+            : entry
+        ),
+      }
+    })
   }
 
 
   const handleDeleteEntry = (id: string) => {
-    setEntries((previous) => previous.filter((entry) => entry.id !== id))
+    if (!activeCampaignId) {
+      return
+    }
+
+    setEntriesByCampaign((previous) => {
+      const existing = previous[activeCampaignId] || []
+      return {
+        ...previous,
+        [activeCampaignId]: existing.filter((entry) => entry.id !== id),
+      }
+    })
   }
 
   return (
@@ -70,6 +113,30 @@ export const QuestLogView: React.FC = () => {
           Chronicle your party&apos;s adventures, track objectives, and keep the tale alive between sessions.
         </p>
       </header>
+
+      <section className="campaign-panel">
+        <h3 className="campaign-panel__title">Campaigns</h3>
+        {campaigns.length > 0 ? (
+          <label className="quest-log__label" htmlFor="quest-campaign-filter">
+            Filter by campaign
+            <select
+              id="quest-campaign-filter"
+              className="quest-log__input"
+              value={activeCampaignId ?? ''}
+              onChange={(event) => dispatch(setActiveCampaignAction(event.target.value))}
+            >
+              {campaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <p className="quest-log__empty">No campaigns available yet. Create one in Campaign Manager first.</p>
+        )}
+        {activeCampaign && <p className="quest-log__status">Showing quests for: {activeCampaign.name}</p>}
+      </section>
 
       <form className="quest-log__form" onSubmit={handleSubmit}>
         <div className="quest-log__scroll" aria-label="Quest log editor">
@@ -105,7 +172,7 @@ export const QuestLogView: React.FC = () => {
 
       <div className="quest-log__entries" aria-live="polite">
         {hasEntries ? (
-          entries.map((entry) => (
+          activeEntries.map((entry) => (
             <article
               key={entry.id}
               className={`quest-log__entry quest-log__entry--${entry.status}`}
