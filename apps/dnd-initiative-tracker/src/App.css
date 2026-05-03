@@ -2535,7 +2535,7 @@ textarea:focus {
 
 .treasure-ledger__row {
   display: grid;
-  grid-template-columns: minmax(120px, 0.8fr) 1.3fr 1.1fr 0.8fr;
+  grid-template-columns: 1.4fr 1fr 0.8fr;
   gap: 0.55rem;
   align-items: center;
   margin-bottom: 0.7rem;
@@ -2549,6 +2549,11 @@ textarea:focus {
   color: #d8def7;
 }
 
+
+.treasure-ledger__add-button {
+  background: linear-gradient(135deg, #ffb36d, #f08a3c);
+  color: #1a101f;
+}
 .treasure-ledger__entry-top {
   display: flex;
   justify-content: space-between;
