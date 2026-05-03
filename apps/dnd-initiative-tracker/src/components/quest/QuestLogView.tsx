@@ -116,14 +116,6 @@ export const QuestLogView: React.FC = () => {
                 <div className="quest-log__entry-secondary-actions">
                   <button
                     type="button"
-                    className="quest-log__delete-button"
-                    aria-label="Delete quest"
-                    onClick={() => handleDeleteEntry(entry.id)}
-                  >
-                    ×
-                  </button>
-                  <button
-                    type="button"
                     className="danger-button"
                     onClick={() => handleStatusChange(entry.id, 'failed')}
                   >

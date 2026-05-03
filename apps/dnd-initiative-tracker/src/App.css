@@ -2384,7 +2384,7 @@ textarea:focus {
 .quest-log__entry-body {
   position: relative;
   z-index: 1;
-  padding: 0.25rem 0.1rem 0.5rem;
+  padding: 0.25rem 1.8rem 0.5rem 0.1rem;
 }
 
 .quest-log__entry-text {
@@ -2410,8 +2410,15 @@ textarea:focus {
 }
 
 .quest-log__delete-button {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.6rem;
+  z-index: 2;
   width: 1.6rem;
   height: 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   border: 1px solid rgba(116, 52, 52, 0.4);
   background: rgba(255, 247, 228, 0.85);
