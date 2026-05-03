@@ -791,12 +791,12 @@
   background: rgba(255, 179, 109, 0.18);
 }
 
-.primary-button.monster-card__remove-confirm-yes {
+.monster-card__remove-confirm-yes {
   background: linear-gradient(135deg, #59d980, #3bb464);
   color: #000;
 }
 
-.ghost-button.monster-card__remove-confirm-no {
+.monster-card__remove-confirm-no {
   background: rgba(214, 72, 72, 0.92);
   color: #fff;
   border-color: rgba(255, 148, 148, 0.55);

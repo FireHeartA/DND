@@ -56,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`sidebar__item${activeView === 'quest-logs' ? ' sidebar__item--active' : ''}`}
             onClick={() => onViewChange('quest-logs')}
           >
-            Quest logs
+            Quest Logs
           </button>
         </li>
         <li>
