@@ -1,8 +1,10 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
 import type { AppDispatch } from '../../store'
 import type { RootState } from '../../types'
+
+const TREASURE_LEDGER_STORAGE_KEY = 'dnd-tracker-treasure-ledger-v1'
 
 type TreasureItem = {
   id: string
@@ -37,6 +39,24 @@ export const TreasureLedgerView: React.FC = () => {
   const [listsByCampaign, setListsByCampaign] = useState<Record<string, TreasureList[]>>({})
   const [pendingDeleteListId, setPendingDeleteListId] = useState<string | null>(null)
   const [editingListId, setEditingListId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const savedLists = localStorage.getItem(TREASURE_LEDGER_STORAGE_KEY)
+    if (!savedLists) {
+      return
+    }
+
+    try {
+      const parsedLists = JSON.parse(savedLists) as Record<string, TreasureList[]>
+      setListsByCampaign(parsedLists)
+    } catch {
+      localStorage.removeItem(TREASURE_LEDGER_STORAGE_KEY)
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(TREASURE_LEDGER_STORAGE_KEY, JSON.stringify(listsByCampaign))
+  }, [listsByCampaign])
 
   const activeCampaign = useMemo(() => campaigns.find((campaign) => campaign.id === activeCampaignId) || null, [campaigns, activeCampaignId])
   const sortedCampaigns = useMemo(() => [...campaigns].sort((a, b) => a.name.localeCompare(b.name)), [campaigns])
@@ -184,7 +204,7 @@ export const TreasureLedgerView: React.FC = () => {
             </div>
           ))}
 
-          <button type="button" className="ghost-button" onClick={addItemRow}>Add treasure line</button>
+          <button type="button" className="primary-button treasure-ledger__add-button" onClick={addItemRow}>Add treasure line</button>
         </div>
         <div className="quest-log__actions">
           <button type="submit" className="primary-button">{editingListId ? 'Update list' : 'Confirm list'}</button>

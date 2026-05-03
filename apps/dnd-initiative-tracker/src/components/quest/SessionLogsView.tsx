@@ -1,8 +1,10 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
 import type { AppDispatch } from '../../store'
 import type { RootState } from '../../types'
+
+const SESSION_LOG_STORAGE_KEY = 'dnd-tracker-session-logs-v1'
 
 type SessionEntry = {
   id: string
@@ -20,6 +22,24 @@ export const SessionLogsView: React.FC = () => {
   const [status, setStatus] = useState('')
   const [entriesByCampaign, setEntriesByCampaign] = useState<Record<string, SessionEntry[]>>({})
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const savedEntries = localStorage.getItem(SESSION_LOG_STORAGE_KEY)
+    if (!savedEntries) {
+      return
+    }
+
+    try {
+      const parsedEntries = JSON.parse(savedEntries) as Record<string, SessionEntry[]>
+      setEntriesByCampaign(parsedEntries)
+    } catch {
+      localStorage.removeItem(SESSION_LOG_STORAGE_KEY)
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(SESSION_LOG_STORAGE_KEY, JSON.stringify(entriesByCampaign))
+  }, [entriesByCampaign])
 
   const activeCampaign = useMemo(() => {
     return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
