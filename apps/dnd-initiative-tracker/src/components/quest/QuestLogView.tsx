@@ -20,6 +20,7 @@ export const QuestLogView: React.FC = () => {
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState('')
   const [entriesByCampaign, setEntriesByCampaign] = useState<Record<string, QuestEntry[]>>({})
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const activeCampaign = useMemo(() => {
     return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
@@ -93,6 +94,13 @@ export const QuestLogView: React.FC = () => {
 
 
   const handleDeleteEntry = (id: string) => {
+    if (pendingDeleteId === id) {
+      return
+    }
+    setPendingDeleteId(id)
+  }
+
+  const confirmDeleteEntry = (id: string) => {
     if (!activeCampaignId) {
       return
     }
@@ -104,6 +112,11 @@ export const QuestLogView: React.FC = () => {
         [activeCampaignId]: existing.filter((entry) => entry.id !== id),
       }
     })
+    setPendingDeleteId(null)
+  }
+
+  const cancelDeleteEntry = () => {
+    setPendingDeleteId(null)
   }
 
   return (
@@ -184,14 +197,25 @@ export const QuestLogView: React.FC = () => {
               key={entry.id}
               className={`quest-log__entry quest-log__entry--${entry.status}`}
             >
-              <button
-                type="button"
-                className="quest-log__delete-button"
-                aria-label="Delete quest"
-                onClick={() => handleDeleteEntry(entry.id)}
-              >
-                ×
-              </button>
+              {pendingDeleteId === entry.id ? (
+                <div className="quest-log__inline-confirm">
+                  <button type="button" className="primary-button" onClick={() => confirmDeleteEntry(entry.id)}>
+                    Yes
+                  </button>
+                  <button type="button" className="ghost-button" onClick={cancelDeleteEntry}>
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="quest-log__delete-button"
+                  aria-label="Delete quest"
+                  onClick={() => handleDeleteEntry(entry.id)}
+                >
+                  ×
+                </button>
+              )}
               <div className="quest-log__entry-body">
                 <h3 className="quest-log__entry-title">{entry.title}</h3>
                 <p className="quest-log__entry-text">{entry.text}</p>
