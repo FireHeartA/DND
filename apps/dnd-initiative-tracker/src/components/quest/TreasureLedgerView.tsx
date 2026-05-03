@@ -39,10 +39,12 @@ export const TreasureLedgerView: React.FC = () => {
   const [listsByCampaign, setListsByCampaign] = useState<Record<string, TreasureList[]>>({})
   const [pendingDeleteListId, setPendingDeleteListId] = useState<string | null>(null)
   const [editingListId, setEditingListId] = useState<string | null>(null)
+  const [hasHydrated, setHasHydrated] = useState(false)
 
   useEffect(() => {
     const savedLists = localStorage.getItem(TREASURE_LEDGER_STORAGE_KEY)
     if (!savedLists) {
+      setHasHydrated(true)
       return
     }
 
@@ -51,12 +53,18 @@ export const TreasureLedgerView: React.FC = () => {
       setListsByCampaign(parsedLists)
     } catch {
       localStorage.removeItem(TREASURE_LEDGER_STORAGE_KEY)
+    } finally {
+      setHasHydrated(true)
     }
   }, [])
 
   useEffect(() => {
+    if (!hasHydrated) {
+      return
+    }
+
     localStorage.setItem(TREASURE_LEDGER_STORAGE_KEY, JSON.stringify(listsByCampaign))
-  }, [listsByCampaign])
+  }, [listsByCampaign, hasHydrated])
 
   const activeCampaign = useMemo(() => campaigns.find((campaign) => campaign.id === activeCampaignId) || null, [campaigns, activeCampaignId])
   const sortedCampaigns = useMemo(() => [...campaigns].sort((a, b) => a.name.localeCompare(b.name)), [campaigns])

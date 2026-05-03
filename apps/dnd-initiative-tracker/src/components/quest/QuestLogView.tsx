@@ -23,10 +23,12 @@ export const QuestLogView: React.FC = () => {
   const [status, setStatus] = useState('')
   const [entriesByCampaign, setEntriesByCampaign] = useState<Record<string, QuestEntry[]>>({})
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [hasHydrated, setHasHydrated] = useState(false)
 
   useEffect(() => {
     const savedEntries = localStorage.getItem(QUEST_LOG_STORAGE_KEY)
     if (!savedEntries) {
+      setHasHydrated(true)
       return
     }
 
@@ -35,12 +37,18 @@ export const QuestLogView: React.FC = () => {
       setEntriesByCampaign(parsedEntries)
     } catch {
       localStorage.removeItem(QUEST_LOG_STORAGE_KEY)
+    } finally {
+      setHasHydrated(true)
     }
   }, [])
 
   useEffect(() => {
+    if (!hasHydrated) {
+      return
+    }
+
     localStorage.setItem(QUEST_LOG_STORAGE_KEY, JSON.stringify(entriesByCampaign))
-  }, [entriesByCampaign])
+  }, [entriesByCampaign, hasHydrated])
 
   const activeCampaign = useMemo(() => {
     return campaigns.find((campaign) => campaign.id === activeCampaignId) || null

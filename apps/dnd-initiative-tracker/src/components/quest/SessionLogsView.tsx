@@ -22,10 +22,12 @@ export const SessionLogsView: React.FC = () => {
   const [status, setStatus] = useState('')
   const [entriesByCampaign, setEntriesByCampaign] = useState<Record<string, SessionEntry[]>>({})
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [hasHydrated, setHasHydrated] = useState(false)
 
   useEffect(() => {
     const savedEntries = localStorage.getItem(SESSION_LOG_STORAGE_KEY)
     if (!savedEntries) {
+      setHasHydrated(true)
       return
     }
 
@@ -34,12 +36,18 @@ export const SessionLogsView: React.FC = () => {
       setEntriesByCampaign(parsedEntries)
     } catch {
       localStorage.removeItem(SESSION_LOG_STORAGE_KEY)
+    } finally {
+      setHasHydrated(true)
     }
   }, [])
 
   useEffect(() => {
+    if (!hasHydrated) {
+      return
+    }
+
     localStorage.setItem(SESSION_LOG_STORAGE_KEY, JSON.stringify(entriesByCampaign))
-  }, [entriesByCampaign])
+  }, [entriesByCampaign, hasHydrated])
 
   const activeCampaign = useMemo(() => {
     return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
