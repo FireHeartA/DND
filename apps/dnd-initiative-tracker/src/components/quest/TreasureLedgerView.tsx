@@ -6,10 +6,10 @@ import type { RootState } from '../../types'
 
 type TreasureItem = {
   id: string
+  isClaimed: boolean
   treasure: string
   location: string
   goldValue: string
-  claimed?: boolean
 }
 
 type TreasureList = {
@@ -20,6 +20,7 @@ type TreasureList = {
 
 const createEmptyItem = (): TreasureItem => ({
   id: crypto.randomUUID(),
+  isClaimed: false,
   treasure: '',
   location: '',
   goldValue: '',
@@ -47,7 +48,7 @@ export const TreasureLedgerView: React.FC = () => {
     return listsByCampaign[activeCampaignId] || []
   }, [listsByCampaign, activeCampaignId])
 
-  const updateItem = (id: string, key: keyof TreasureItem, value: string) => {
+  const updateItem = (id: string, key: keyof TreasureItem, value: string | boolean) => {
     setItems((previous) => previous.map((item) => (item.id === id ? { ...item, [key]: value } : item)))
   }
 
@@ -61,7 +62,7 @@ export const TreasureLedgerView: React.FC = () => {
 
     const trimmedHeader = header.trim()
     const cleanedItems = items
-      .map((item) => ({ ...item, treasure: item.treasure.trim(), location: item.location.trim(), goldValue: item.goldValue.trim(), claimed: item.claimed ?? false }))
+      .map((item) => ({ ...item, treasure: item.treasure.trim(), location: item.location.trim(), goldValue: item.goldValue.trim() }))
       .filter((item) => item.treasure || item.location || item.goldValue)
 
     if (!trimmedHeader) {
@@ -103,32 +104,8 @@ export const TreasureLedgerView: React.FC = () => {
 
   const handleEditList = (list: TreasureList) => {
     setHeader(list.header)
-    setItems(list.items.map((item) => ({ ...item, claimed: item.claimed ?? false })))
+    setItems(list.items.map((item) => ({ ...item })))
     setEditingListId(list.id)
-  }
-
-
-  const toggleClaimed = (listId: string, itemId: string) => {
-    if (!activeCampaignId) {
-      return
-    }
-
-    setListsByCampaign((previous) => {
-      const existing = previous[activeCampaignId] || []
-      return {
-        ...previous,
-        [activeCampaignId]: existing.map((list) =>
-          list.id === listId
-            ? {
-                ...list,
-                items: list.items.map((item) =>
-                  item.id === itemId ? { ...item, claimed: !item.claimed } : item,
-                ),
-              }
-            : list,
-        ),
-      }
-    })
   }
 
   const confirmDeleteList = (id: string) => {
@@ -180,6 +157,10 @@ export const TreasureLedgerView: React.FC = () => {
 
           {items.map((item) => (
             <div key={item.id} className="treasure-ledger__row">
+              <label className="treasure-ledger__checkbox-label">
+                <input type="checkbox" checked={item.isClaimed} onChange={(event) => updateItem(item.id, 'isClaimed', event.target.checked)} />
+                Claimed
+              </label>
               <input className="quest-log__input" placeholder="Treasure" value={item.treasure} onChange={(event) => updateItem(item.id, 'treasure', event.target.value)} />
               <input className="quest-log__input" placeholder="Location" value={item.location} onChange={(event) => updateItem(item.id, 'location', event.target.value)} />
               <input className="quest-log__input" placeholder="Gold value" value={item.goldValue} onChange={(event) => updateItem(item.id, 'goldValue', event.target.value)} />
@@ -214,7 +195,7 @@ export const TreasureLedgerView: React.FC = () => {
                 <ul className="treasure-ledger__list">
                   {list.items.map((item) => (
                     <li key={item.id} className="treasure-ledger__list-item">
-                      <input type="checkbox" checked={Boolean(item.claimed)} onChange={() => toggleClaimed(list.id, item.id)} />
+                      <input type="checkbox" checked={item.isClaimed} readOnly />
                       <span>{item.treasure || '—'}</span>
                       <span>{item.location || '—'}</span>
                       <span>{item.goldValue || '—'}</span>
