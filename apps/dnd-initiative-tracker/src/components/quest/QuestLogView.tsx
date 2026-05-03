@@ -2,11 +2,13 @@ import { FormEvent, useMemo, useState } from 'react'
 
 type QuestEntry = {
   id: string
+  title: string
   text: string
   status: 'pending' | 'completed' | 'failed'
 }
 
 export const QuestLogView: React.FC = () => {
+  const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState('')
   const [entries, setEntries] = useState<QuestEntry[]>([])
@@ -15,6 +17,7 @@ export const QuestLogView: React.FC = () => {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const trimmedTitle = title.trim()
     const trimmedNotes = notes.trim()
     if (!trimmedNotes) {
       setStatus('Add some quest details before confirming')
@@ -25,12 +28,14 @@ export const QuestLogView: React.FC = () => {
     setEntries((previous) => [
       {
         id: crypto.randomUUID(),
+        title: trimmedTitle || 'Untitled quest',
         text: trimmedNotes,
         status: 'pending',
       },
       ...previous,
     ])
 
+    setTitle('')
     setNotes('')
     setStatus('Quest log updated')
     setTimeout(() => setStatus(''), 2500)
@@ -68,6 +73,17 @@ export const QuestLogView: React.FC = () => {
 
       <form className="quest-log__form" onSubmit={handleSubmit}>
         <div className="quest-log__scroll" aria-label="Quest log editor">
+          <label className="quest-log__label" htmlFor="quest-title">
+            Quest header
+          </label>
+          <input
+            id="quest-title"
+            className="quest-log__input"
+            placeholder="e.g. The Amber Keep Expedition"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
+
           <label className="quest-log__label" htmlFor="quest-notes">
             Quest entry
           </label>
@@ -103,6 +119,7 @@ export const QuestLogView: React.FC = () => {
                 ×
               </button>
               <div className="quest-log__entry-body">
+                <h3 className="quest-log__entry-title">{entry.title}</h3>
                 <p className="quest-log__entry-text">{entry.text}</p>
               </div>
               <div className="quest-log__entry-footer">
