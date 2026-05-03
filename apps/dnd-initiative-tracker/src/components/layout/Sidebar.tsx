@@ -1,6 +1,6 @@
 import type { ChangeEvent, RefObject } from 'react'
 
-export type ViewMode = 'initiative' | 'campaigns' | 'quest-logs' | 'session-logs'
+export type ViewMode = 'initiative' | 'campaigns' | 'quest-logs' | 'session-logs' | 'treasure-ledger'
 
 interface SidebarProps {
   activeView: ViewMode
@@ -69,7 +69,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </li>
         <li>
-          <span className="sidebar__item sidebar__item--disabled">Treasure Ledger (coming soon)</span>
+          <button
+            type="button"
+            className={`sidebar__item${activeView === 'treasure-ledger' ? ' sidebar__item--active' : ''}`}
+            onClick={() => onViewChange('treasure-ledger')}
+          >
+            Treasure Ledger
+          </button>
         </li>
       </ul>
     </nav>
