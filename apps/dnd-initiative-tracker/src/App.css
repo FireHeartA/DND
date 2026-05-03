@@ -2532,3 +2532,38 @@ textarea:focus {
     transform: translateX(-50%) scaleY(1);
   }
 }
+
+.treasure-ledger__row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.1fr 0.8fr;
+  gap: 0.55rem;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+
+
+.treasure-ledger__entry-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.treasure-ledger__list {
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+}
+
+.treasure-ledger__list-item {
+  display: grid;
+  grid-template-columns: 24px 1.4fr 1fr 0.8fr;
+  gap: 0.55rem;
+  align-items: center;
+  border-radius: 0.65rem;
+  background: rgba(10, 14, 30, 0.5);
+  border: 1px solid rgba(146, 176, 255, 0.2);
+  padding: 0.45rem 0.6rem;
+}
