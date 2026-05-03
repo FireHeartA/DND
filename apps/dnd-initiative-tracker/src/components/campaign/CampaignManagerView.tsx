@@ -2541,14 +2541,14 @@ export const CampaignManagerView: React.FC = () => {
                                   <>
                                     <button
                                       type="button"
-                                      className="primary-button"
+                                      className="primary-button monster-card__remove-confirm-yes"
                                       onClick={() => handleConfirmRemoveMonsterTemplateEntry(monster.id)}
                                     >
                                       Yes
                                     </button>
                                     <button
                                       type="button"
-                                      className="ghost-button"
+                                      className="ghost-button monster-card__remove-confirm-no"
                                       onClick={() => setPendingMonsterRemovalId(null)}
                                     >
                                       No
