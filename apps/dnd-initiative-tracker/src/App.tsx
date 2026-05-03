@@ -214,7 +214,6 @@ function App() {
         loadError={loadError}
         fileInputRef={fileInputRef}
         onFileChange={handleFileInputChange}
-        isDirty={isDirty}
       />
       <main className="main">
         {activeView === 'campaigns' && campaignView}
