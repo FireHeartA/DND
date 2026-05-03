@@ -6,6 +6,7 @@ import { Sidebar, ViewMode } from './components/layout/Sidebar'
 import { CampaignManagerView } from './components/campaign/CampaignManagerView'
 import { InitiativeView } from './components/initiative/InitiativeView'
 import { QuestLogView } from './components/quest/QuestLogView'
+import { SessionLogsView } from './components/quest/SessionLogsView'
 import {
   loadState as loadCombatStateAction,
   type LoadCombatStateArgs,
@@ -202,7 +203,8 @@ function App() {
    */
   const campaignView = useMemo(() => <CampaignManagerView />, [])
   const questLogView = useMemo(() => <QuestLogView />, [])
- 
+  const sessionLogsView = useMemo(() => <SessionLogsView />, [])
+
 
   return (
     <div className="app-shell">
@@ -218,7 +220,8 @@ function App() {
       <main className="main">
         {activeView === 'campaigns' && campaignView}
         {activeView === 'initiative' && initiativeView}
-        {activeView === 'quest-logs' && questLogView}        
+        {activeView === 'quest-logs' && questLogView}
+        {activeView === 'session-logs' && sessionLogsView}
       </main>
     </div>
   )
