@@ -25,10 +25,6 @@ export const QuestLogView: React.FC = () => {
     return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
   }, [campaigns, activeCampaignId])
 
-  const sortedCampaigns = useMemo(() => {
-    return [...campaigns].sort((a, b) => a.createdAt - b.createdAt)
-  }, [campaigns])
-
   const activeEntries = useMemo(() => {
     if (!activeCampaignId) {
       return []
@@ -121,27 +117,27 @@ export const QuestLogView: React.FC = () => {
       <section className="campaign-panel">
         <h3 className="campaign-panel__title">Campaigns</h3>
         {campaigns.length > 0 ? (
-          <label className="quest-log__label" htmlFor="quest-campaign-filter">
-            <span>Campaign</span>
-            <select
-              id="quest-campaign-filter"
-              value={activeCampaign ? activeCampaign.id : ''}
-              onChange={(event) => dispatch(setActiveCampaignAction(event.target.value))}
-            >
-              <option value="" disabled>
-                {sortedCampaigns.length === 0 ? 'No campaigns available' : 'Select campaign'}
-              </option>
-              {sortedCampaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
+          <div className="campaign-panel__list" role="list" aria-label="Campaign selection">
+            {campaigns.map((campaign) => {
+              const isActive = campaign.id === activeCampaignId
+              return (
+                <button
+                  key={campaign.id}
+                  type="button"
+                  className={`campaign-pill ${isActive ? 'campaign-pill--active' : ''}`}
+                  onClick={() => dispatch(setActiveCampaignAction(campaign.id))}
+                >
                   {campaign.name}
-                </option>
-              ))}
-            </select>
-          </label>
+                </button>
+              )
+            })}
+          </div>
         ) : (
           <p className="quest-log__empty">No campaigns available yet. Create one in Campaign Manager first.</p>
         )}
-        {activeCampaign && <p className="quest-log__status">Showing quests for: {activeCampaign.name}</p>}
+        {activeCampaign && (
+          <p className="quest-log__status">Showing quests for: {activeCampaign.name}</p>
+        )}
       </section>
 
       <form className="quest-log__form" onSubmit={handleSubmit}>
