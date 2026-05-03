@@ -37,7 +37,9 @@ function App() {
     const state = store.getState()
     return {
       combat: state.combat,
-      campaigns: state.campaigns,
+      campaigns: {
+        campaigns: state.campaigns.campaigns,
+      },
       monsterLibrary: state.monsterLibrary,
     }
   }, [store])
@@ -212,7 +214,6 @@ function App() {
         loadError={loadError}
         fileInputRef={fileInputRef}
         onFileChange={handleFileInputChange}
-        isDirty={isDirty}
       />
       <main className="main">
         {activeView === 'campaigns' && campaignView}

@@ -10,7 +10,6 @@ interface SidebarProps {
   loadError: string
   fileInputRef: RefObject<HTMLInputElement | null>
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void
-  isDirty: boolean
 }
 
 /**
@@ -24,7 +23,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   loadError,
   fileInputRef,
   onFileChange,
-  isDirty,
 }) => (
   <aside className="sidebar">
     <header className="sidebar__header">
@@ -68,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </nav>
     <div className="sidebar__global-actions">
       <span className="sidebar__section">Data management</span>
-      <div className={`save-load-controls${isDirty ? ' save-load-controls--dirty' : ''}`}>
+      <div className="save-load-controls save-load-controls--dirty">
         <div className="save-load-actions">
           <button type="button" className="secondary-button" onClick={onDownloadState}>
             Download state
@@ -77,11 +75,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             Upload state
           </button>
         </div>
-        {isDirty && (
-          <p className="save-load-indicator" role="status" aria-live="polite">
-            Unsaved changes detected – download to keep your latest progress.
-          </p>
-        )}
+        <p className="save-load-indicator" role="status" aria-live="polite">
+          Unsaved changes detected – download to keep your latest progress.
+        </p>
         {loadError && <p className="load-error">{loadError}</p>}
         <input
           ref={fileInputRef}
