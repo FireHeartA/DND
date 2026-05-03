@@ -7,6 +7,7 @@ import { CampaignManagerView } from './components/campaign/CampaignManagerView'
 import { InitiativeView } from './components/initiative/InitiativeView'
 import { QuestLogView } from './components/quest/QuestLogView'
 import { SessionLogsView } from './components/quest/SessionLogsView'
+import { TreasureLedgerView } from './components/quest/TreasureLedgerView'
 import {
   loadState as loadCombatStateAction,
   type LoadCombatStateArgs,
@@ -204,6 +205,7 @@ function App() {
   const campaignView = useMemo(() => <CampaignManagerView />, [])
   const questLogView = useMemo(() => <QuestLogView />, [])
   const sessionLogsView = useMemo(() => <SessionLogsView />, [])
+  const treasureLedgerView = useMemo(() => <TreasureLedgerView />, [])
 
 
   return (
@@ -222,6 +224,7 @@ function App() {
         {activeView === 'initiative' && initiativeView}
         {activeView === 'quest-logs' && questLogView}
         {activeView === 'session-logs' && sessionLogsView}
+        {activeView === 'treasure-ledger' && treasureLedgerView}
       </main>
     </div>
   )
