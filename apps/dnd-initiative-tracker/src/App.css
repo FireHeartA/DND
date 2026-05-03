@@ -2458,6 +2458,22 @@ textarea:focus {
   background: #ffe5e5;
 }
 
+.quest-log__inline-confirm {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.6rem;
+  z-index: 2;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.quest-log__inline-confirm .primary-button,
+.quest-log__inline-confirm .ghost-button {
+  min-height: 1.8rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+}
+
 .quest-log__complete-button {
   background: linear-gradient(135deg, #56c68c, #3a9f68);
   color: #0f1c12;
