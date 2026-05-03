@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
 import type { AppDispatch } from '../../store'
@@ -39,10 +39,12 @@ export const TreasureLedgerView: React.FC = () => {
   const [listsByCampaign, setListsByCampaign] = useState<Record<string, TreasureList[]>>({})
   const [pendingDeleteListId, setPendingDeleteListId] = useState<string | null>(null)
   const [editingListId, setEditingListId] = useState<string | null>(null)
+  const hasHydratedRef = useRef(false)
 
   useEffect(() => {
     const savedLists = localStorage.getItem(TREASURE_LEDGER_STORAGE_KEY)
     if (!savedLists) {
+      hasHydratedRef.current = true
       return
     }
 
@@ -51,10 +53,16 @@ export const TreasureLedgerView: React.FC = () => {
       setListsByCampaign(parsedLists)
     } catch {
       localStorage.removeItem(TREASURE_LEDGER_STORAGE_KEY)
+    } finally {
+      hasHydratedRef.current = true
     }
   }, [])
 
   useEffect(() => {
+    if (!hasHydratedRef.current) {
+      return
+    }
+
     localStorage.setItem(TREASURE_LEDGER_STORAGE_KEY, JSON.stringify(listsByCampaign))
   }, [listsByCampaign])
 
