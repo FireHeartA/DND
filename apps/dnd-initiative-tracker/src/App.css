@@ -1048,7 +1048,7 @@
 .monster-card__usage {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.05rem;
 }
 
 .monster-card__link {
@@ -1349,7 +1349,7 @@ textarea:focus {
 .turn-order__item {
   display: grid;
   grid-template-columns: auto auto 1fr;
-  gap: 0.65rem;
+  gap: 0.05rem;
   align-items: center;
   padding: 0.55rem 0.75rem;
   border-radius: 10px;
@@ -1387,7 +1387,7 @@ textarea:focus {
   font-size: 0.75rem;
   font-weight: 600;
   color: rgba(255, 239, 213, 0.68);
-  min-width: 2.1rem;
+  min-width: 1.55rem;
   text-align: left;
   font-variant-numeric: tabular-nums;
 }
