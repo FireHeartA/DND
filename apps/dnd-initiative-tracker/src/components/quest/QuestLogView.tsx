@@ -90,13 +90,8 @@ export const QuestLogView: React.FC = () => {
 
 
   useEffect(() => {
-    if (!activeCampaignId) {
-      setTitle('')
-      setNotes('')
-      return
-    }
-
-    const draft = draftsByCampaign[activeCampaignId]
+    const draftKey = activeCampaignId ?? QUEST_LOG_UNASSIGNED_DRAFT_KEY
+    const draft = draftsByCampaign[draftKey]
     setTitle(draft?.title ?? '')
     setNotes(draft?.notes ?? '')
   }, [activeCampaignId, draftsByCampaign])
@@ -149,9 +144,10 @@ export const QuestLogView: React.FC = () => {
       }
     })
 
+    const draftKey = activeCampaignId ?? QUEST_LOG_UNASSIGNED_DRAFT_KEY
     setDraftsByCampaign((previous) => ({
       ...previous,
-      [activeCampaignId]: { title: '', notes: '' },
+      [draftKey]: { title: '', notes: '' },
     }))
     setTitle('')
     setNotes('')
@@ -259,15 +255,14 @@ export const QuestLogView: React.FC = () => {
             onChange={(event) => {
               const nextTitle = event.target.value
               setTitle(nextTitle)
-              if (activeCampaignId) {
-                setDraftsByCampaign((previous) => ({
-                  ...previous,
-                  [activeCampaignId]: {
-                    title: nextTitle,
-                    notes,
-                  },
-                }))
-              }
+              const draftKey = activeCampaignId ?? QUEST_LOG_UNASSIGNED_DRAFT_KEY
+              setDraftsByCampaign((previous) => ({
+                ...previous,
+                [draftKey]: {
+                  title: nextTitle,
+                  notes,
+                },
+              }))
             }}
           />
 
@@ -282,15 +277,14 @@ export const QuestLogView: React.FC = () => {
             onChange={(event) => {
               const nextNotes = event.target.value
               setNotes(nextNotes)
-              if (activeCampaignId) {
-                setDraftsByCampaign((previous) => ({
-                  ...previous,
-                  [activeCampaignId]: {
-                    title,
-                    notes: nextNotes,
-                  },
-                }))
-              }
+              const draftKey = activeCampaignId ?? QUEST_LOG_UNASSIGNED_DRAFT_KEY
+              setDraftsByCampaign((previous) => ({
+                ...previous,
+                [draftKey]: {
+                  title,
+                  notes: nextNotes,
+                },
+              }))
             }}
           />
         </div>
