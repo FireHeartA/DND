@@ -8,6 +8,8 @@ const QUEST_LOG_STORAGE_KEY = 'dnd-tracker-quest-logs-v1'
 const QUEST_LOG_DRAFT_STORAGE_KEY = 'dnd-tracker-quest-log-drafts-v1'
 const QUEST_LOG_MEMORY_FILE_STORAGE_KEY = 'dnd-tracker-quest-log-memory-file-v1'
 
+const QUEST_LOG_UNASSIGNED_DRAFT_KEY = '__unassigned__'
+
 type QuestEntry = {
   id: string
   title: string
