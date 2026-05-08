@@ -1974,12 +1974,18 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
                         const displayName = combatantDisplayNames[combatant.id] ?? combatant.name
                         const isActive = combatant.id === activeCombatantId
 
+                        const instanceLabel =
+                          combatant.type === 'monster' && combatant.monsterInstanceNumber && displayName !== combatant.name
+                            ? `(${combatant.monsterInstanceNumber})`
+                            : null
+
                         return (
                           <li
                             key={combatant.id}
                             className={`turn-order__item${isActive ? ' turn-order__item--active' : ''}`}
                           >
                             <span className="turn-order__position">{index + 1}</span>
+                            {instanceLabel ? <span className="turn-order__position-instance">{instanceLabel}</span> : null}
                             <button
                               type="button"
                               className="turn-order__name"
