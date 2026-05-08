@@ -45,6 +45,19 @@ interface InitiativeViewProps {
   resetKey: number
 }
 
+
+interface InitiativeSessionMemory {
+  turnHistory: TurnHistoryEntry[]
+  isStatsVisible: boolean
+  lastCombatStats: CombatStatsSummary | null
+}
+
+const initiativeSessionMemory: InitiativeSessionMemory = {
+  turnHistory: [],
+  isStatsVisible: false,
+  lastCombatStats: null,
+}
+
 interface FormDataState {
   name: string
   maxHp: string
@@ -131,11 +144,11 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const [adjustments, setAdjustments] = useState<Record<string, AdjustmentDraft>>({})
   const [initiativeDrafts, setInitiativeDrafts] = useState<Record<string, ValueDraft>>({})
   const [activeCombatantId, setActiveCombatantId] = useState<string | null>(null)
-  const [turnHistory, setTurnHistory] = useState<TurnHistoryEntry[]>([])
+  const [turnHistory, setTurnHistory] = useState<TurnHistoryEntry[]>(() => initiativeSessionMemory.turnHistory)
   const [turnStartTime, setTurnStartTime] = useState<number | null>(null)
   const [currentTime, setCurrentTime] = useState(Date.now())
-  const [isStatsVisible, setIsStatsVisible] = useState(false)
-  const [lastCombatStats, setLastCombatStats] = useState<CombatStatsSummary | null>(null)
+  const [isStatsVisible, setIsStatsVisible] = useState(() => initiativeSessionMemory.isStatsVisible)
+  const [lastCombatStats, setLastCombatStats] = useState<CombatStatsSummary | null>(() => initiativeSessionMemory.lastCombatStats)
   const [templateInitiatives, setTemplateInitiatives] = useState<Record<string, string>>({})
   const [templateErrors, setTemplateErrors] = useState<Record<string, string>>({})
   const [monsterInitiatives, setMonsterInitiatives] = useState<Record<string, string>>({})
@@ -151,6 +164,19 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
   const [bulkDamageError, setBulkDamageError] = useState('')
   const [isBulkDamageVisible, setIsBulkDamageVisible] = useState(false)
   const [autoRemoveDefeated, setAutoRemoveDefeated] = useState(false)
+
+
+  useEffect(() => {
+    initiativeSessionMemory.turnHistory = turnHistory
+  }, [turnHistory])
+
+  useEffect(() => {
+    initiativeSessionMemory.isStatsVisible = isStatsVisible
+  }, [isStatsVisible])
+
+  useEffect(() => {
+    initiativeSessionMemory.lastCombatStats = lastCombatStats
+  }, [lastCombatStats])
 
   /**
    * Provides access to the currently active campaign object.
