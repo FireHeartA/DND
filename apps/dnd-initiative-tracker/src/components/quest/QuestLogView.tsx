@@ -5,6 +5,7 @@ import type { AppDispatch } from '../../store'
 import type { RootState } from '../../types'
 
 const QUEST_LOG_STORAGE_KEY = 'dnd-tracker-quest-logs-v1'
+const QUEST_LOG_DRAFT_STORAGE_KEY = 'dnd-tracker-quest-log-drafts-v1'
 
 type QuestEntry = {
   id: string
@@ -23,20 +24,31 @@ export const QuestLogView: React.FC = () => {
   const [status, setStatus] = useState('')
   const [entriesByCampaign, setEntriesByCampaign] = useState<Record<string, QuestEntry[]>>({})
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [draftsByCampaign, setDraftsByCampaign] = useState<Record<string, { title: string; notes: string }>>({})
   const hasHydratedRef = useRef(false)
 
   useEffect(() => {
     const savedEntries = localStorage.getItem(QUEST_LOG_STORAGE_KEY)
-    if (!savedEntries) {
+    const savedDrafts = localStorage.getItem(QUEST_LOG_DRAFT_STORAGE_KEY)
+
+    if (!savedEntries && !savedDrafts) {
       hasHydratedRef.current = true
       return
     }
 
     try {
-      const parsedEntries = JSON.parse(savedEntries) as Record<string, QuestEntry[]>
-      setEntriesByCampaign(parsedEntries)
+      if (savedEntries) {
+        const parsedEntries = JSON.parse(savedEntries) as Record<string, QuestEntry[]>
+        setEntriesByCampaign(parsedEntries)
+      }
+
+      if (savedDrafts) {
+        const parsedDrafts = JSON.parse(savedDrafts) as Record<string, { title: string; notes: string }>
+        setDraftsByCampaign(parsedDrafts)
+      }
     } catch {
       localStorage.removeItem(QUEST_LOG_STORAGE_KEY)
+      localStorage.removeItem(QUEST_LOG_DRAFT_STORAGE_KEY)
     } finally {
       hasHydratedRef.current = true
     }
@@ -50,6 +62,26 @@ export const QuestLogView: React.FC = () => {
     localStorage.setItem(QUEST_LOG_STORAGE_KEY, JSON.stringify(entriesByCampaign))
   }, [entriesByCampaign])
 
+  useEffect(() => {
+    if (!hasHydratedRef.current) {
+      return
+    }
+
+    localStorage.setItem(QUEST_LOG_DRAFT_STORAGE_KEY, JSON.stringify(draftsByCampaign))
+  }, [draftsByCampaign])
+
+
+  useEffect(() => {
+    if (!activeCampaignId) {
+      setTitle('')
+      setNotes('')
+      return
+    }
+
+    const draft = draftsByCampaign[activeCampaignId]
+    setTitle(draft?.title ?? '')
+    setNotes(draft?.notes ?? '')
+  }, [activeCampaignId, draftsByCampaign])
   const activeCampaign = useMemo(() => {
     return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
   }, [campaigns, activeCampaignId])
@@ -69,6 +101,12 @@ export const QuestLogView: React.FC = () => {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!activeCampaignId) {
+      setStatus('Choose a campaign before saving quests')
+      setTimeout(() => setStatus(''), 2500)
+      return
+    }
+
     const trimmedTitle = title.trim()
     const trimmedNotes = notes.trim()
     if (!trimmedNotes) {
@@ -93,6 +131,10 @@ export const QuestLogView: React.FC = () => {
       }
     })
 
+    setDraftsByCampaign((previous) => ({
+      ...previous,
+      [activeCampaignId]: { title: '', notes: '' },
+    }))
     setTitle('')
     setNotes('')
     setStatus('Quest log updated')
@@ -196,7 +238,19 @@ export const QuestLogView: React.FC = () => {
             className="quest-log__input"
             placeholder="e.g. The Amber Keep Expedition"
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(event) => {
+              const nextTitle = event.target.value
+              setTitle(nextTitle)
+              if (activeCampaignId) {
+                setDraftsByCampaign((previous) => ({
+                  ...previous,
+                  [activeCampaignId]: {
+                    title: nextTitle,
+                    notes,
+                  },
+                }))
+              }
+            }}
           />
 
           <label className="quest-log__label" htmlFor="quest-notes">
@@ -207,7 +261,19 @@ export const QuestLogView: React.FC = () => {
             className="quest-log__textarea"
             placeholder="Record rumors, objectives, and key NPC details here..."
             value={notes}
-            onChange={(event) => setNotes(event.target.value)}
+            onChange={(event) => {
+              const nextNotes = event.target.value
+              setNotes(nextNotes)
+              if (activeCampaignId) {
+                setDraftsByCampaign((previous) => ({
+                  ...previous,
+                  [activeCampaignId]: {
+                    title,
+                    notes: nextNotes,
+                  },
+                }))
+              }
+            }}
           />
         </div>
         <div className="quest-log__actions">
