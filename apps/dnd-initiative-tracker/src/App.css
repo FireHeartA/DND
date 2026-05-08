@@ -1348,7 +1348,7 @@ textarea:focus {
 
 .turn-order__item {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto auto 1fr;
   gap: 0.65rem;
   align-items: center;
   padding: 0.55rem 0.75rem;
@@ -1380,6 +1380,20 @@ textarea:focus {
 .turn-order__item--active .turn-order__position {
   background: rgba(255, 215, 141, 0.25);
   color: #ffde9c;
+}
+
+
+.turn-order__position-instance {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 239, 213, 0.68);
+  min-width: 2.1rem;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.turn-order__item--active .turn-order__position-instance {
+  color: rgba(255, 222, 156, 0.95);
 }
 
 .turn-order__name {
