@@ -6,12 +6,19 @@ import type { RootState } from '../../types'
 
 const QUEST_LOG_STORAGE_KEY = 'dnd-tracker-quest-logs-v1'
 const QUEST_LOG_DRAFT_STORAGE_KEY = 'dnd-tracker-quest-log-drafts-v1'
+const QUEST_LOG_MEMORY_FILE_STORAGE_KEY = 'dnd-tracker-quest-log-memory-file-v1'
 
 type QuestEntry = {
   id: string
   title: string
   text: string
   status: 'pending' | 'completed' | 'failed'
+}
+
+type QuestLogMemoryFile = {
+  version: 1
+  savedAtIso: string
+  entriesByCampaign: Record<string, QuestEntry[]>
 }
 
 export const QuestLogView: React.FC = () => {
@@ -30,8 +37,9 @@ export const QuestLogView: React.FC = () => {
   useEffect(() => {
     const savedEntries = localStorage.getItem(QUEST_LOG_STORAGE_KEY)
     const savedDrafts = localStorage.getItem(QUEST_LOG_DRAFT_STORAGE_KEY)
+    const savedMemoryFile = localStorage.getItem(QUEST_LOG_MEMORY_FILE_STORAGE_KEY)
 
-    if (!savedEntries && !savedDrafts) {
+    if (!savedEntries && !savedDrafts && !savedMemoryFile) {
       hasHydratedRef.current = true
       return
     }
@@ -40,6 +48,9 @@ export const QuestLogView: React.FC = () => {
       if (savedEntries) {
         const parsedEntries = JSON.parse(savedEntries) as Record<string, QuestEntry[]>
         setEntriesByCampaign(parsedEntries)
+      } else if (savedMemoryFile) {
+        const parsedMemoryFile = JSON.parse(savedMemoryFile) as QuestLogMemoryFile
+        setEntriesByCampaign(parsedMemoryFile.entriesByCampaign ?? {})
       }
 
       if (savedDrafts) {
@@ -49,6 +60,7 @@ export const QuestLogView: React.FC = () => {
     } catch {
       localStorage.removeItem(QUEST_LOG_STORAGE_KEY)
       localStorage.removeItem(QUEST_LOG_DRAFT_STORAGE_KEY)
+      localStorage.removeItem(QUEST_LOG_MEMORY_FILE_STORAGE_KEY)
     } finally {
       hasHydratedRef.current = true
     }
@@ -60,6 +72,12 @@ export const QuestLogView: React.FC = () => {
     }
 
     localStorage.setItem(QUEST_LOG_STORAGE_KEY, JSON.stringify(entriesByCampaign))
+    const memoryFile: QuestLogMemoryFile = {
+      version: 1,
+      savedAtIso: new Date().toISOString(),
+      entriesByCampaign,
+    }
+    localStorage.setItem(QUEST_LOG_MEMORY_FILE_STORAGE_KEY, JSON.stringify(memoryFile))
   }, [entriesByCampaign])
 
   useEffect(() => {
