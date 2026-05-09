@@ -44,6 +44,7 @@ interface MonsterEditDraft {
   armorClass: string
   hitPoints: string
   challengeRating: string
+  challengeXp: string
   damageImmunities: string[]
   damageResistances: string[]
   damageVulnerabilities: string[]
@@ -56,6 +57,7 @@ interface PlayerTemplateEditDraft {
   name: string
   maxHp: string
   armorClass: string
+  playerLevel: string
   profileUrl: string
   notes: string
   tags: string[]
@@ -139,6 +141,7 @@ export const CampaignManagerView: React.FC = () => {
     name: '',
     maxHp: '',
     armorClass: '',
+    playerLevel: '',
     profileUrl: '',
     notes: '',
     tags: [] as string[],
@@ -157,6 +160,8 @@ export const CampaignManagerView: React.FC = () => {
   const [playerTemplateEdits, setPlayerTemplateEdits] = useState<
     Record<string, PlayerTemplateEditDraft>
   >({})
+  const [pendingPlayerTemplateRemovalId, setPendingPlayerTemplateRemovalId] = useState<string | null>(null)
+  const [pendingMonsterRemovalId, setPendingMonsterRemovalId] = useState<string | null>(null)
   const [isCampaignDetailsCollapsed, setIsCampaignDetailsCollapsed] = useState(
     () => getStoredCollapseState().campaignDetails,
   )
@@ -169,6 +174,7 @@ export const CampaignManagerView: React.FC = () => {
   const [isMonstersCollapsed, setIsMonstersCollapsed] = useState(
     () => getStoredCollapseState().monsters,
   )
+  const [campaignMonsterSearch, setCampaignMonsterSearch] = useState('')
 
   const damageDefenseOptions = useMemo(
     () => MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'damage'),
@@ -249,6 +255,28 @@ export const CampaignManagerView: React.FC = () => {
       isFavorite: boolean
     }>
   }, [activeCampaign, monsterLibrary])
+
+
+  const filteredCampaignMonsterList = useMemo(() => {
+    const query = campaignMonsterSearch.trim().toLocaleLowerCase()
+    const filteredMonsters = !query
+      ? campaignMonsterList
+      : campaignMonsterList.filter(({ monster }) => {
+          const haystack = [
+            monster.name,
+            monster.description,
+            monster.challengeRating,
+            ...getMonsterDisplayTags(monster),
+          ]
+            .join(' ')
+            .toLocaleLowerCase()
+          return haystack.includes(query)
+        })
+
+    return [...filteredMonsters].sort((a, b) =>
+      a.monster.name.localeCompare(b.monster.name, undefined, { sensitivity: 'base' }),
+    )
+  }, [campaignMonsterList, campaignMonsterSearch])
 
   /**
    * Updates the campaign details draft whenever the active campaign changes.
@@ -393,7 +421,7 @@ export const CampaignManagerView: React.FC = () => {
    */
   const handlePlayerTemplateFormChange = useCallback(
     (
-      field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes' | 'tagDraft',
+      field: 'name' | 'maxHp' | 'armorClass' | 'playerLevel' | 'profileUrl' | 'notes' | 'tagDraft',
       value: string,
     ) => {
       setPlayerTemplateForm((prev) => ({
@@ -483,6 +511,10 @@ export const CampaignManagerView: React.FC = () => {
       const armorClass = Number.isFinite(armorClassValue)
         ? Math.max(0, Math.trunc(armorClassValue))
         : null
+      const playerLevelValue = Number.parseInt(playerTemplateForm.playerLevel, 10)
+      const playerLevel = Number.isFinite(playerLevelValue)
+        ? Math.max(1, Math.trunc(playerLevelValue))
+        : null
 
       const profileUrl = playerTemplateForm.profileUrl.trim()
       if (profileUrl && !/^https?:\/\//i.test(profileUrl)) {
@@ -497,6 +529,7 @@ export const CampaignManagerView: React.FC = () => {
             name,
             maxHp: Math.trunc(maxHpValue),
             armorClass,
+            playerLevel,
             profileUrl,
             notes: playerTemplateForm.notes,
             tags: playerTemplateForm.tags,
@@ -517,6 +550,7 @@ export const CampaignManagerView: React.FC = () => {
       playerTemplateForm.maxHp,
       playerTemplateForm.name,
       playerTemplateForm.notes,
+      playerTemplateForm.playerLevel,
       playerTemplateForm.profileUrl,
       resetPlayerTemplateForm,
     ],
@@ -525,7 +559,7 @@ export const CampaignManagerView: React.FC = () => {
   /**
    * Removes a player template from the active campaign roster.
    */
-  const handleRemovePlayerTemplate = useCallback(
+  const handleConfirmRemovePlayerTemplate = useCallback(
     (id: string) => {
       if (!activeCampaignId) {
         return
@@ -544,6 +578,7 @@ export const CampaignManagerView: React.FC = () => {
           characterId: id,
         }),
       )
+      setPendingPlayerTemplateRemovalId((prev) => (prev === id ? null : prev))
     },
     [activeCampaignId, dispatch],
   )
@@ -558,6 +593,7 @@ export const CampaignManagerView: React.FC = () => {
         name: template.name,
         maxHp: String(template.maxHp),
         armorClass: template.armorClass !== null ? String(template.armorClass) : '',
+        playerLevel: template.playerLevel !== null ? String(template.playerLevel) : '',
         profileUrl: template.profileUrl || '',
         notes: template.notes || '',
         tags: Array.isArray(template.tags) ? template.tags : [],
@@ -596,7 +632,7 @@ export const CampaignManagerView: React.FC = () => {
   const handlePlayerTemplateEditFieldChange = useCallback(
     (
       id: string,
-      field: 'name' | 'maxHp' | 'armorClass' | 'profileUrl' | 'notes' | 'tagDraft',
+      field: 'name' | 'maxHp' | 'armorClass' | 'playerLevel' | 'profileUrl' | 'notes' | 'tagDraft',
       value: string,
     ) => {
       setPlayerTemplateEdits((prev) => {
@@ -742,6 +778,10 @@ export const CampaignManagerView: React.FC = () => {
       const armorClass = Number.isFinite(armorClassValue)
         ? Math.max(0, Math.trunc(armorClassValue))
         : null
+      const playerLevelValue = Number.parseInt(draft.playerLevel, 10)
+      const playerLevel = Number.isFinite(playerLevelValue)
+        ? Math.max(1, Math.trunc(playerLevelValue))
+        : null
 
       const profileUrl = draft.profileUrl.trim()
       if (profileUrl && !/^https?:\/\//i.test(profileUrl)) {
@@ -769,6 +809,7 @@ export const CampaignManagerView: React.FC = () => {
             name,
             maxHp: Math.trunc(maxHpValue),
             armorClass,
+            playerLevel,
             profileUrl,
             notes: draft.notes,
             tags: draft.tags,
@@ -809,6 +850,7 @@ export const CampaignManagerView: React.FC = () => {
         armorClass: monster.armorClass !== null ? String(monster.armorClass) : '',
         hitPoints: monster.hitPoints !== null ? String(monster.hitPoints) : '',
         challengeRating: monster.challengeRating || '',
+        challengeXp: monster.challengeXp || '',
         damageImmunities: parseDefenseList(monster.damageImmunities),
         damageResistances: parseDefenseList(monster.damageResistances),
         damageVulnerabilities: parseDefenseList(monster.damageVulnerabilities),
@@ -1048,6 +1090,7 @@ export const CampaignManagerView: React.FC = () => {
       const hitPointsInput = typeof draft.hitPoints === 'string' ? draft.hitPoints.trim() : ''
       const challengeRatingInput =
         typeof draft.challengeRating === 'string' ? draft.challengeRating.trim() : ''
+      const challengeXpInput = typeof draft.challengeXp === 'string' ? draft.challengeXp.trim() : ''
 
       const damageImmunities = Array.isArray(draft.damageImmunities)
         ? draft.damageImmunities
@@ -1130,6 +1173,7 @@ export const CampaignManagerView: React.FC = () => {
           armorClass: armorClassValue,
           hitPoints: hitPointsValue,
           challengeRating: challengeRatingInput,
+          challengeXp: challengeXpInput,
           damageImmunities: damageImmunitiesString,
           damageResistances: damageResistancesString,
           damageVulnerabilities: damageVulnerabilitiesString,
@@ -1148,7 +1192,7 @@ export const CampaignManagerView: React.FC = () => {
   /**
    * Removes a monster from the active campaign library.
    */
-  const handleRemoveMonsterTemplateEntry = useCallback(
+  const handleConfirmRemoveMonsterTemplateEntry = useCallback(
     (monsterId: string) => {
       if (!activeCampaign) {
         return
@@ -1159,6 +1203,7 @@ export const CampaignManagerView: React.FC = () => {
           monsterId,
         }),
       )
+      setPendingMonsterRemovalId((prev) => (prev === monsterId ? null : prev))
     },
     [activeCampaign, dispatch],
   )
@@ -1422,6 +1467,17 @@ export const CampaignManagerView: React.FC = () => {
                           />
                         </label>
                         <label>
+                          <span>Player Level</span>
+                          <input
+                            value={playerTemplateForm.playerLevel}
+                            onChange={(event) =>
+                              handlePlayerTemplateFormChange('playerLevel', event.target.value)
+                            }
+                            placeholder="5"
+                            inputMode="numeric"
+                          />
+                        </label>
+                        <label>
                           <span>Character link</span>
                           <input
                             value={playerTemplateForm.profileUrl}
@@ -1625,6 +1681,9 @@ export const CampaignManagerView: React.FC = () => {
                                       {template.armorClass !== null && (
                                         <span className="stat-chip">AC {template.armorClass}</span>
                                       )}
+                                      {template.playerLevel !== null && (
+                                        <span className="stat-chip">Player Level {template.playerLevel}</span>
+                                      )}
                                     </div>
                                   </>
                                 )}
@@ -1656,13 +1715,32 @@ export const CampaignManagerView: React.FC = () => {
                                     >
                                       Edit
                                     </button>
-                                    <button
-                                      type="button"
-                                      className="ghost-button"
-                                      onClick={() => handleRemovePlayerTemplate(template.id)}
-                                    >
-                                      Remove
-                                    </button>
+                                    {pendingPlayerTemplateRemovalId === template.id ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          className="primary-button"
+                                          onClick={() => handleConfirmRemovePlayerTemplate(template.id)}
+                                        >
+                                          Yes
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="ghost-button"
+                                          onClick={() => setPendingPlayerTemplateRemovalId(null)}
+                                        >
+                                          No
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="ghost-button"
+                                        onClick={() => setPendingPlayerTemplateRemovalId(template.id)}
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
                                   </>
                                 )}
                               </div>
@@ -1699,6 +1777,21 @@ export const CampaignManagerView: React.FC = () => {
                                       }
                                       inputMode="numeric"
                                       placeholder="15"
+                                    />
+                                  </label>
+                                  <label>
+                                    <span>Player Level</span>
+                                    <input
+                                      value={editDraft?.playerLevel ?? ''}
+                                      onChange={(event) =>
+                                        handlePlayerTemplateEditFieldChange(
+                                          template.id,
+                                          'playerLevel',
+                                          event.target.value,
+                                        )
+                                      }
+                                      inputMode="numeric"
+                                      placeholder="5"
                                     />
                                   </label>
                                   <label>
@@ -2003,10 +2096,28 @@ export const CampaignManagerView: React.FC = () => {
                           <p>No monsters imported yet. Paste a D&D Beyond URL above to add one.</p>
                         </div>
                       ) : (
+                        <>
+                          <label className="form-row">
+                            <span>Search campaign monsters</span>
+                            <input
+                              type="search"
+                              value={campaignMonsterSearch}
+                              onChange={(event) => setCampaignMonsterSearch(event.target.value)}
+                              placeholder="Search by name, CR, or tag"
+                              autoComplete="off"
+                            />
+                          </label>
+                          {filteredCampaignMonsterList.length === 0 ? (
+                            <div className="monster-library__empty">
+                              <p>No campaign monsters match “{campaignMonsterSearch.trim()}”.</p>
+                            </div>
+                          ) : (
                         <ul className="monster-library__list">
-                          {campaignMonsterList.map(({ monster, entry, isFavorite }) => {
+                          {filteredCampaignMonsterList.map(({ monster, entry, isFavorite }) => {
                             const displayTags = getMonsterDisplayTags(monster).filter(
-                              (tag) => !isDefenseTag(tag),
+                              (tag) =>
+                                !isDefenseTag(tag) &&
+                                !tag.toLocaleLowerCase().startsWith('url source:'),
                             )
                             const editDraft = monsterEdits[monster.id] || null
                             const isEditing = Boolean(editDraft)
@@ -2049,6 +2160,16 @@ export const CampaignManagerView: React.FC = () => {
                                       {tag}
                                     </span>
                                   ))}
+                                  {monster.sourceUrl && (
+                                    <a
+                                      href={monster.sourceUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="monster-card__link"
+                                    >
+                                      Open monster profile
+                                    </a>
+                                  )}
                                 </div>
                               </div>
                               <div className="monster-card__header-actions">
@@ -2072,13 +2193,32 @@ export const CampaignManagerView: React.FC = () => {
                                 >
                                   {isEditing ? 'Cancel edit' : 'Edit details'}
                                 </button>
-                                <button
-                                  type="button"
-                                  className="ghost-button"
-                                  onClick={() => handleRemoveMonsterTemplateEntry(monster.id)}
-                                >
-                                  Remove
-                                </button>
+                                {pendingMonsterRemovalId === monster.id ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="primary-button"
+                                      onClick={() => handleConfirmRemoveMonsterTemplateEntry(monster.id)}
+                                    >
+                                      Yes
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-button"
+                                      onClick={() => setPendingMonsterRemovalId(null)}
+                                    >
+                                      No
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="ghost-button"
+                                    onClick={() => setPendingMonsterRemovalId(monster.id)}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
                               </div>
                             </header>
                             {isEditing ? (
@@ -2151,7 +2291,7 @@ export const CampaignManagerView: React.FC = () => {
                                 />
                               </label>
                               <label>
-                                <span>Challenge Rating</span>
+                                <span>CR</span>
                                 <input
                                   value={editDraft.challengeRating}
                                   onChange={(event) =>
@@ -2162,6 +2302,22 @@ export const CampaignManagerView: React.FC = () => {
                                     )
                                   }
                                   placeholder="5"
+                                  autoComplete="off"
+                                />
+                              </label>
+                              <label>
+                                <span>XP</span>
+                                <input
+                                  value={editDraft.challengeXp}
+                                  onChange={(event) =>
+                                    handleMonsterEditFieldChange(
+                                      monster.id,
+                                      'challengeXp',
+                                      event.target.value,
+                                    )
+                                  }
+                                  placeholder="1800"
+                                  inputMode="numeric"
                                   autoComplete="off"
                                 />
                               </label>
@@ -2373,16 +2529,6 @@ export const CampaignManagerView: React.FC = () => {
                                       </span>
                                     )}
                                   </div>
-                                  {monster.sourceUrl && (
-                                    <a
-                                      href={monster.sourceUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="monster-card__link"
-                                    >
-                                      View on D&D Beyond
-                                    </a>
-                                  )}
                                 </footer>
                               </>
                             )}
@@ -2390,6 +2536,8 @@ export const CampaignManagerView: React.FC = () => {
                         )
                       })}
                     </ul>
+                          )}
+                        </>
                       )}
                     </>
                   )}

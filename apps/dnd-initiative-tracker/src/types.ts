@@ -48,6 +48,7 @@ export interface CampaignCharacter {
   name: string
   maxHp: number
   armorClass: number | null
+  playerLevel: number | null
   profileUrl: string
   notes: string
   tags: string[]

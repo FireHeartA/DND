@@ -183,6 +183,22 @@
   font-weight: 600;
 }
 
+.summary__value--compact {
+  font-size: 1.4rem;
+}
+
+.summary__subtle {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: rgba(244, 241, 234, 0.72);
+  text-align: right;
+  max-width: 22rem;
+}
+
+.initiative-summary--difficulty {
+  max-width: 24rem;
+}
+
 .save-load-controls {
   display: flex;
   flex-direction: column;
