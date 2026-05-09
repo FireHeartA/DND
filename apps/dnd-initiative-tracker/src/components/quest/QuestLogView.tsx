@@ -1,25 +1,12 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
+import {  
+    setActiveCampaign as setActiveCampaignAction,
+  updateCampaignQuestEntries as updateCampaignQuestEntriesAction
+} from '../../store/campaignSlice'
 import type { AppDispatch } from '../../store'
-import type { RootState } from '../../types'
+import type { RootState, QuestEntry } from '../../types'
 
-const QUEST_LOG_STORAGE_KEY = 'dnd-tracker-quest-logs-v1'
-const QUEST_LOG_DRAFT_STORAGE_KEY = 'dnd-tracker-quest-log-drafts-v1'
-const QUEST_LOG_MEMORY_FILE_STORAGE_KEY = 'dnd-tracker-quest-log-memory-file-v1'
-
-type QuestEntry = {
-  id: string
-  title: string
-  text: string
-  status: 'pending' | 'completed' | 'failed'
-}
-
-type QuestLogMemoryFile = {
-  version: 1
-  savedAtIso: string
-  entriesByCampaign: Record<string, QuestEntry[]>
-}
 
 export const QuestLogView: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>()
@@ -28,78 +15,10 @@ export const QuestLogView: React.FC = () => {
 
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
-  const [status, setStatus] = useState('')
-  const [entriesByCampaign, setEntriesByCampaign] = useState<Record<string, QuestEntry[]>>({})
+  const [validationError, setValidationError] = useState('')
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [draftsByCampaign, setDraftsByCampaign] = useState<Record<string, { title: string; notes: string }>>({})
-  const hasHydratedRef = useRef(false)
+  const [editEntryId, setEditEntryId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const savedEntries = localStorage.getItem(QUEST_LOG_STORAGE_KEY)
-    const savedDrafts = localStorage.getItem(QUEST_LOG_DRAFT_STORAGE_KEY)
-    const savedMemoryFile = localStorage.getItem(QUEST_LOG_MEMORY_FILE_STORAGE_KEY)
-
-    if (!savedEntries && !savedDrafts && !savedMemoryFile) {
-      hasHydratedRef.current = true
-      return
-    }
-
-    try {
-      if (savedEntries) {
-        const parsedEntries = JSON.parse(savedEntries) as Record<string, QuestEntry[]>
-        setEntriesByCampaign(parsedEntries)
-      } else if (savedMemoryFile) {
-        const parsedMemoryFile = JSON.parse(savedMemoryFile) as QuestLogMemoryFile
-        setEntriesByCampaign(parsedMemoryFile.entriesByCampaign ?? {})
-      }
-
-      if (savedDrafts) {
-        const parsedDrafts = JSON.parse(savedDrafts) as Record<string, { title: string; notes: string }>
-        setDraftsByCampaign(parsedDrafts)
-      }
-    } catch {
-      localStorage.removeItem(QUEST_LOG_STORAGE_KEY)
-      localStorage.removeItem(QUEST_LOG_DRAFT_STORAGE_KEY)
-      localStorage.removeItem(QUEST_LOG_MEMORY_FILE_STORAGE_KEY)
-    } finally {
-      hasHydratedRef.current = true
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!hasHydratedRef.current) {
-      return
-    }
-
-    localStorage.setItem(QUEST_LOG_STORAGE_KEY, JSON.stringify(entriesByCampaign))
-    const memoryFile: QuestLogMemoryFile = {
-      version: 1,
-      savedAtIso: new Date().toISOString(),
-      entriesByCampaign,
-    }
-    localStorage.setItem(QUEST_LOG_MEMORY_FILE_STORAGE_KEY, JSON.stringify(memoryFile))
-  }, [entriesByCampaign])
-
-  useEffect(() => {
-    if (!hasHydratedRef.current) {
-      return
-    }
-
-    localStorage.setItem(QUEST_LOG_DRAFT_STORAGE_KEY, JSON.stringify(draftsByCampaign))
-  }, [draftsByCampaign])
-
-
-  useEffect(() => {
-    if (!activeCampaignId) {
-      setTitle('')
-      setNotes('')
-      return
-    }
-
-    const draft = draftsByCampaign[activeCampaignId]
-    setTitle(draft?.title ?? '')
-    setNotes(draft?.notes ?? '')
-  }, [activeCampaignId, draftsByCampaign])
   const activeCampaign = useMemo(() => {
     return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
   }, [campaigns, activeCampaignId])
@@ -108,76 +27,84 @@ export const QuestLogView: React.FC = () => {
     return [...campaigns].sort((a, b) => a.name.localeCompare(b.name))
   }, [campaigns])
 
-  const activeEntries = useMemo(() => {
-    if (!activeCampaignId) {
+  const campaignQuestEntries = useMemo(() => {
+    if (!activeCampaignId || !activeCampaign) {
       return []
     }
-    return entriesByCampaign[activeCampaignId] || []
-  }, [entriesByCampaign, activeCampaignId])
-
-  const hasEntries = useMemo(() => activeEntries.length > 0, [activeEntries])
+    return activeCampaign.questEntries || []
+  }, [activeCampaign, activeCampaignId])
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!activeCampaignId) {
-      setStatus('Choose a campaign before saving quests')
-      setTimeout(() => setStatus(''), 2500)
+      setValidationError('Choose a campaign before saving quests')
+      setTimeout(() => setValidationError(''), 2500)
       return
     }
 
     const trimmedTitle = title.trim()
     const trimmedNotes = notes.trim()
-    if (!trimmedNotes) {
-      setStatus('Add some quest details before confirming')
-      setTimeout(() => setStatus(''), 2500)
+    if (!trimmedNotes || !trimmedTitle) {
+      setValidationError('Add all fields before confirming')
+      setTimeout(() => setValidationError(''), 2500)
       return
     }
 
-    setEntriesByCampaign((previous) => {
-      const existing = previous[activeCampaignId] || []
-      return {
-        ...previous,
-        [activeCampaignId]: [
-          {
-            id: crypto.randomUUID(),
-            title: trimmedTitle || 'Untitled quest',
-            text: trimmedNotes,
-            status: 'pending',
-          },
-          ...existing,
-        ],
-      }
-    })
+    const existingQuestEntries = activeCampaign?.questEntries || [];
+    let updatedQuestEntries: QuestEntry[] = [];
+    if(!editEntryId) {
+      const newQuestEntry : QuestEntry = { 
+        id: crypto.randomUUID(), 
+        title: trimmedTitle || 'Untitled quest', 
+        text: trimmedNotes, 
+        status: 'pending' 
+      };
+      updatedQuestEntries = [...existingQuestEntries, newQuestEntry];
+    } else {
 
-    setDraftsByCampaign((previous) => ({
-      ...previous,
-      [activeCampaignId]: { title: '', notes: '' },
-    }))
+      updatedQuestEntries = existingQuestEntries.map((entry) => {
+        if (entry.id === editEntryId) {
+          return { ...entry, title: trimmedTitle || 'Untitled quest', text: trimmedNotes }
+        } 
+        return entry
+      })
+    }
+
+    dispatch(
+        updateCampaignQuestEntriesAction({
+        id: activeCampaignId,
+        questEntries: updatedQuestEntries,
+      }),
+    );
+    
     setTitle('')
     setNotes('')
-    setStatus('Quest log updated')
-    setTimeout(() => setStatus(''), 2500)
+    setEditEntryId(null)
+    setValidationError('Quest log updated')
+    setTimeout(() => setValidationError(''), 2500)
   }
 
   const handleStatusChange = (id: string, newStatus: QuestEntry['status']) => {
     if (!activeCampaignId) {
       return
     }
-
-    setEntriesByCampaign((previous) => {
-      const existing = previous[activeCampaignId] || []
-      return {
-        ...previous,
-        [activeCampaignId]: existing.map((entry) =>
-          entry.id === id
-            ? {
-                ...entry,
-                status: newStatus,
-              }
-            : entry
-        ),
+    const existingEntries = activeCampaign?.questEntries ? [...activeCampaign?.questEntries] : [];
+    const updatedEntries = existingEntries.map((entry) => {
+      console.log(entry)
+      if(entry.id === id) {
+        return {
+          ...entry,
+          status: newStatus
+        }
       }
-    })
+      return entry;
+    });
+    dispatch(
+        updateCampaignQuestEntriesAction({
+        id: activeCampaignId,
+        questEntries: updatedEntries,
+      }),
+    );
   }
 
 
@@ -192,14 +119,20 @@ export const QuestLogView: React.FC = () => {
     if (!activeCampaignId) {
       return
     }
+    if(pendingDeleteId !== id) {
+      // sanity check    
+      return
+    }
+    
+    const existingQuestEntries = activeCampaign?.questEntries || [];
 
-    setEntriesByCampaign((previous) => {
-      const existing = previous[activeCampaignId] || []
-      return {
-        ...previous,
-        [activeCampaignId]: existing.filter((entry) => entry.id !== id),
-      }
-    })
+    dispatch(
+      updateCampaignQuestEntriesAction({
+        id: activeCampaignId,
+        questEntries: existingQuestEntries.filter((entry) => entry.id !== pendingDeleteId),
+      }),
+    );
+
     setPendingDeleteId(null)
   }
 
@@ -207,11 +140,16 @@ export const QuestLogView: React.FC = () => {
     setPendingDeleteId(null)
   }
 
+  const handleEdit = (entry: QuestEntry) => {
+    setTitle(entry.title);
+    setNotes(entry.text);
+    setEditEntryId(entry.id);
+  }
+
   return (
     <section className="quest-log">
       <header className="quest-log__header">
         <div>
-          <p className="eyebrow">Campaign journal</p>
           <h2>Quest Logs</h2>
         </div>
         <p className="quest-log__lede">
@@ -223,7 +161,6 @@ export const QuestLogView: React.FC = () => {
         <h3 className="campaign-panel__title">Campaigns</h3>
         {sortedCampaigns.length > 0 ? (
           <label>
-            <span>Campaign</span>
             <select
               value={activeCampaign ? activeCampaign.id : ''}
               onChange={(event) => dispatch(setActiveCampaignAction(event.target.value))}
@@ -259,15 +196,6 @@ export const QuestLogView: React.FC = () => {
             onChange={(event) => {
               const nextTitle = event.target.value
               setTitle(nextTitle)
-              if (activeCampaignId) {
-                setDraftsByCampaign((previous) => ({
-                  ...previous,
-                  [activeCampaignId]: {
-                    title: nextTitle,
-                    notes,
-                  },
-                }))
-              }
             }}
           />
 
@@ -282,15 +210,6 @@ export const QuestLogView: React.FC = () => {
             onChange={(event) => {
               const nextNotes = event.target.value
               setNotes(nextNotes)
-              if (activeCampaignId) {
-                setDraftsByCampaign((previous) => ({
-                  ...previous,
-                  [activeCampaignId]: {
-                    title,
-                    notes: nextNotes,
-                  },
-                }))
-              }
             }}
           />
         </div>
@@ -298,38 +217,45 @@ export const QuestLogView: React.FC = () => {
           <button type="submit" className="primary-button">
             Confirm quest
           </button>
-          {status && <span className="quest-log__status">{status}</span>}
+          {validationError && <span className="quest-log__status">{validationError}</span>}
         </div>
       </form>
 
       <div className="quest-log__entries" aria-live="polite">
-        {hasEntries ? (
-          activeEntries.map((entry) => (
+        {campaignQuestEntries.length > 0 ? (
+          campaignQuestEntries.map((entry) => (
             <article
               key={entry.id}
               className={`quest-log__entry quest-log__entry--${entry.status}`}
             >
-              {pendingDeleteId === entry.id ? (
-                <div className="quest-log__inline-confirm">
-                  <button type="button" className="primary-button" onClick={() => confirmDeleteEntry(entry.id)}>
-                    Yes
-                  </button>
-                  <button type="button" className="ghost-button" onClick={cancelDeleteEntry}>
-                    No
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="quest-log__delete-button"
-                  aria-label="Delete quest"
-                  onClick={() => handleDeleteEntry(entry.id)}
-                >
-                  ×
-                </button>
-              )}
               <div className="quest-log__entry-body">
-                <h3 className="quest-log__entry-title">{entry.title}</h3>
+                <div className="treasure-ledger__entry-top">
+                  <h3 className="quest-log__entry-title">{entry.title}</h3>
+                  {pendingDeleteId === entry.id ? (
+                    <div className="quest-log__inline-confirm">
+                      <button type="button" className="primary-button" onClick={() => confirmDeleteEntry(entry.id)}>
+                        Yes
+                      </button>
+                      <button type="button" className="ghost-button" onClick={cancelDeleteEntry}>
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <button type="button" className="primary-button" onClick={() => handleEdit(entry)}>
+                        Edit Quest
+                      </button>
+                      <button
+                        type="button"
+                        className="quest-log__delete-button"
+                        aria-label="Delete quest"
+                        onClick={() => handleDeleteEntry(entry.id)}
+                        >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <p className="quest-log__entry-text">{entry.text}</p>
               </div>
               <div className="quest-log__entry-footer">

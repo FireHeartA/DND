@@ -1,53 +1,23 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
+import { 
+  setActiveCampaign as setActiveCampaignAction,
+  updateCampaignSessionLogs as updateCampaignSessionLogsAction, 
+} from '../../store/campaignSlice'
 import type { AppDispatch } from '../../store'
-import type { RootState } from '../../types'
-
-const SESSION_LOG_STORAGE_KEY = 'dnd-tracker-session-logs-v1'
-
-type SessionEntry = {
-  id: string
-  session: string
-  summary: string
-}
+import type { RootState, SessionLogEntry } from '../../types'
 
 export const SessionLogsView: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>()
   const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
   const activeCampaignId = useSelector((state: RootState) => state.campaigns.activeCampaignId)
 
-  const [session, setSession] = useState('')
-  const [summary, setSummary] = useState('')
-  const [status, setStatus] = useState('')
-  const [entriesByCampaign, setEntriesByCampaign] = useState<Record<string, SessionEntry[]>>({})
+  const [newSession, setNewSession] = useState('')
+  const [newSessionSummary, setNewSessionSummary] = useState('')
+  const [validationError, setValidationError] = useState('')
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const hasHydratedRef = useRef(false)
+  const [editEntryId, setEditEntryId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const savedEntries = localStorage.getItem(SESSION_LOG_STORAGE_KEY)
-    if (!savedEntries) {
-      hasHydratedRef.current = true
-      return
-    }
-
-    try {
-      const parsedEntries = JSON.parse(savedEntries) as Record<string, SessionEntry[]>
-      setEntriesByCampaign(parsedEntries)
-    } catch {
-      localStorage.removeItem(SESSION_LOG_STORAGE_KEY)
-    } finally {
-      hasHydratedRef.current = true
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!hasHydratedRef.current) {
-      return
-    }
-
-    localStorage.setItem(SESSION_LOG_STORAGE_KEY, JSON.stringify(entriesByCampaign))
-  }, [entriesByCampaign])
 
   const activeCampaign = useMemo(() => {
     return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
@@ -57,47 +27,55 @@ export const SessionLogsView: React.FC = () => {
     return [...campaigns].sort((a, b) => a.name.localeCompare(b.name))
   }, [campaigns])
 
-  const activeEntries = useMemo(() => {
-    if (!activeCampaignId) {
+  const campaignSessionLogs = useMemo(() => {
+    if (!activeCampaignId || !activeCampaign) {
       return []
     }
-    return entriesByCampaign[activeCampaignId] || []
-  }, [entriesByCampaign, activeCampaignId])
+    return activeCampaign.sessionLogs || []
+  }, [activeCampaign, activeCampaignId])
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!activeCampaignId) {
+      setValidationError('Choose a campaign before saving quests')
+      setTimeout(() => setValidationError(''), 2500)
+      return
+    }
+    const trimmedSession = newSession.trim()
+    const trimmedSummary = newSessionSummary.trim()
+    if (!trimmedSummary || !trimmedSession) {
+      setValidationError('Add all fields before submitting')
+      setTimeout(() => setValidationError(''), 2500)
       return
     }
 
-    const trimmedSession = session.trim()
-    const trimmedSummary = summary.trim()
+    const existingSessionLogs = activeCampaign?.sessionLogs || [];
 
-    if (!trimmedSummary) {
-      setStatus('Add a session summary before submitting')
-      setTimeout(() => setStatus(''), 2500)
-      return
+    let updatedSessionLogs: SessionLogEntry[] = [];
+    if(!editEntryId) {
+      const newSessionToAdd : SessionLogEntry = { id: crypto.randomUUID(), session: trimmedSession , summary: trimmedSummary };
+      updatedSessionLogs = [...existingSessionLogs, newSessionToAdd];
+    } else {
+      updatedSessionLogs = existingSessionLogs.map((entry) => {
+        if (entry.id === editEntryId) {
+          return { ...entry, session: trimmedSession, summary: trimmedSummary }
+        }
+        return entry
+      })
     }
 
-    setEntriesByCampaign((previous) => {
-      const existing = previous[activeCampaignId] || []
-      return {
-        ...previous,
-        [activeCampaignId]: [
-          {
-            id: crypto.randomUUID(),
-            session: trimmedSession || 'Session TBD',
-            summary: trimmedSummary,
-          },
-          ...existing,
-        ],
-      }
-    })
+    dispatch(
+      updateCampaignSessionLogsAction({
+        id: activeCampaignId,
+        sessionLogs: updatedSessionLogs,
+      }),
+    )
 
-    setSession('')
-    setSummary('')
-    setStatus('Session log added')
-    setTimeout(() => setStatus(''), 2500)
+    setNewSession('')
+    setNewSessionSummary('')
+    setEditEntryId(null)
+    setValidationError('Session log added')
+    setTimeout(() => setValidationError(''), 2500)
   }
 
   const handleDeleteEntry = (id: string) => {
@@ -111,26 +89,38 @@ export const SessionLogsView: React.FC = () => {
     if (!activeCampaignId) {
       return
     }
+    if(pendingDeleteId !== id) {
+      // sanity check    
+      return
+    }
+    
+    const existingSessionLogs = activeCampaign?.sessionLogs || [];
 
-    setEntriesByCampaign((previous) => {
-      const existing = previous[activeCampaignId] || []
-      return {
-        ...previous,
-        [activeCampaignId]: existing.filter((entry) => entry.id !== id),
-      }
-    })
+    dispatch(
+      updateCampaignSessionLogsAction({
+        id: activeCampaignId,
+        sessionLogs: existingSessionLogs.filter((entry) => entry.id !== pendingDeleteId),
+      }),
+    );
+
     setPendingDeleteId(null)
   }
 
+  
   const cancelDeleteEntry = () => {
     setPendingDeleteId(null)
   }
 
+  const handleEdit = (entry: SessionLogEntry) => {
+    setNewSession(entry.session);
+    setNewSessionSummary(entry.summary);
+    setEditEntryId(entry.id);
+  } 
+  
   return (
     <section className="quest-log">
       <header className="quest-log__header">
         <div>
-          <p className="eyebrow">Campaign journal</p>
           <h2>Session Logs</h2>
         </div>
       </header>
@@ -139,7 +129,6 @@ export const SessionLogsView: React.FC = () => {
         <h3 className="campaign-panel__title">Campaigns</h3>
         {sortedCampaigns.length > 0 ? (
           <label>
-            <span>Campaign</span>
             <select
               value={activeCampaign ? activeCampaign.id : ''}
               onChange={(event) => dispatch(setActiveCampaignAction(event.target.value))}
@@ -169,8 +158,8 @@ export const SessionLogsView: React.FC = () => {
             id="session-log-session"
             className="quest-log__input"
             placeholder="e.g. Session 7"
-            value={session}
-            onChange={(event) => setSession(event.target.value)}
+            value={newSession}
+            onChange={(event) => setNewSession(event.target.value)}
           />
 
           <label className="quest-log__label" htmlFor="session-log-summary">
@@ -180,43 +169,48 @@ export const SessionLogsView: React.FC = () => {
             id="session-log-summary"
             className="quest-log__textarea"
             placeholder="Capture highlights, roleplay moments, and important outcomes..."
-            value={summary}
-            onChange={(event) => setSummary(event.target.value)}
+            value={newSessionSummary}
+            onChange={(event) => setNewSessionSummary(event.target.value)}
           />
         </div>
         <div className="quest-log__actions">
           <button type="submit" className="primary-button">
-            Save session log
+            {editEntryId ? 'Update session log' : 'Add new session log'}
           </button>
-          {status && <span className="quest-log__status">{status}</span>}
+          {validationError && <span className="quest-log__status">{validationError}</span>}
         </div>
       </form>
 
       <div className="quest-log__entries" aria-live="polite">
-        {activeEntries.length > 0 ? (
-          activeEntries.map((entry) => (
+        {campaignSessionLogs.length > 0 ? (
+          campaignSessionLogs.map((entry) => (
             <article key={entry.id} className="quest-log__entry">
-              {pendingDeleteId === entry.id ? (
-                <div className="quest-log__inline-confirm">
-                  <button type="button" className="primary-button" onClick={() => confirmDeleteEntry(entry.id)}>
-                    Yes
-                  </button>
-                  <button type="button" className="ghost-button" onClick={cancelDeleteEntry}>
-                    No
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="quest-log__delete-button"
-                  aria-label="Delete session log"
-                  onClick={() => handleDeleteEntry(entry.id)}
-                >
-                  ×
-                </button>
-              )}
               <div className="quest-log__entry-body">
+                <div className="treasure-ledger__entry-top">
                 <h3 className="quest-log__entry-title">{entry.session}</h3>
+                  {pendingDeleteId === entry.id ? (
+                    <div className="quest-log__inline-confirm">
+                      <button type="button" className="primary-button" onClick={() => confirmDeleteEntry(entry.id)}>
+                        Yes
+                      </button>
+                      <button type="button" className="ghost-button" onClick={cancelDeleteEntry}>
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <button type="button" className="primary-button" onClick={() => handleEdit(entry)}>Edit entry</button>
+                      <button
+                        type="button"
+                        className="quest-log__delete-button"
+                        aria-label="Delete session log"
+                        onClick={() => handleDeleteEntry(entry.id)}
+                        >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <p className="quest-log__entry-text">{entry.summary}</p>
               </div>
             </article>

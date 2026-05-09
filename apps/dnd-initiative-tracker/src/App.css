@@ -1398,7 +1398,7 @@ textarea:focus {
 
 .turn-order__name {
   font-weight: 600;
-  color: rgba(244, 241, 234, 0.9);
+  color: rgba(219, 233, 238, 0.9);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2460,7 +2460,6 @@ textarea:focus {
 }
 
 .quest-log__delete-button {
-  position: absolute;
   top: 0.55rem;
   right: 0.6rem;
   z-index: 2;

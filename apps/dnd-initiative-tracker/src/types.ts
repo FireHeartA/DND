@@ -57,6 +57,32 @@ export interface CampaignCharacter {
   damageVulnerabilities: string[]
   createdAt: number
 }
+export interface QuestEntry {
+  id: string
+  title: string
+  text: string
+  status: 'pending' | 'completed' | 'failed'
+}
+
+export interface SessionLogEntry {
+  id: string
+  session: string
+  summary: string
+}
+
+export interface TreasureItem {
+  id: string
+  isClaimed: boolean
+  treasure: string
+  location: string
+  goldValue: string
+}
+
+export interface TreasureList {
+  id: string
+  header: string
+  items: TreasureItem[]
+}
 
 export interface Campaign {
   id: string
@@ -64,6 +90,9 @@ export interface Campaign {
   notes: string
   createdAt: number
   playerCharacters: CampaignCharacter[]
+  sessionLogs: SessionLogEntry[]
+  treasureLists: TreasureList[]
+  questEntries: QuestEntry[]
 }
 
 export interface CampaignState {
