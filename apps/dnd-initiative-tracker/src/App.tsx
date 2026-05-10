@@ -6,6 +6,8 @@ import { Sidebar, ViewMode } from './components/layout/Sidebar'
 import { CampaignManagerView } from './components/campaign/CampaignManagerView'
 import { InitiativeView } from './components/initiative/InitiativeView'
 import { QuestLogView } from './components/quest/QuestLogView'
+import { SessionLogsView } from './components/quest/SessionLogsView'
+import { TreasureLedgerView } from './components/quest/TreasureLedgerView'
 import {
   loadState as loadCombatStateAction,
   type LoadCombatStateArgs,
@@ -37,7 +39,9 @@ function App() {
     const state = store.getState()
     return {
       combat: state.combat,
-      campaigns: state.campaigns,
+      campaigns: {
+        campaigns: state.campaigns.campaigns,
+      },
       monsterLibrary: state.monsterLibrary,
     }
   }, [store])
@@ -200,7 +204,9 @@ function App() {
    */
   const campaignView = useMemo(() => <CampaignManagerView />, [])
   const questLogView = useMemo(() => <QuestLogView />, [])
- 
+  const sessionLogsView = useMemo(() => <SessionLogsView />, [])
+  const treasureLedgerView = useMemo(() => <TreasureLedgerView />, [])
+
 
   return (
     <div className="app-shell">
@@ -212,12 +218,13 @@ function App() {
         loadError={loadError}
         fileInputRef={fileInputRef}
         onFileChange={handleFileInputChange}
-        isDirty={isDirty}
       />
       <main className="main">
         {activeView === 'campaigns' && campaignView}
         {activeView === 'initiative' && initiativeView}
-        {activeView === 'quest-logs' && questLogView}        
+        {activeView === 'quest-logs' && questLogView}
+        {activeView === 'session-logs' && sessionLogsView}
+        {activeView === 'treasure-ledger' && treasureLedgerView}
       </main>
     </div>
   )

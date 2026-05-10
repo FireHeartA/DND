@@ -75,6 +75,7 @@ type CollapseState = {
   playerForm: boolean
   roster: boolean
   monsters: boolean
+  manualMonsterForm: boolean
 }
 
 const COLLAPSE_STATE_STORAGE_KEY = 'campaign-manager-collapse-state'
@@ -84,6 +85,7 @@ const DEFAULT_COLLAPSE_STATE: CollapseState = {
   playerForm: false,
   roster: false,
   monsters: false,
+  manualMonsterForm: false,
 }
 
 const getStoredCollapseState = (): CollapseState => {
@@ -103,6 +105,7 @@ const getStoredCollapseState = (): CollapseState => {
       playerForm: parsed.playerForm === true,
       roster: parsed.roster === true,
       monsters: parsed.monsters === true,
+      manualMonsterForm: parsed.manualMonsterForm === true,
     }
   } catch (error) {
     console.error('Failed to parse collapse state from local storage', error)
@@ -122,6 +125,37 @@ const stringifyDefenseList = (values: string[]): string => {
     })
     .filter(Boolean)
     .join(', ')
+}
+
+const parseDndBeyondCharacterSnapshot = (markdown: string): Partial<PlayerTemplateEditDraft> => {
+  const normalized = markdown.replace(/\r\n/g, '\n')
+  const extract = (pattern: RegExp): string | null => {
+    const match = normalized.match(pattern)
+    return match?.[1]?.trim() || null
+  }
+
+  const name =
+    extract(/^#\s+(.+)$/m) ||
+    extract(/^Title:\s*(.+)$/m) ||
+    extract(/^\s*Name\s*\n+(.+)$/m) ||
+    ''
+  const armorClass = extract(/Armor Class[:\s]+(\d{1,3})/i) || ''
+  const maxHp = extract(/Hit Points[:\s]+(\d{1,4})/i) || ''
+  const playerLevel = extract(/Level[:\s]+(\d{1,2})/i) || ''
+
+  return { name, armorClass, maxHp, playerLevel }
+}
+
+const importDndBeyondCharacterSnapshot = async (
+  characterUrl: string,
+): Promise<Partial<PlayerTemplateEditDraft>> => {
+  const normalized = normalizeDndBeyondUrl(characterUrl)
+  const response = await fetch(`https://r.jina.ai/${normalized.normalizedUrl}`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch character data. Check the URL and try again.')
+  }
+  const text = await response.text()
+  return parseDndBeyondCharacterSnapshot(text)
 }
 
 /**
@@ -152,10 +186,35 @@ export const CampaignManagerView: React.FC = () => {
   })
   const [playerTemplateForm, setPlayerTemplateForm] = useState(createEmptyPlayerTemplateForm())
   const [playerTemplateError, setPlayerTemplateError] = useState('')
+  const [isPlayerImporting, setIsPlayerImporting] = useState(false)
+  const [playerImportUrl, setPlayerImportUrl] = useState('')
+  const [playerImportError, setPlayerImportError] = useState('')
+  const [playerImportSuccess, setPlayerImportSuccess] = useState('')
+  const [isPlayerCharacterImporting, setIsPlayerCharacterImporting] = useState(false)
   const [monsterImportUrl, setMonsterImportUrl] = useState('')
   const [monsterImportError, setMonsterImportError] = useState('')
   const [monsterImportSuccess, setMonsterImportSuccess] = useState('')
   const [isMonsterImporting, setIsMonsterImporting] = useState(false)
+  const createEmptyManualMonsterForm = () => ({
+    name: '',
+    typeLine: '',
+    armorClass: '',
+    hitPoints: '',
+    speed: '',
+    challengeRating: '',
+    challengeXp: '',
+    languages: '',
+    senses: '',
+    sourceUrl: '',
+    notes: '',
+    tags: '',
+    damageImmunities: [] as string[],
+    damageResistances: [] as string[],
+    damageVulnerabilities: [] as string[],
+  })
+  const [manualMonsterForm, setManualMonsterForm] = useState(createEmptyManualMonsterForm())
+  const [manualMonsterError, setManualMonsterError] = useState('')
+  const [manualMonsterSuccess, setManualMonsterSuccess] = useState('')
   const [monsterEdits, setMonsterEdits] = useState<Record<string, MonsterEditDraft>>({})
   const [playerTemplateEdits, setPlayerTemplateEdits] = useState<
     Record<string, PlayerTemplateEditDraft>
@@ -173,6 +232,9 @@ export const CampaignManagerView: React.FC = () => {
   )
   const [isMonstersCollapsed, setIsMonstersCollapsed] = useState(
     () => getStoredCollapseState().monsters,
+  )
+  const [isManualMonsterFormCollapsed, setIsManualMonsterFormCollapsed] = useState(
+    () => getStoredCollapseState().manualMonsterForm,
   )
   const [campaignMonsterSearch, setCampaignMonsterSearch] = useState('')
 
@@ -304,10 +366,11 @@ export const CampaignManagerView: React.FC = () => {
       playerForm: isPlayerFormCollapsed,
       roster: isRosterCollapsed,
       monsters: isMonstersCollapsed,
+      manualMonsterForm: isManualMonsterFormCollapsed,
     }
 
     window.localStorage.setItem(COLLAPSE_STATE_STORAGE_KEY, JSON.stringify(payload))
-  }, [isCampaignDetailsCollapsed, isPlayerFormCollapsed, isRosterCollapsed, isMonstersCollapsed])
+  }, [isCampaignDetailsCollapsed, isPlayerFormCollapsed, isRosterCollapsed, isMonstersCollapsed, isManualMonsterFormCollapsed])
 
   /**
    * Clears monster import feedback when the user selects a different campaign.
@@ -554,6 +617,93 @@ export const CampaignManagerView: React.FC = () => {
       playerTemplateForm.profileUrl,
       resetPlayerTemplateForm,
     ],
+  )
+
+  const handleImportPlayerFromUrl = useCallback(async () => {
+    const trimmedUrl = playerTemplateForm.profileUrl.trim()
+    if (!trimmedUrl) {
+      setPlayerTemplateError('Provide a D&D Beyond character URL to import.')
+      return
+    }
+
+    setIsPlayerImporting(true)
+    setPlayerTemplateError('')
+    try {
+      const snapshot = await importDndBeyondCharacterSnapshot(trimmedUrl)
+      setPlayerTemplateForm((prev) => ({
+        ...prev,
+        name: snapshot.name || prev.name,
+        maxHp: snapshot.maxHp || prev.maxHp,
+        armorClass: snapshot.armorClass || prev.armorClass,
+        playerLevel: snapshot.playerLevel || prev.playerLevel,
+        profileUrl: trimmedUrl,
+      }))
+    } catch (error) {
+      console.error('Failed to import character', error)
+      setPlayerTemplateError(
+        error instanceof Error ? error.message : 'Something went wrong while importing the character.',
+      )
+    } finally {
+      setIsPlayerImporting(false)
+    }
+  }, [playerTemplateForm.profileUrl])
+
+  const handleImportPlayerCharacter = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (!activeCampaignId) {
+        setPlayerImportError('Select a campaign before importing player characters.')
+        return
+      }
+
+      const trimmedUrl = playerImportUrl.trim()
+      if (!trimmedUrl) {
+        setPlayerImportError('Provide a D&D Beyond character URL to import.')
+        return
+      }
+
+      setIsPlayerCharacterImporting(true)
+      setPlayerImportError('')
+      setPlayerImportSuccess('')
+      try {
+        const snapshot = await importDndBeyondCharacterSnapshot(trimmedUrl)
+        const importedName = snapshot.name?.trim()
+        const maxHpValue = Number.parseInt(snapshot.maxHp ?? '', 10)
+        if (!importedName || !Number.isFinite(maxHpValue) || maxHpValue <= 0) {
+          throw new Error('Could not read character name and max HP from that D&D Beyond URL.')
+        }
+
+        const armorClassValue = Number.parseInt(snapshot.armorClass ?? '', 10)
+        const playerLevelValue = Number.parseInt(snapshot.playerLevel ?? '', 10)
+        dispatch(
+          addPlayerCharacterAction({
+            campaignId: activeCampaignId,
+            character: {
+              name: importedName,
+              maxHp: Math.trunc(maxHpValue),
+              armorClass: Number.isFinite(armorClassValue) ? Math.max(0, Math.trunc(armorClassValue)) : null,
+              playerLevel: Number.isFinite(playerLevelValue) ? Math.max(1, Math.trunc(playerLevelValue)) : null,
+              profileUrl: trimmedUrl,
+              notes: '',
+              tags: [],
+              damageImmunities: [],
+              damageResistances: [],
+              damageVulnerabilities: [],
+            },
+          }),
+        )
+        setPlayerImportUrl('')
+        setPlayerImportSuccess(`Imported ${importedName} into this campaign's roster.`)
+      } catch (error) {
+        console.error('Failed to import character', error)
+        setPlayerImportError(
+          error instanceof Error ? error.message : 'Something went wrong while importing the character.',
+        )
+      } finally {
+        setIsPlayerCharacterImporting(false)
+      }
+    },
+    [activeCampaignId, dispatch, playerImportUrl],
   )
 
   /**
@@ -1292,6 +1442,95 @@ export const CampaignManagerView: React.FC = () => {
     setMonsterImportSuccess('')
   }, [])
 
+  const handleManualMonsterDefenseToggle = useCallback(
+    (field: PlayerDefenseField, value: string) => {
+      const normalized = value.trim().toLowerCase()
+      if (!normalized) {
+        return
+      }
+      setManualMonsterForm((prev) => {
+        const current = prev[field]
+        const exists = current.includes(normalized)
+        return {
+          ...prev,
+          [field]: exists ? current.filter((entry) => entry !== normalized) : [...current, normalized],
+        }
+      })
+    },
+    [],
+  )
+
+  const handleAddMonsterManually = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (!activeCampaign) {
+        setManualMonsterError('Select a campaign before adding monsters.')
+        return
+      }
+      const name = manualMonsterForm.name.trim()
+      if (!name) {
+        setManualMonsterError('Monster name is required.')
+        return
+      }
+      const armorClass = Number.parseInt(manualMonsterForm.armorClass, 10)
+      const hitPoints = Number.parseInt(manualMonsterForm.hitPoints, 10)
+      const tags = prepareMonsterTags(
+        manualMonsterForm.tags
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      )
+      dispatch(
+        importMonsterAction({
+          campaignId: activeCampaign.id,
+          monster: {
+            name,
+            sourceUrl: manualMonsterForm.sourceUrl.trim(),
+            typeLine: manualMonsterForm.typeLine.trim(),
+            armorClass: Number.isFinite(armorClass) ? armorClass : null,
+            armorNotes: '',
+            hitPoints: Number.isFinite(hitPoints) ? hitPoints : null,
+            hitDice: '',
+            speed: manualMonsterForm.speed.trim(),
+            abilityScores: { str: null, dex: null, con: null, int: null, wis: null, cha: null },
+            savingThrows: '',
+            skills: '',
+            damageVulnerabilities: stringifyDefenseList(manualMonsterForm.damageVulnerabilities),
+            damageResistances: stringifyDefenseList(manualMonsterForm.damageResistances),
+            damageImmunities: stringifyDefenseList(manualMonsterForm.damageImmunities),
+            conditionImmunities: '',
+            senses: manualMonsterForm.senses.trim(),
+            languages: manualMonsterForm.languages.trim(),
+            challengeRating: manualMonsterForm.challengeRating.trim(),
+            challengeXp: manualMonsterForm.challengeXp.trim(),
+            proficiencyBonus: '',
+            traits: [],
+            actions: [],
+            bonusActions: [],
+            reactions: [],
+            legendaryActions: [],
+            mythicActions: [],
+            lairActions: [],
+            regionalEffects: [],
+            description: [],
+            habitat: '',
+            source: 'Manual entry',
+            tags,
+            notes: manualMonsterForm.notes.trim(),
+            importedAt: Date.now(),
+            updatedAt: Date.now(),
+            totalUsageCount: 0,
+            lastUsedAt: null,
+          },
+        }),
+      )
+      setManualMonsterError('')
+      setManualMonsterSuccess(`Added ${name} to ${activeCampaign.name}.`)
+      setManualMonsterForm(createEmptyManualMonsterForm())
+    },
+    [activeCampaign, dispatch, manualMonsterForm],
+  )
+
   return (
     <>
       <section className="main__header">
@@ -1424,6 +1663,41 @@ export const CampaignManagerView: React.FC = () => {
                   )}
                 </form>
 
+                <form className="campaign-form" onSubmit={handleImportPlayerCharacter}>
+                  <h4>Import Player Characters</h4>
+                  <div className="form-grid campaign-form__grid">
+                    <label className="campaign-form__url">
+                      <span>Player Character URL</span>
+                      <input
+                        value={playerImportUrl}
+                        onChange={(event) => setPlayerImportUrl(event.target.value)}
+                        placeholder="https://www.dndbeyond.com/characters/..."
+                        inputMode="url"
+                        autoComplete="off"
+                      />
+                    </label>
+                  </div>
+                  {playerImportError && <p className="form-error">{playerImportError}</p>}
+                  {playerImportSuccess && <p className="form-success">{playerImportSuccess}</p>}
+                  <div className="campaign-form__actions">
+                    <button type="submit" className="primary-button" disabled={isPlayerCharacterImporting}>
+                      {isPlayerCharacterImporting ? 'Importing…' : 'Import player character'}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => {
+                        setPlayerImportUrl('')
+                        setPlayerImportError('')
+                        setPlayerImportSuccess('')
+                      }}
+                      disabled={isPlayerCharacterImporting}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </form>
+
                 <form className="campaign-form" onSubmit={handleAddPlayerTemplate}>
                   <div className="section-header">
                     <h4>Add a player character</h4>
@@ -1438,6 +1712,30 @@ export const CampaignManagerView: React.FC = () => {
                   {!isPlayerFormCollapsed && (
                     <>
                       <div className="form-grid campaign-form__grid">
+                        <label className="campaign-form__notes">
+                          <span>Player URL</span>
+                          <p className="campaign-form__hint">
+                            Paste a D&D Beyond character URL to import player characters.
+                          </p>
+                          <input
+                            value={playerTemplateForm.profileUrl}
+                            onChange={(event) =>
+                              handlePlayerTemplateFormChange('profileUrl', event.target.value)
+                            }
+                            placeholder="https://www.dndbeyond.com/characters/..."
+                            inputMode="url"
+                          />
+                          <div className="campaign-form__actions">
+                            <button
+                              type="button"
+                              className="ghost-button"
+                              onClick={handleImportPlayerFromUrl}
+                              disabled={isPlayerImporting}
+                            >
+                              {isPlayerImporting ? 'Importing…' : 'Import player data'}
+                            </button>
+                          </div>
+                        </label>
                         <label>
                           <span>Name</span>
                           <input
@@ -1484,7 +1782,7 @@ export const CampaignManagerView: React.FC = () => {
                             onChange={(event) =>
                               handlePlayerTemplateFormChange('profileUrl', event.target.value)
                             }
-                            placeholder="https://dndbeyond.com/profile/..."
+                            placeholder="https://www.dndbeyond.com/characters/..."
                             inputMode="url"
                           />
                         </label>
@@ -2074,11 +2372,57 @@ export const CampaignManagerView: React.FC = () => {
                     </button>
                   </div>
                 </form>
+                <form className="campaign-form" onSubmit={handleAddMonsterManually}>
+                  <div className="section-header">
+                    <h4>Add monster manually</h4>
+                    <button
+                      type="button"
+                      className="section-toggle"
+                      onClick={() => setIsManualMonsterFormCollapsed((prev) => !prev)}
+                    >
+                      {isManualMonsterFormCollapsed ? 'Expand' : 'Minimize'}
+                    </button>
+                  </div>
+                  {!isManualMonsterFormCollapsed && (
+                    <>
+                  <div className="form-grid campaign-form__grid">
+                    <label><span>Name</span><input value={manualMonsterForm.name} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, name: event.target.value }))} /></label>
+                    <label><span>Creature Type</span><input value={manualMonsterForm.typeLine} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, typeLine: event.target.value }))} placeholder="Large dragon, chaotic evil" /></label>
+                    <label><span>Armor Class</span><input value={manualMonsterForm.armorClass} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, armorClass: event.target.value }))} inputMode="numeric" /></label>
+                    <label><span>Hit Points</span><input value={manualMonsterForm.hitPoints} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, hitPoints: event.target.value }))} inputMode="numeric" /></label>
+                    <label><span>Speed</span><input value={manualMonsterForm.speed} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, speed: event.target.value }))} placeholder="40 ft., fly 80 ft." /></label>
+                    <label><span>Challenge Rating</span><input value={manualMonsterForm.challengeRating} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, challengeRating: event.target.value }))} placeholder="17" /></label>
+                    <label><span>Challenge XP</span><input value={manualMonsterForm.challengeXp} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, challengeXp: event.target.value }))} placeholder="18000" /></label>
+                    <label><span>Senses</span><input value={manualMonsterForm.senses} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, senses: event.target.value }))} /></label>
+                    <label><span>Languages</span><input value={manualMonsterForm.languages} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, languages: event.target.value }))} /></label>
+                    <label><span>Source URL</span><input value={manualMonsterForm.sourceUrl} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, sourceUrl: event.target.value }))} inputMode="url" /></label>
+                    <label><span>Tags (comma separated)</span><input value={manualMonsterForm.tags} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, tags: event.target.value }))} /></label>
+                    <label className="campaign-form__notes"><span>Notes</span><textarea rows={3} value={manualMonsterForm.notes} onChange={(event) => setManualMonsterForm((prev) => ({ ...prev, notes: event.target.value }))} /></label>
+                  </div>
+                  <div className="campaign-form__defenses">
+                    <div className="monster-card__defense-picker">
+                      {([{ field: 'damageImmunities' as const, label: 'Immunities' }, { field: 'damageResistances' as const, label: 'Resistances' }, { field: 'damageVulnerabilities' as const, label: 'Vulnerabilities' }] as const).map(({ field, label }) => (
+                        <div key={field} className="monster-card__defense-field">
+                          <label><span>{label}</span><select value="" onChange={(event) => handleManualMonsterDefenseToggle(field, event.target.value)}><option value="" disabled>Add a defense</option><optgroup label="Damage types">{damageDefenseOptions.map((option) => <option key={`${field}-${option.value}`} value={option.value} disabled={manualMonsterForm[field].includes(option.value)}>{option.label}</option>)}</optgroup><optgroup label="Conditions">{conditionDefenseOptions.map((option) => <option key={`${field}-${option.value}`} value={option.value} disabled={manualMonsterForm[field].includes(option.value)}>{option.label}</option>)}</optgroup></select></label>
+                          <div className="monster-card__defense-chips">{manualMonsterForm[field].length > 0 ? manualMonsterForm[field].map((value) => { const { backgroundColor, borderColor, color, option } = getDefenseChipStyle(value); return <span key={`${field}-${value}`} className="monster-card__defense-chip" style={{ backgroundColor, borderColor, color }}><span className="monster-card__defense-icon" aria-hidden="true">{option?.icon || '◆'}</span><span>{option?.label || value}</span><button type="button" onClick={() => handleManualMonsterDefenseToggle(field, value)} aria-label={`Remove ${option?.label || value}`}>×</button></span> }) : <span className="monster-card__edit-tags-empty">No selections yet.</span>}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {manualMonsterError && <p className="form-error">{manualMonsterError}</p>}
+                  {manualMonsterSuccess && <p className="form-success">{manualMonsterSuccess}</p>}
+                  <div className="campaign-form__actions">
+                    <button type="submit" className="primary-button">Add monster</button>
+                    <button type="button" className="ghost-button" onClick={() => { setManualMonsterForm(createEmptyManualMonsterForm()); setManualMonsterError(''); setManualMonsterSuccess('') }}>Clear</button>
+                  </div>
+                    </>
+                  )}
+                </form>
 
                 <div className="monster-library">
                   <div className="monster-library__header section-header">
                     <div>
-                      <h4>Campaign monsters</h4>
+                      <h4>Saved Campaign Monsters</h4>
                       <p>Keep your frequently used foes ready for quick initiative drops.</p>
                     </div>
                     <button
@@ -2197,14 +2541,14 @@ export const CampaignManagerView: React.FC = () => {
                                   <>
                                     <button
                                       type="button"
-                                      className="primary-button"
+                                      className="primary-button monster-card__remove-confirm-yes"
                                       onClick={() => handleConfirmRemoveMonsterTemplateEntry(monster.id)}
                                     >
                                       Yes
                                     </button>
                                     <button
                                       type="button"
-                                      className="ghost-button"
+                                      className="ghost-button monster-card__remove-confirm-no"
                                       onClick={() => setPendingMonsterRemovalId(null)}
                                     >
                                       No

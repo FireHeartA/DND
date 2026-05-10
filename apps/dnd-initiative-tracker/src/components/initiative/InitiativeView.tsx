@@ -305,7 +305,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
       if (combatant.type === 'monster') {
         const maxInstance = maxMonsterInstanceByName.get(combatant.name) ?? 0
         if (maxInstance > 1 && combatant.monsterInstanceNumber !== null) {
-          names[combatant.id] = `${combatant.name} (${combatant.monsterInstanceNumber})`
+          names[combatant.id] = `(${combatant.monsterInstanceNumber}) ${combatant.name}`
           return
         }
       }
@@ -2152,7 +2152,7 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
           <section className="initiative-monsters">
             <header className="initiative-monsters__header">
               <div>
-                <h3>Campaign monsters</h3>
+                <h3>Saved Campaign Monsters</h3>
                 <p>Drop imported monsters into combat with a single click.</p>
               </div>
               <div className="initiative-monsters__controls">

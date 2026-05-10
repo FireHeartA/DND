@@ -1,21 +1,10 @@
 import { createSlice, nanoid, PayloadAction } from '@reduxjs/toolkit'
-import type { Campaign, CampaignCharacter, CampaignState } from '../types'
+import type { Campaign, CampaignCharacter, CampaignState, QuestEntry, SessionLogEntry, TreasureItem, TreasureList } from '../types'
 
 /**
- * Trims a string and ensures it is safe to store as a campaign or character name.
+ * Trims a string and ensures it is safe to store
  */
-const sanitizeName = (value: unknown): string => {
-  if (typeof value !== 'string') {
-    return ''
-  }
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : ''
-}
-
-/**
- * Produces a cleaned-up note field while preserving intentional whitespace.
- */
-const sanitizeNotes = (value: unknown): string => {
+const sanitizeString = (value: unknown): string => {
   if (typeof value !== 'string') {
     return ''
   }
@@ -99,7 +88,7 @@ const sanitizeCharacter = (character: unknown): CampaignCharacter | null => {
   }
 
   const candidate = character as Partial<CampaignCharacter>
-  const name = sanitizeName(candidate.name)
+  const name = sanitizeString(candidate.name)
   const maxHpValue = Number.parseInt(String(candidate.maxHp ?? ''), 10)
   const maxHp = Number.isFinite(maxHpValue) ? Math.max(1, Math.trunc(maxHpValue)) : null
 
@@ -128,6 +117,74 @@ const sanitizeCharacter = (character: unknown): CampaignCharacter | null => {
     createdAt: Number.isFinite(createdAtValue) ? createdAtValue : Date.now(),
   }
 }
+const sanitizeSessionLog = (entry: unknown): SessionLogEntry | null => {
+  if (!entry || typeof entry !== 'object') {
+    return null
+  }
+
+  const candidate = entry as Partial<SessionLogEntry>
+  const session = sanitizeString(candidate.session)
+  const summary = sanitizeString(candidate.summary)
+
+  return {
+    id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : nanoid(),
+    session,
+    summary,
+  }
+}
+
+const sanitizeQuestEntry = (entry: unknown): QuestEntry | null => {
+  if (!entry || typeof entry !== 'object') {
+    return null
+  }
+    const candidate = entry as Partial<QuestEntry>
+  const title = sanitizeString(candidate.title)
+  const text = sanitizeString(candidate.text)
+  // defaults to pending if invalid or missing
+  const status = candidate.status === 'pending' || candidate.status === 'completed' || candidate.status === 'failed' ? candidate.status : 'pending'
+  return {
+    id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : nanoid(),
+    title,
+    text,
+    status,
+  }
+}
+
+const sanitizeTreasureItem = (item: unknown): TreasureItem | null => {
+  if (!item || typeof item !== 'object') {
+    return null
+  }
+
+  const candidate = item as Partial<TreasureItem>
+  const treasure = sanitizeString(candidate.treasure)
+  const location = sanitizeString(candidate.location)
+  const goldValue = sanitizeString(candidate.goldValue)
+
+  return {
+    id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : nanoid(),
+    isClaimed: typeof candidate.isClaimed === 'boolean' ? candidate.isClaimed : false,
+    treasure,
+    location,
+    goldValue,
+  }
+}
+
+const sanitizeTreasureLists = (list: unknown): TreasureList | null => {
+  if (!list || typeof list !== 'object') {
+    return null
+  }
+
+  const candidate = list as Partial<TreasureList>
+  const header = sanitizeString(candidate.header)
+  const items = Array.isArray(candidate.items) ? candidate.items.map(sanitizeTreasureItem).filter(Boolean) as TreasureItem[] : []
+
+  return {
+    id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : nanoid(),
+    header,
+    items,
+  }
+}
+
 
 /**
  * Converts untrusted campaign data into the sanitized shape stored in Redux.
@@ -138,16 +195,19 @@ const sanitizeCampaign = (campaign: unknown): Campaign | null => {
   }
 
   const candidate = campaign as Partial<Campaign>
-  const name = sanitizeName(candidate.name)
+  const name = sanitizeString(candidate.name)
   if (!name) {
     return null
   }
 
   const createdAtValue = Number.parseInt(String(candidate.createdAt ?? ''), 10)
-  const notes = sanitizeNotes(candidate.notes)
+  const notes = sanitizeString(candidate.notes)
   const playerCharacters = Array.isArray(candidate.playerCharacters)
     ? (candidate.playerCharacters.map(sanitizeCharacter).filter(Boolean) as CampaignCharacter[])
     : []
+  const sessionLogs = Array.isArray(candidate.sessionLogs) ? candidate.sessionLogs.map(sanitizeSessionLog).filter(Boolean) as SessionLogEntry[] : [];
+  const questEntries = Array.isArray(candidate.questEntries) ? candidate.questEntries.map(sanitizeQuestEntry).filter(Boolean) as QuestEntry[] : [];
+  const treasureLists = Array.isArray(candidate.treasureLists) ? candidate.treasureLists.map(sanitizeTreasureLists).filter(Boolean) as TreasureList[] : [];
 
   return {
     id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : nanoid(),
@@ -155,6 +215,9 @@ const sanitizeCampaign = (campaign: unknown): Campaign | null => {
     notes,
     createdAt: Number.isFinite(createdAtValue) ? createdAtValue : Date.now(),
     playerCharacters,
+    sessionLogs,
+    questEntries,
+    treasureLists,
   }
 }
 
@@ -176,6 +239,19 @@ export interface UpdateCampaignDetailsArgs {
   name: string
   notes: string
 }
+export interface UpdateCampaignSessionLogsArgs {
+  id: string
+  sessionLogs: SessionLogEntry[],
+}
+export interface UpdateCampaignQuestEntriesArgs {
+  id: string
+  questEntries: QuestEntry[],
+}
+export interface UpdateCampaignTreasureListsArgs {
+  id: string
+  treasureLists: TreasureList[],
+} 
+
 
 export interface AddPlayerCharacterArgs {
   campaignId: string
@@ -218,7 +294,7 @@ const campaignsSlice = createSlice({
      */
     createCampaign: {
       prepare({ name }: CreateCampaignArgs) {
-        const sanitizedName = sanitizeName(name)
+        const sanitizedName = sanitizeString(name)
         return {
           payload: {
             id: nanoid(),
@@ -226,6 +302,9 @@ const campaignsSlice = createSlice({
             notes: '',
             createdAt: Date.now(),
             playerCharacters: [] as CampaignCharacter[],
+            sessionLogs: [] as SessionLogEntry[],
+            treasureLists: [] as TreasureList[],
+            questEntries: [] as QuestEntry[],
           },
         }
       },
@@ -264,15 +343,62 @@ const campaignsSlice = createSlice({
         return
       }
 
-      const sanitizedName = sanitizeName(name)
+      const sanitizedName = sanitizeString(name)
       if (sanitizedName) {
         campaign.name = sanitizedName
       }
-
-      if (typeof notes === 'string') {
-        campaign.notes = notes
+      const sanitizedNotes = sanitizeString(notes)
+      if (sanitizedNotes) {
+        campaign.notes = sanitizedNotes
       }
     },
+    
+    /**
+     * Updates a campaign's sessionLogs without affecting other fields.
+     */
+    updateCampaignSessionLogs(state, action: PayloadAction<UpdateCampaignSessionLogsArgs>) {
+      const { id, sessionLogs } = action.payload
+      const campaign = state.campaigns.find((entry) => entry.id === id)
+      if (!campaign) {
+        return
+      }
+
+      const sanitizedSessionLogs = Array.isArray(sessionLogs) ? sessionLogs.map(sanitizeSessionLog).filter(Boolean) as SessionLogEntry[] : null;
+      if (sanitizedSessionLogs) {
+        campaign.sessionLogs = sanitizedSessionLogs
+      }
+    },
+    /**
+     * Updates a campaign's questEntries without affecting other fields.
+     */
+    updateCampaignQuestEntries(state, action: PayloadAction<UpdateCampaignQuestEntriesArgs>) {
+      const { id, questEntries } = action.payload
+      const campaign = state.campaigns.find((entry) => entry.id === id) 
+      ;
+      if (!campaign) {
+        return
+      }
+      const sanitizedQuestEntries = Array.isArray(questEntries) ? questEntries.map(sanitizeQuestEntry).filter(Boolean) as QuestEntry[] : null;
+      if (sanitizedQuestEntries) {
+        campaign.questEntries = sanitizedQuestEntries
+      }
+    },
+
+    /**
+     * Updates a campaign's treasureLists without affecting other fields.
+     */
+    updateCampaignTreasureLists(state, action: PayloadAction<UpdateCampaignTreasureListsArgs>) {
+      const { id, treasureLists } = action.payload
+      const campaign = state.campaigns.find((entry) => entry.id === id)
+      if (!campaign) {
+        return
+      }
+      const sanitizedTreasureLists = Array.isArray(treasureLists) ? treasureLists.map(sanitizeTreasureLists).filter(Boolean) as TreasureList[] : null;
+      if (sanitizedTreasureLists) {
+        campaign.treasureLists = sanitizedTreasureLists
+      }
+    },
+
     /**
      * Adds a character template to a campaign's roster.
      */
@@ -335,7 +461,7 @@ const campaignsSlice = createSlice({
         return
       }
 
-      const sanitizedName = sanitizeName(character.name)
+      const sanitizedName = sanitizeString(character.name)
       if (!sanitizedName) {
         return
       }
@@ -394,6 +520,9 @@ export const {
   setActiveCampaign,
   removeCampaign,
   updateCampaignDetails,
+  updateCampaignSessionLogs,
+  updateCampaignQuestEntries,
+  updateCampaignTreasureLists,
   addPlayerCharacter,
   removePlayerCharacter,
   updatePlayerCharacter,

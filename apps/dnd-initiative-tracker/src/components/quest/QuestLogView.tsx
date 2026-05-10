@@ -1,68 +1,204 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import {  
+    setActiveCampaign as setActiveCampaignAction,
+  updateCampaignQuestEntries as updateCampaignQuestEntriesAction
+} from '../../store/campaignSlice'
+import type { AppDispatch } from '../../store'
+import type { RootState, QuestEntry } from '../../types'
 
-type QuestEntry = {
-  id: string
-  text: string
-  status: 'pending' | 'completed' | 'failed'
-}
 
 export const QuestLogView: React.FC = () => {
-  const [notes, setNotes] = useState('')
-  const [status, setStatus] = useState('')
-  const [entries, setEntries] = useState<QuestEntry[]>([])
+  const dispatch = useDispatch<AppDispatch>()
+  const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
+  const activeCampaignId = useSelector((state: RootState) => state.campaigns.activeCampaignId)
 
-  const hasEntries = useMemo(() => entries.length > 0, [entries])
+  const [title, setTitle] = useState('')
+  const [notes, setNotes] = useState('')
+  const [validationError, setValidationError] = useState('')
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [editEntryId, setEditEntryId] = useState<string | null>(null)
+
+  const activeCampaign = useMemo(() => {
+    return campaigns.find((campaign) => campaign.id === activeCampaignId) || null
+  }, [campaigns, activeCampaignId])
+
+  const sortedCampaigns = useMemo(() => {
+    return [...campaigns].sort((a, b) => a.name.localeCompare(b.name))
+  }, [campaigns])
+
+  const campaignQuestEntries = useMemo(() => {
+    if (!activeCampaignId || !activeCampaign) {
+      return []
+    }
+    return activeCampaign.questEntries || []
+  }, [activeCampaign, activeCampaignId])
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const trimmedNotes = notes.trim()
-    if (!trimmedNotes) {
-      setStatus('Add some quest details before confirming')
-      setTimeout(() => setStatus(''), 2500)
+    if (!activeCampaignId) {
+      setValidationError('Choose a campaign before saving quests')
+      setTimeout(() => setValidationError(''), 2500)
       return
     }
 
-    setEntries((previous) => [
-      {
-        id: crypto.randomUUID(),
-        text: trimmedNotes,
-        status: 'pending',
-      },
-      ...previous,
-    ])
+    const trimmedTitle = title.trim()
+    const trimmedNotes = notes.trim()
+    if (!trimmedNotes || !trimmedTitle) {
+      setValidationError('Add all fields before confirming')
+      setTimeout(() => setValidationError(''), 2500)
+      return
+    }
 
+    const existingQuestEntries = activeCampaign?.questEntries || [];
+    let updatedQuestEntries: QuestEntry[] = [];
+    if(!editEntryId) {
+      const newQuestEntry : QuestEntry = { 
+        id: crypto.randomUUID(), 
+        title: trimmedTitle || 'Untitled quest', 
+        text: trimmedNotes, 
+        status: 'pending' 
+      };
+      updatedQuestEntries = [...existingQuestEntries, newQuestEntry];
+    } else {
+
+      updatedQuestEntries = existingQuestEntries.map((entry) => {
+        if (entry.id === editEntryId) {
+          return { ...entry, title: trimmedTitle || 'Untitled quest', text: trimmedNotes }
+        } 
+        return entry
+      })
+    }
+
+    dispatch(
+        updateCampaignQuestEntriesAction({
+        id: activeCampaignId,
+        questEntries: updatedQuestEntries,
+      }),
+    );
+    
+    setTitle('')
     setNotes('')
-    setStatus('Quest log updated')
-    setTimeout(() => setStatus(''), 2500)
+    setEditEntryId(null)
+    setValidationError('Quest log updated')
+    setTimeout(() => setValidationError(''), 2500)
   }
 
   const handleStatusChange = (id: string, newStatus: QuestEntry['status']) => {
-    setEntries((previous) =>
-      previous.map((entry) =>
-        entry.id === id
-          ? {
-              ...entry,
-              status: newStatus,
-            }
-          : entry
-      )
-    )
+    if (!activeCampaignId) {
+      return
+    }
+    const existingEntries = activeCampaign?.questEntries ? [...activeCampaign?.questEntries] : [];
+    const updatedEntries = existingEntries.map((entry) => {
+      console.log(entry)
+      if(entry.id === id) {
+        return {
+          ...entry,
+          status: newStatus
+        }
+      }
+      return entry;
+    });
+    dispatch(
+        updateCampaignQuestEntriesAction({
+        id: activeCampaignId,
+        questEntries: updatedEntries,
+      }),
+    );
+  }
+
+
+  const handleDeleteEntry = (id: string) => {
+    if (pendingDeleteId === id) {
+      return
+    }
+    setPendingDeleteId(id)
+  }
+
+  const confirmDeleteEntry = (id: string) => {
+    if (!activeCampaignId) {
+      return
+    }
+    if(pendingDeleteId !== id) {
+      // sanity check    
+      return
+    }
+    
+    const existingQuestEntries = activeCampaign?.questEntries || [];
+
+    dispatch(
+      updateCampaignQuestEntriesAction({
+        id: activeCampaignId,
+        questEntries: existingQuestEntries.filter((entry) => entry.id !== pendingDeleteId),
+      }),
+    );
+
+    setPendingDeleteId(null)
+  }
+
+  const cancelDeleteEntry = () => {
+    setPendingDeleteId(null)
+  }
+
+  const handleEdit = (entry: QuestEntry) => {
+    setTitle(entry.title);
+    setNotes(entry.text);
+    setEditEntryId(entry.id);
   }
 
   return (
     <section className="quest-log">
       <header className="quest-log__header">
         <div>
-          <p className="eyebrow">Campaign journal</p>
-          <h2>Quest logs</h2>
+          <h2>Quest Logs</h2>
         </div>
         <p className="quest-log__lede">
           Chronicle your party&apos;s adventures, track objectives, and keep the tale alive between sessions.
         </p>
       </header>
 
+      <section className="campaign-panel">
+        <h3 className="campaign-panel__title">Campaigns</h3>
+        {sortedCampaigns.length > 0 ? (
+          <label>
+            <select
+              value={activeCampaign ? activeCampaign.id : ''}
+              onChange={(event) => dispatch(setActiveCampaignAction(event.target.value))}
+            >
+              <option value="" disabled>
+                Select campaign
+              </option>
+              {sortedCampaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <p className="quest-log__empty">No campaigns available yet. Create one in Campaign Manager first.</p>
+        )}
+        {activeCampaign && (
+          <p className="quest-log__status">Showing quests for: {activeCampaign.name}</p>
+        )}
+      </section>
+
       <form className="quest-log__form" onSubmit={handleSubmit}>
         <div className="quest-log__scroll" aria-label="Quest log editor">
+          <label className="quest-log__label" htmlFor="quest-title">
+            Quest header
+          </label>
+          <input
+            id="quest-title"
+            className="quest-log__input"
+            placeholder="e.g. The Amber Keep Expedition"
+            value={title}
+            onChange={(event) => {
+              const nextTitle = event.target.value
+              setTitle(nextTitle)
+            }}
+          />
+
           <label className="quest-log__label" htmlFor="quest-notes">
             Quest entry
           </label>
@@ -71,25 +207,55 @@ export const QuestLogView: React.FC = () => {
             className="quest-log__textarea"
             placeholder="Record rumors, objectives, and key NPC details here..."
             value={notes}
-            onChange={(event) => setNotes(event.target.value)}
+            onChange={(event) => {
+              const nextNotes = event.target.value
+              setNotes(nextNotes)
+            }}
           />
         </div>
         <div className="quest-log__actions">
           <button type="submit" className="primary-button">
             Confirm quest
           </button>
-          {status && <span className="quest-log__status">{status}</span>}
+          {validationError && <span className="quest-log__status">{validationError}</span>}
         </div>
       </form>
 
       <div className="quest-log__entries" aria-live="polite">
-        {hasEntries ? (
-          entries.map((entry) => (
+        {campaignQuestEntries.length > 0 ? (
+          campaignQuestEntries.map((entry) => (
             <article
               key={entry.id}
               className={`quest-log__entry quest-log__entry--${entry.status}`}
             >
               <div className="quest-log__entry-body">
+                <div className="treasure-ledger__entry-top">
+                  <h3 className="quest-log__entry-title">{entry.title}</h3>
+                  {pendingDeleteId === entry.id ? (
+                    <div className="quest-log__inline-confirm">
+                      <button type="button" className="primary-button" onClick={() => confirmDeleteEntry(entry.id)}>
+                        Yes
+                      </button>
+                      <button type="button" className="ghost-button" onClick={cancelDeleteEntry}>
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <button type="button" className="primary-button" onClick={() => handleEdit(entry)}>
+                        Edit Quest
+                      </button>
+                      <button
+                        type="button"
+                        className="quest-log__delete-button"
+                        aria-label="Delete quest"
+                        onClick={() => handleDeleteEntry(entry.id)}
+                        >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <p className="quest-log__entry-text">{entry.text}</p>
               </div>
               <div className="quest-log__entry-footer">
@@ -100,13 +266,15 @@ export const QuestLogView: React.FC = () => {
                 >
                   Completed
                 </button>
-                <button
-                  type="button"
-                  className="danger-button"
-                  onClick={() => handleStatusChange(entry.id, 'failed')}
-                >
-                  Failed
-                </button>
+                <div className="quest-log__entry-secondary-actions">
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={() => handleStatusChange(entry.id, 'failed')}
+                  >
+                    Failed
+                  </button>
+                </div>
               </div>
             </article>
           ))
