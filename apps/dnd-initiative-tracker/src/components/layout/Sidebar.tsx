@@ -1,4 +1,9 @@
-import type { ChangeEvent, RefObject } from 'react'
+import type { ChangeEvent, FormEvent, RefObject } from 'react'
+import { useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { createCampaign as createCampaignAction, setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
+import type { AppDispatch } from '../../store'
+import type { RootState } from '../../types'
 
 export type ViewMode = 'initiative' | 'campaigns' | 'quest-logs' | 'session-logs' | 'treasure-ledger'
 
@@ -23,13 +28,62 @@ export const Sidebar: React.FC<SidebarProps> = ({
   loadError,
   fileInputRef,
   onFileChange,
-}) => (
+}) => {
+  const dispatch = useDispatch<AppDispatch>()
+  const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
+  const activeCampaignId = useSelector((state: RootState) => state.campaigns.activeCampaignId)
+  const [campaignName, setCampaignName] = useState('')
+  const [campaignFormError, setCampaignFormError] = useState('')
+
+  const sortedCampaigns = [...campaigns].sort((a, b) => a.createdAt - b.createdAt)
+
+  const handleCreateCampaign = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const name = campaignName.trim()
+    if (!name) {
+      setCampaignFormError('Name your campaign to begin planning your adventures.')
+      return
+    }
+    dispatch(createCampaignAction({ name }))
+    setCampaignName('')
+    setCampaignFormError('')
+  }
+
+  return (
   <aside className="sidebar">
     <header className="sidebar__header">
       <h1>TTRP campaign assistant</h1>
       <p>Your party control room</p>
     </header>
     <nav className="sidebar__nav">
+      <div className="sidebar__campaign-controls">
+        <label>
+          <span className="sidebar__section">Campaign</span>
+          <select
+            value={activeCampaignId ?? ''}
+            onChange={(event) => dispatch(setActiveCampaignAction(event.target.value))}
+          >
+            <option value="" disabled>{sortedCampaigns.length === 0 ? 'No campaigns available' : 'Select campaign'}</option>
+            {sortedCampaigns.map((campaign) => (
+              <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+            ))}
+          </select>
+        </label>
+        <form className="campaign-form campaign-form--compact" onSubmit={handleCreateCampaign}>
+          <h4>Start a new campaign</h4>
+          <label>
+            <span>Campaign name</span>
+            <input
+              type="text"
+              value={campaignName}
+              onChange={(event) => setCampaignName(event.target.value)}
+              placeholder="e.g. Stormwreck Expedition"
+            />
+          </label>
+          {campaignFormError && <p className="form-error">{campaignFormError}</p>}
+          <button type="submit" className="primary-button">Create campaign</button>
+        </form>
+      </div>
       <span className="sidebar__section">Campaign Tools</span>
       <ul>
         <li>
@@ -105,4 +159,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </div>
     <footer className="sidebar__footer" aria-hidden="true" />
   </aside>
-)
+)}
