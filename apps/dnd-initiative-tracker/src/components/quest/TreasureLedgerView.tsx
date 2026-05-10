@@ -147,23 +147,6 @@ export const TreasureLedgerView: React.FC = () => {
           <h2>Treasure Ledger</h2>
         </div>
       </header>
-      <section className="campaign-panel">
-        <h3 className="campaign-panel__title">Campaigns</h3>
-        {sortedCampaigns.length > 0 ? (
-          <label>
-            <select value={activeCampaign ? activeCampaign.id : ''} onChange={(event) => dispatch(setActiveCampaignAction(event.target.value))}>
-              <option value="" disabled>Select campaign</option>
-              {sortedCampaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <p className="quest-log__empty">No campaigns available yet. Create one in Campaign Manager first.</p>
-        )}
-        {activeCampaign && <p className="quest-log__status">Showing treasure lists for: {activeCampaign.name}</p>}
-      </section>
-
       <form className="quest-log__form" onSubmit={handleSubmit}>
         <div className="quest-log__scroll" aria-label="Treasure ledger editor">
           <label className="quest-log__label" htmlFor="treasure-header">Header</label>
