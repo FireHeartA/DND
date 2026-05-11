@@ -258,7 +258,7 @@ function App() {
 
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isSidebarMinimized ? " app-shell--sidebar-minimized" : ""}`}>
       <header className="top-bar">
         <div className="top-bar__brand">QuestKeep TTRPG</div>
         <div className="top-bar__actions">

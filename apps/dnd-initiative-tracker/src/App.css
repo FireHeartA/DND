@@ -1,6 +1,6 @@
 .app-shell {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
   color: #f4f1ea;
   background:
@@ -8,6 +8,10 @@
     radial-gradient(90% 90% at -10% 20%, rgba(255, 180, 120, 0.18), rgba(20, 8, 32, 0)),
     linear-gradient(188deg, rgba(40, 16, 48, 0.94), rgba(11, 9, 20, 0.92));
   background-attachment: fixed;
+}
+
+.app-shell--sidebar-minimized {
+  grid-template-columns: 72px minmax(0, 1fr);
 }
 
 .top-bar {
@@ -215,6 +219,7 @@
 
 .main {
   width: 100%;
+  min-width: 0;
   flex: 1;
   padding: 3rem clamp(2rem, 4vw, 4rem);
   display: flex;
