@@ -100,6 +100,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <li>
           <button
             type="button"
+            className={`sidebar__item${activeView === 'campaigns' ? ' sidebar__item--active' : ''}`}
+            onClick={() => onViewChange('campaigns')}
+          >
+            Player Characters
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            className={`sidebar__item${activeView === 'campaigns' ? ' sidebar__item--active' : ''}`}
+            onClick={() => onViewChange('campaigns')}
+          >
+            Monsters
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            className={`sidebar__item${activeView === 'campaigns' ? ' sidebar__item--active' : ''}`}
+            onClick={() => onViewChange('campaigns')}
+          >
+            NPC
+          </button>
+        </li>
+      </ul>
+      <hr className="sidebar__divider" />
+
+      <span className="sidebar__section">Session Tools</span>
+      <ul>
+        <li>
+          <button
+            type="button"
             className={`sidebar__item${activeView === 'initiative' ? ' sidebar__item--active' : ''}`}
             onClick={() => onViewChange('initiative')}
           >
@@ -109,19 +141,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <li>
           <button
             type="button"
-            className={`sidebar__item${activeView === 'campaigns' ? ' sidebar__item--active' : ''}`}
-            onClick={() => onViewChange('campaigns')}
-          >
-            Combatant Manager
-          </button>
-        </li>
-        <li>
-          <button
-            type="button"
             className={`sidebar__item${activeView === 'quest-logs' ? ' sidebar__item--active' : ''}`}
             onClick={() => onViewChange('quest-logs')}
           >
-            Quest Logs
+            Quest Log
           </button>
         </li>
         <li>
@@ -141,6 +164,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             Treasure Ledger
           </button>
+        </li>
+        <li>
+          <span className="sidebar__item sidebar__item--disabled">Encounter Builder</span>
+        </li>
+      </ul>
+      <hr className="sidebar__divider" />
+
+      <span className="sidebar__section">Campaign Planning Tools</span>
+      <ul>
+        <li>
+          <span className="sidebar__item sidebar__item--disabled">Planning Notes</span>
+        </li>
+        <li>
+          <span className="sidebar__item sidebar__item--disabled">World Planning</span>
+        </li>
+        <li>
+          <span className="sidebar__item sidebar__item--disabled">Shops</span>
         </li>
       </ul>
     </nav>
