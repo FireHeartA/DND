@@ -1541,6 +1541,37 @@ export const CampaignManagerView: React.FC = () => {
           </p>
         </div>
         <div className="header-actions">
+          <div className="campaign-form campaign-form--compact">
+            <h4>Create campaign</h4>
+            <form onSubmit={handleCreateCampaign}>
+              <label>
+                <span>Campaign name</span>
+                <input
+                  value={campaignForm.name}
+                  onChange={(event) => handleCampaignFormChange(event.target.value)}
+                  placeholder="Rime of the Frostmaiden"
+                />
+              </label>
+              {campaignFormError && <p className="form-error">{campaignFormError}</p>}
+              <button type="submit" className="primary-button">
+                Create campaign
+              </button>
+            </form>
+            <label>
+              <span>Select campaign</span>
+              <select
+                value={activeCampaignId ?? ''}
+                onChange={(event) => handleSelectCampaign(event.target.value)}
+              >
+                <option value="" disabled>Select campaign</option>
+                {sortedCampaigns.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div className="campaign-summary">
             <div className="summary-card">
               <span className="summary__label">Campaigns</span>

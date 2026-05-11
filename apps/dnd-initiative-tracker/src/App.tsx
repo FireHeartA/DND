@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import type { ChangeEvent } from 'react'
 import { useDispatch, useSelector, useStore } from 'react-redux'
 import './App.css'
 import { Sidebar, ViewMode } from './components/layout/Sidebar'
@@ -15,9 +15,7 @@ import {
   type LoadCombatStateArgs,
 } from './store/combatSlice'
 import {
-  createCampaign as createCampaignAction,
   loadState as loadCampaignStateAction,
-  setActiveCampaign as setActiveCampaignAction,
   type LoadCampaignStateArgs,
 } from './store/campaignSlice'
 import {
@@ -38,18 +36,9 @@ function App() {
   const [resetKey, setResetKey] = useState<number>(0)
   const [isDirty, setIsDirty] = useState(false)
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false)
-  const [isTopBarCreateOpen, setIsTopBarCreateOpen] = useState(false)
-  const [topBarCampaignName, setTopBarCampaignName] = useState('')
-  const [topBarCampaignError, setTopBarCampaignError] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const initialStateRef = useRef<string>('')
 
-  const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
-  const activeCampaignId = useSelector((state: RootState) => state.campaigns.activeCampaignId)
-  const sortedCampaigns = useMemo(
-    () => [...campaigns].sort((a, b) => a.createdAt - b.createdAt),
-    [campaigns],
-  )
 
   const getComparableState = useCallback(() => {
     const state = store.getState()
@@ -86,41 +75,6 @@ function App() {
   const handleViewChange = useCallback((view: ViewMode) => {
     setActiveView(view)
   }, [])
-
-
-  const handleTopBarCampaignChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const selectedValue = event.target.value
-      if (selectedValue === '__create__') {
-        setIsTopBarCreateOpen(true)
-        setTopBarCampaignName('')
-        setTopBarCampaignError('')
-        return
-      }
-
-      if (selectedValue) {
-        dispatch(setActiveCampaignAction(selectedValue))
-      }
-    },
-    [activeCampaignId, dispatch],
-  )
-
-  const handleTopBarCreateCampaignSubmit = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault()
-      const trimmedName = topBarCampaignName.trim()
-      if (!trimmedName) {
-        setTopBarCampaignError('Campaign name is required.')
-        return
-      }
-
-      dispatch(createCampaignAction({ name: trimmedName }))
-      setTopBarCampaignName('')
-      setTopBarCampaignError('')
-      setIsTopBarCreateOpen(false)
-    },
-    [dispatch, topBarCampaignName],
-  )
 
   /**
    * Creates a downloadable JSON snapshot of the current Redux state.
@@ -266,41 +220,6 @@ function App() {
       <header className="top-bar">
         <div className="top-bar__brand">QuestKeep TTRPG</div>
         <div className="top-bar__actions">
-          <label className="top-bar__campaign-select top-bar__campaign-select--menu">
-            <span className="visually-hidden">Select or create campaign</span>
-            <select
-              className="top-bar__button top-bar__select"
-              value={activeCampaignId ?? ""}
-              onChange={handleTopBarCampaignChange}
-            >
-              <option value="" disabled>{sortedCampaigns.length === 0 ? "No campaigns" : "Select campaign"}</option>
-              <option value="__create__">Create new campaign…</option>
-              {sortedCampaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
-              ))}
-            </select>
-            {isTopBarCreateOpen && (
-              <form className="top-bar__create-campaign" onSubmit={handleTopBarCreateCampaignSubmit}>
-                <h4>Start a new campaign</h4>
-                <label>
-                  <span>Campaign name</span>
-                  <input
-                    type="text"
-                    value={topBarCampaignName}
-                    onChange={(event) => setTopBarCampaignName(event.target.value)}
-                    placeholder="e.g. Stormwreck Expedition"
-                    autoFocus
-                  />
-                </label>
-                {topBarCampaignError && <p className="form-error">{topBarCampaignError}</p>}
-                <div className="top-bar__create-campaign-actions">
-                  <button type="submit" className="primary-button">Create campaign</button>
-                  <button type="button" className="secondary-button" onClick={() => setIsTopBarCreateOpen(false)}>Cancel</button>
-                </div>
-              </form>
-            )}
-          </label>
-
           <button type="button" className="top-bar__button">Help</button>
           <button type="button" className="top-bar__button">User</button>
         </div>
