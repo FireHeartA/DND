@@ -95,7 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button type="submit" className="primary-button">Create campaign</button>
         </form>
       // </div> */}
-      <span className="sidebar__section">Campaign Tools</span>
+      <span className="sidebar__section">Campaign Overview</span>
       <ul>
         <li>
           <button
