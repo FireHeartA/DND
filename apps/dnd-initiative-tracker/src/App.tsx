@@ -32,6 +32,7 @@ function App() {
   const [loadError, setLoadError] = useState('')
   const [resetKey, setResetKey] = useState<number>(0)
   const [isDirty, setIsDirty] = useState(false)
+  const [isSidebarMinimized, setIsSidebarMinimized] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const initialStateRef = useRef<string>('')
 
@@ -210,8 +211,17 @@ function App() {
 
   return (
     <div className="app-shell">
+      <header className="top-bar">
+        <div className="top-bar__brand">QuestKeep TTRPG</div>
+        <div className="top-bar__actions">
+          <button type="button" className="top-bar__button">Help</button>
+          <button type="button" className="top-bar__button">User</button>
+        </div>
+      </header>
       <Sidebar
         activeView={activeView}
+        isMinimized={isSidebarMinimized}
+        onToggleMinimized={() => setIsSidebarMinimized((prev) => !prev)}
         onViewChange={handleViewChange}
         onDownloadState={handleDownloadState}
         onUploadClick={handleUploadClick}

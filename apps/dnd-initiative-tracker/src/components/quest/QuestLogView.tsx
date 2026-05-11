@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import {  
-    setActiveCampaign as setActiveCampaignAction,
   updateCampaignQuestEntries as updateCampaignQuestEntriesAction
 } from '../../store/campaignSlice'
 import type { AppDispatch } from '../../store'
@@ -156,33 +155,6 @@ export const QuestLogView: React.FC = () => {
           Chronicle your party&apos;s adventures, track objectives, and keep the tale alive between sessions.
         </p>
       </header>
-
-      <section className="campaign-panel">
-        <h3 className="campaign-panel__title">Campaigns</h3>
-        {sortedCampaigns.length > 0 ? (
-          <label>
-            <select
-              value={activeCampaign ? activeCampaign.id : ''}
-              onChange={(event) => dispatch(setActiveCampaignAction(event.target.value))}
-            >
-              <option value="" disabled>
-                Select campaign
-              </option>
-              {sortedCampaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
-                  {campaign.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <p className="quest-log__empty">No campaigns available yet. Create one in Campaign Manager first.</p>
-        )}
-        {activeCampaign && (
-          <p className="quest-log__status">Showing quests for: {activeCampaign.name}</p>
-        )}
-      </section>
-
       <form className="quest-log__form" onSubmit={handleSubmit}>
         <div className="quest-log__scroll" aria-label="Quest log editor">
           <label className="quest-log__label" htmlFor="quest-title">

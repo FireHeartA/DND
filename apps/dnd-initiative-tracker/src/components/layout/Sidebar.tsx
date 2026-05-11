@@ -1,9 +1,16 @@
-import type { ChangeEvent, RefObject } from 'react'
+import type { ChangeEvent, FormEvent, RefObject } from 'react'
+import { useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { createCampaign as createCampaignAction, setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
+import type { AppDispatch } from '../../store'
+import type { RootState } from '../../types'
 
 export type ViewMode = 'initiative' | 'campaigns' | 'quest-logs' | 'session-logs' | 'treasure-ledger'
 
 interface SidebarProps {
   activeView: ViewMode
+  isMinimized: boolean
+  onToggleMinimized: () => void
   onViewChange: (view: ViewMode) => void
   onDownloadState: () => void
   onUploadClick: () => void
@@ -17,19 +24,81 @@ interface SidebarProps {
  */
 export const Sidebar: React.FC<SidebarProps> = ({
   activeView,
+  isMinimized,
+  onToggleMinimized,
   onViewChange,
   onDownloadState,
   onUploadClick,
   loadError,
   fileInputRef,
   onFileChange,
-}) => (
-  <aside className="sidebar">
+}) => {
+  const dispatch = useDispatch<AppDispatch>()
+  const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
+  const activeCampaignId = useSelector((state: RootState) => state.campaigns.activeCampaignId)
+  const [campaignName, setCampaignName] = useState('')
+  const [campaignFormError, setCampaignFormError] = useState('')
+
+  const sortedCampaigns = [...campaigns].sort((a, b) => a.createdAt - b.createdAt)
+
+  const handleCreateCampaign = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const name = campaignName.trim()
+    if (!name) {
+      setCampaignFormError('Name your campaign to begin planning your adventures.')
+      return
+    }
+    dispatch(createCampaignAction({ name }))
+    setCampaignName('')
+    setCampaignFormError('')
+  }
+
+  return (
+  <aside className={`sidebar${isMinimized ? ' sidebar--minimized' : ''}`}>
+    <button
+      type="button"
+      className="sidebar__toggle"
+      onClick={onToggleMinimized}
+      title="minimise"
+      aria-label="minimise"
+    >
+      ☰
+    </button>
+    {!isMinimized && (
+      <>
     <header className="sidebar__header">
       <h1>TTRP campaign assistant</h1>
       <p>Your party control room</p>
     </header>
     <nav className="sidebar__nav">
+      <div className="sidebar__campaign-controls">
+        <label>
+          <span className="sidebar__section">Campaign</span>
+          <select
+            value={activeCampaignId ?? ''}
+            onChange={(event) => dispatch(setActiveCampaignAction(event.target.value))}
+          >
+            <option value="" disabled>{sortedCampaigns.length === 0 ? 'No campaigns available' : 'Select campaign'}</option>
+            {sortedCampaigns.map((campaign) => (
+              <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+            ))}
+          </select>
+        </label>
+        <form className="campaign-form campaign-form--compact" onSubmit={handleCreateCampaign}>
+          <h4>Start a new campaign</h4>
+          <label>
+            <span>Campaign name</span>
+            <input
+              type="text"
+              value={campaignName}
+              onChange={(event) => setCampaignName(event.target.value)}
+              placeholder="e.g. Stormwreck Expedition"
+            />
+          </label>
+          {campaignFormError && <p className="form-error">{campaignFormError}</p>}
+          <button type="submit" className="primary-button">Create campaign</button>
+        </form>
+      </div>
       <span className="sidebar__section">Campaign Tools</span>
       <ul>
         <li>
@@ -104,5 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
     </div>
     <footer className="sidebar__footer" aria-hidden="true" />
+      </>
+    )}
   </aside>
-)
+)}

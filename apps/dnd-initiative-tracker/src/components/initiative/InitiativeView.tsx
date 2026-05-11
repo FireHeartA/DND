@@ -2025,25 +2025,9 @@ export const InitiativeView: React.FC<InitiativeViewProps> = ({ onNavigateToCamp
             <header className="initiative-campaign__header">
               <div>
                 <h3>Pull from campaign roster</h3>
-                <p>Choose a campaign and drop ready-made heroes straight into initiative.</p>
+                <p>Drop ready-made heroes from the active campaign straight into initiative.</p>
               </div>
               <div className="initiative-campaign__controls">
-                <label>
-                  <span>Campaign</span>
-                  <select
-                    value={activeCampaign ? activeCampaign.id : ''}
-                    onChange={(event) => handleSelectCampaign(event.target.value)}
-                  >
-                    <option value="" disabled>
-                      {sortedCampaigns.length === 0 ? 'No campaigns available' : 'Select campaign'}
-                    </option>
-                    {sortedCampaigns.map((campaign) => (
-                      <option key={campaign.id} value={campaign.id}>
-                        {campaign.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <button type="button" className="ghost-button" onClick={onNavigateToCampaigns}>
                   Manage campaigns
                 </button>
