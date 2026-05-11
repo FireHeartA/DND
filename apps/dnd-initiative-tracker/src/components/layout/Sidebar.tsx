@@ -5,7 +5,7 @@ import { createCampaign as createCampaignAction, setActiveCampaign as setActiveC
 import type { AppDispatch } from '../../store'
 import type { RootState } from '../../types'
 
-export type ViewMode = 'initiative' | 'campaigns' | 'quest-logs' | 'session-logs' | 'treasure-ledger'
+export type ViewMode = 'initiative' | 'players' | 'monsters' | 'npcs' | 'quest-logs' | 'session-logs' | 'treasure-ledger'
 
 interface SidebarProps {
   activeView: ViewMode
@@ -100,8 +100,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <li>
           <button
             type="button"
-            className={`sidebar__item${activeView === 'campaigns' ? ' sidebar__item--active' : ''}`}
-            onClick={() => onViewChange('campaigns')}
+            className={`sidebar__item${activeView === 'players' ? ' sidebar__item--active' : ''}`}
+            onClick={() => onViewChange('players')}
           >
             Player Characters
           </button>
@@ -109,8 +109,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <li>
           <button
             type="button"
-            className={`sidebar__item${activeView === 'campaigns' ? ' sidebar__item--active' : ''}`}
-            onClick={() => onViewChange('campaigns')}
+            className={`sidebar__item${activeView === 'monsters' ? ' sidebar__item--active' : ''}`}
+            onClick={() => onViewChange('monsters')}
           >
             Monsters
           </button>
@@ -118,8 +118,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <li>
           <button
             type="button"
-            className={`sidebar__item${activeView === 'campaigns' ? ' sidebar__item--active' : ''}`}
-            onClick={() => onViewChange('campaigns')}
+            className={`sidebar__item${activeView === 'npcs' ? ' sidebar__item--active' : ''}`}
+            onClick={() => onViewChange('npcs')}
           >
             NPC
           </button>
