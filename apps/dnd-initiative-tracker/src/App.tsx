@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { useDispatch, useSelector, useStore } from 'react-redux'
 import './App.css'
 import { Sidebar, ViewMode } from './components/layout/Sidebar'
@@ -15,6 +15,7 @@ import {
   type LoadCombatStateArgs,
 } from './store/combatSlice'
 import {
+  createCampaign as createCampaignAction,
   loadState as loadCampaignStateAction,
   type LoadCampaignStateArgs,
 } from './store/campaignSlice'
@@ -36,6 +37,10 @@ function App() {
   const [resetKey, setResetKey] = useState<number>(0)
   const [isDirty, setIsDirty] = useState(false)
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false)
+
+  const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false)
+  const [campaignName, setCampaignName] = useState('')
+  const [campaignFormError, setCampaignFormError] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const initialStateRef = useRef<string>('')
 
@@ -196,6 +201,21 @@ function App() {
     [dispatch, updateBaselineState],
   )
 
+
+  const handleCreateCampaign = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const name = campaignName.trim()
+    if (!name) {
+      setCampaignFormError('Name your campaign to begin planning your adventures.')
+      return
+    }
+
+    dispatch(createCampaignAction({ name }))
+    setCampaignName('')
+    setCampaignFormError('')
+    setIsCreateCampaignModalOpen(false)
+  }
+
   /**
    * Memoizes the initiative view element with the current reset key.
    */
@@ -234,7 +254,35 @@ function App() {
         loadError={loadError}
         fileInputRef={fileInputRef}
         onFileChange={handleFileInputChange}
+        onOpenCreateCampaignModal={() => setIsCreateCampaignModalOpen(true)}
       />
+
+      {isCreateCampaignModalOpen && (
+        <div className="sidebar-modal" role="dialog" aria-modal="true" aria-labelledby="create-campaign-title">
+          <div className="sidebar-modal__backdrop" onClick={() => setIsCreateCampaignModalOpen(false)} />
+          <div className="sidebar-modal__panel">
+            <form className="campaign-form campaign-form--compact" onSubmit={handleCreateCampaign}>
+              <h4 id="create-campaign-title">Start a new campaign</h4>
+              <label>
+                <span>Campaign name</span>
+                <input
+                  type="text"
+                  value={campaignName}
+                  onChange={(event) => setCampaignName(event.target.value)}
+                  placeholder="e.g. Stormwreck Expedition"
+                  autoFocus
+                />
+              </label>
+              {campaignFormError && <p className="form-error">{campaignFormError}</p>}
+              <div className="sidebar-modal__actions">
+                <button type="button" className="ghost-button" onClick={() => setIsCreateCampaignModalOpen(false)}>Cancel</button>
+                <button type="submit" className="primary-button">Create campaign</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <main className="main">
         {activeView === 'players' && playersView}
         {activeView === 'monsters' && monstersView}

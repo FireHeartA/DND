@@ -1,7 +1,6 @@
-import type { ChangeEvent, FormEvent, RefObject } from 'react'
-import { useState } from 'react'
+import type { ChangeEvent, RefObject } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { createCampaign as createCampaignAction, setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
+import { setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
 import type { AppDispatch } from '../../store'
 import type { RootState } from '../../types'
 
@@ -17,6 +16,7 @@ interface SidebarProps {
   loadError: string
   fileInputRef: RefObject<HTMLInputElement | null>
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void
+  onOpenCreateCampaignModal: () => void
 }
 
 const CREATE_CAMPAIGN_OPTION = '__create_new_campaign__'
@@ -34,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   loadError,
   fileInputRef,
   onFileChange,
+  onOpenCreateCampaignModal,
 }) => {
   const dispatch = useDispatch<AppDispatch>()
   const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
@@ -44,11 +45,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const sortedCampaigns = [...campaigns].sort((a, b) => a.createdAt - b.createdAt)
 
-  const handleCreateCampaign = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const name = campaignName.trim()
-    if (!name) {
-      setCampaignFormError('Name your campaign to begin planning your adventures.')
+  const handleCampaignSelectionChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const selectedCampaignId = event.target.value
+    if (selectedCampaignId === CREATE_CAMPAIGN_OPTION) {
+      onOpenCreateCampaignModal()
       return
     }
     dispatch(createCampaignAction({ name }))
