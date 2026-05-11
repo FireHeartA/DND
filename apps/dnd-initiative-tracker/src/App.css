@@ -11,10 +11,7 @@
 }
 
 .top-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: relative;
   height: 64px;
   padding: 0 1.25rem;
   background: linear-gradient(180deg, rgba(21, 16, 24, 0.92), rgba(21, 16, 24, 0.7));
@@ -60,11 +57,9 @@
   flex-direction: column;
   gap: 2rem;
   position: sticky;
-  top: 64px;
-  height: calc(100vh - 64px);
+  top: 0;
+  height: 100vh;
   overflow-y: auto;
-  position: fixed;
-  left: 0;
   width: 280px;
   z-index: 20;
 }
@@ -174,9 +169,7 @@
 }
 
 .main {
-  margin-top: 64px;
-  margin-left: 280px;
-  width: calc(100% - 280px);
+  width: 100%;
   flex: 1;
   padding: 3rem clamp(2rem, 4vw, 4rem);
   display: flex;
@@ -186,8 +179,7 @@
 }
 
 .sidebar--minimized ~ .main {
-  margin-left: 72px;
-  width: calc(100% - 72px);
+  width: 100%;
 }
 
 .main__header {
