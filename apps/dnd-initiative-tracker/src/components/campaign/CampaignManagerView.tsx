@@ -246,6 +246,50 @@ export const CampaignManagerView: React.FC = () => {
     () => MONSTER_DEFENSE_OPTIONS.filter((option) => option.category === 'condition'),
     [],
   )
+  const playerDamageDefenseOptions = useMemo(() => {
+    const allowed = [
+      'slashing',
+      'magical-slashing',
+      'bludgeoning',
+      'magical-bludgeoning',
+      'piercing',
+      'magical-piercing',
+      'acid',
+      'cold',
+      'fire',
+      'force',
+      'lightning',
+      'poison',
+      'psychic',
+      'radiant',
+      'radiant-damage',
+      'thunder',
+    ]
+    return allowed
+      .map((value) => MONSTER_DEFENSE_OPTIONS.find((option) => option.value === value))
+      .filter((option): option is NonNullable<typeof option> => Boolean(option))
+  }, [])
+  const playerConditionDefenseOptions = useMemo(() => {
+    const allowed = [
+      'blinded',
+      'charmed',
+      'deafened',
+      'frightened',
+      'grappled',
+      'incapacitated',
+      'invisible',
+      'paralyzed',
+      'petrified',
+      'poisoned',
+      'prone',
+      'restrained',
+      'stunned',
+      'unconscious',
+    ]
+    return allowed
+      .map((value) => MONSTER_DEFENSE_OPTIONS.find((option) => option.value === value))
+      .filter((option): option is NonNullable<typeof option> => Boolean(option))
+  }, [])
   /**
    * Sorts campaigns chronologically so the list remains stable for learners.
    */
@@ -1731,7 +1775,7 @@ export const CampaignManagerView: React.FC = () => {
 
                 <form className="campaign-form" onSubmit={handleAddPlayerTemplate}>
                   <div className="section-header">
-                    <h4>Add a player character</h4>
+                    <h4>Add player character manually</h4>
                     <button
                       type="button"
                       className="section-toggle"
@@ -1743,30 +1787,6 @@ export const CampaignManagerView: React.FC = () => {
                   {!isPlayerFormCollapsed && (
                     <>
                       <div className="form-grid campaign-form__grid">
-                        <label className="campaign-form__notes">
-                          <span>Player URL</span>
-                          <p className="campaign-form__hint">
-                            Paste a D&D Beyond character URL to import player characters.
-                          </p>
-                          <input
-                            value={playerTemplateForm.profileUrl}
-                            onChange={(event) =>
-                              handlePlayerTemplateFormChange('profileUrl', event.target.value)
-                            }
-                            placeholder="https://www.dndbeyond.com/characters/..."
-                            inputMode="url"
-                          />
-                          <div className="campaign-form__actions">
-                            <button
-                              type="button"
-                              className="ghost-button"
-                              onClick={handleImportPlayerFromUrl}
-                              disabled={isPlayerImporting}
-                            >
-                              {isPlayerImporting ? 'Importing…' : 'Import player data'}
-                            </button>
-                          </div>
-                        </label>
                         <label>
                           <span>Name</span>
                           <input
@@ -1806,17 +1826,6 @@ export const CampaignManagerView: React.FC = () => {
                             inputMode="numeric"
                           />
                         </label>
-                        <label>
-                          <span>Character link</span>
-                          <input
-                            value={playerTemplateForm.profileUrl}
-                            onChange={(event) =>
-                              handlePlayerTemplateFormChange('profileUrl', event.target.value)
-                            }
-                            placeholder="https://www.dndbeyond.com/characters/..."
-                            inputMode="url"
-                          />
-                        </label>
                         <label className="campaign-form__notes">
                           <span>Notes</span>
                           <textarea
@@ -1848,7 +1857,7 @@ export const CampaignManagerView: React.FC = () => {
                                       Add a defense
                                     </option>
                                     <optgroup label="Damage types">
-                                      {damageDefenseOptions.map((option) => (
+                                      {playerDamageDefenseOptions.map((option) => (
                                         <option
                                           key={`${field}-${option.value}`}
                                           value={option.value}
@@ -1859,7 +1868,7 @@ export const CampaignManagerView: React.FC = () => {
                                       ))}
                                     </optgroup>
                                     <optgroup label="Conditions">
-                                      {conditionDefenseOptions.map((option) => (
+                                      {playerConditionDefenseOptions.map((option) => (
                                         <option
                                           key={`${field}-${option.value}`}
                                           value={option.value}
@@ -2181,7 +2190,7 @@ export const CampaignManagerView: React.FC = () => {
                                                   Add a defense
                                                 </option>
                                                 <optgroup label="Damage types">
-                                                  {damageDefenseOptions.map((option) => (
+                                                  {playerDamageDefenseOptions.map((option) => (
                                                     <option
                                                       key={`${field}-${option.value}`}
                                                       value={option.value}
@@ -2192,7 +2201,7 @@ export const CampaignManagerView: React.FC = () => {
                                                   ))}
                                                 </optgroup>
                                                 <optgroup label="Conditions">
-                                                  {conditionDefenseOptions.map((option) => (
+                                                  {playerConditionDefenseOptions.map((option) => (
                                                     <option
                                                       key={`${field}-${option.value}`}
                                                       value={option.value}
