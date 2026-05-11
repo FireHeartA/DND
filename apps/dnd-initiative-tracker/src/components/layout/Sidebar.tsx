@@ -1,7 +1,7 @@
 import type { ChangeEvent, FormEvent, RefObject } from 'react'
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { createCampaign as createCampaignAction, setActiveCampaign as setActiveCampaignAction } from '../../store/campaignSlice'
+import { createCampaign as createCampaignAction } from '../../store/campaignSlice'
 import type { AppDispatch } from '../../store'
 import type { RootState } from '../../types'
 
@@ -35,7 +35,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const dispatch = useDispatch<AppDispatch>()
   const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
-  const activeCampaignId = useSelector((state: RootState) => state.campaigns.activeCampaignId)
   const [campaignName, setCampaignName] = useState('')
   const [campaignFormError, setCampaignFormError] = useState('')
 
@@ -68,18 +67,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <>
     <nav className="sidebar__nav">
       <div className="sidebar__campaign-controls">
-        <label>
-          <span className="sidebar__section">Campaign</span>
-          <select
-            value={activeCampaignId ?? ''}
-            onChange={(event) => dispatch(setActiveCampaignAction(event.target.value))}
-          >
-            <option value="" disabled>{sortedCampaigns.length === 0 ? 'No campaigns available' : 'Select campaign'}</option>
-            {sortedCampaigns.map((campaign) => (
-              <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
-            ))}
-          </select>
-        </label>
+        <span className="sidebar__section">Campaign</span>
+        {sortedCampaigns.length > 0 && (
+          <p className="sidebar__campaign-count" role="status" aria-live="polite">
+            {sortedCampaigns.length} campaign{sortedCampaigns.length === 1 ? '' : 's'} created
+          </p>
+        )}
         <form className="campaign-form campaign-form--compact" onSubmit={handleCreateCampaign}>
           <h4>Start a new campaign</h4>
           <label>
