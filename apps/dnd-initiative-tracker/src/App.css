@@ -151,6 +151,27 @@
   gap: 1rem;
 }
 
+
+.sidebar__campaign-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(244, 241, 234, 0.12);
+  background: rgba(14, 10, 16, 0.55);
+}
+
+.sidebar__campaign-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar__campaign-controls select {
+  width: 100%;
+}
+
 .sidebar__section {
   font-size: 0.9rem;
   text-transform: uppercase;
