@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { useDispatch, useStore } from 'react-redux'
+import { useDispatch, useSelector, useStore } from 'react-redux'
 import './App.css'
 import { Sidebar, ViewMode } from './components/layout/Sidebar'
 import { CampaignManagerView } from './components/campaign/CampaignManagerView'
@@ -13,7 +13,9 @@ import {
   type LoadCombatStateArgs,
 } from './store/combatSlice'
 import {
+  createCampaign as createCampaignAction,
   loadState as loadCampaignStateAction,
+  setActiveCampaign as setActiveCampaignAction,
   type LoadCampaignStateArgs,
 } from './store/campaignSlice'
 import {
@@ -21,6 +23,7 @@ import {
   type LoadMonsterLibraryArgs,
 } from './store/monsterLibrarySlice'
 import type { AppDispatch, AppRootState } from './store'
+import type { RootState } from './types'
 
 /**
  * Renders the root application layout and orchestrates data import/export actions.
@@ -35,6 +38,13 @@ function App() {
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const initialStateRef = useRef<string>('')
+
+  const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
+  const activeCampaignId = useSelector((state: RootState) => state.campaigns.activeCampaignId)
+  const sortedCampaigns = useMemo(
+    () => [...campaigns].sort((a, b) => a.createdAt - b.createdAt),
+    [campaigns],
+  )
 
   const getComparableState = useCallback(() => {
     const state = store.getState()
@@ -71,6 +81,26 @@ function App() {
   const handleViewChange = useCallback((view: ViewMode) => {
     setActiveView(view)
   }, [])
+
+
+  const handleTopBarCampaignChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const selectedValue = event.target.value
+      if (selectedValue === '__create__') {
+        const campaignName = window.prompt('Enter a name for your new campaign:')?.trim()
+        if (campaignName) {
+          dispatch(createCampaignAction({ name: campaignName }))
+        }
+        event.target.value = activeCampaignId ?? ''
+        return
+      }
+
+      if (selectedValue) {
+        dispatch(setActiveCampaignAction(selectedValue))
+      }
+    },
+    [activeCampaignId, dispatch],
+  )
 
   /**
    * Creates a downloadable JSON snapshot of the current Redux state.
@@ -214,7 +244,20 @@ function App() {
       <header className="top-bar">
         <div className="top-bar__brand">QuestKeep TTRPG</div>
         <div className="top-bar__actions">
-          <button type="button" className="top-bar__button">Select campaign</button>
+          <label className="top-bar__campaign-select">
+            <span className="visually-hidden">Select or create campaign</span>
+            <select
+              className="top-bar__button top-bar__select"
+              value={activeCampaignId ?? ""}
+              onChange={handleTopBarCampaignChange}
+            >
+              <option value="" disabled>{sortedCampaigns.length === 0 ? "No campaigns" : "Select campaign"}</option>
+              <option value="__create__">Create new campaign…</option>
+              {sortedCampaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+              ))}
+            </select>
+          </label>
 
           <button type="button" className="top-bar__button">Help</button>
           <button type="button" className="top-bar__button">User</button>
