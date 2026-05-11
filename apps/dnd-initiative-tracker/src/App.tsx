@@ -213,12 +213,6 @@ function App() {
     <div className="app-shell">
       <header className="top-bar">
         <div className="top-bar__brand">QuestKeep TTRPG</div>
-        <div className="topnav">
-          <a className="active" href="#home">Home</a>
-          <a href="#news">News</a>
-          <a href="#contact">Contact</a>
-          <a href="#about">About</a>
-        </div>
         <div className="top-bar__actions">
           <button type="button" className="top-bar__button">Help</button>
           <button type="button" className="top-bar__button">User</button>
