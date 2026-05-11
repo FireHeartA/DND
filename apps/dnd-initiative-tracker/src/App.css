@@ -1,6 +1,5 @@
 .app-shell {
-  display: grid;
-  grid-template-columns: 280px 1fr;
+  display: block;
   min-height: 100vh;
   color: #f4f1ea;
   background:
@@ -229,7 +228,8 @@
 .main {
   margin-top: 64px;
   margin-left: 280px;
-  width: calc(100% - 280px);
+  width: calc(100vw - 280px);
+  max-width: 100%;
   flex: 1;
   padding: 3rem clamp(2rem, 4vw, 4rem);
   display: flex;
@@ -240,7 +240,7 @@
 
 .sidebar--minimized ~ .main {
   margin-left: 72px;
-  width: calc(100% - 72px);
+  width: calc(100vw - 72px);
 }
 
 .main__header {
