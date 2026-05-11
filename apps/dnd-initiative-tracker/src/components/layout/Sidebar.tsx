@@ -9,6 +9,8 @@ export type ViewMode = 'initiative' | 'campaigns' | 'quest-logs' | 'session-logs
 
 interface SidebarProps {
   activeView: ViewMode
+  isMinimized: boolean
+  onToggleMinimized: () => void
   onViewChange: (view: ViewMode) => void
   onDownloadState: () => void
   onUploadClick: () => void
@@ -22,6 +24,8 @@ interface SidebarProps {
  */
 export const Sidebar: React.FC<SidebarProps> = ({
   activeView,
+  isMinimized,
+  onToggleMinimized,
   onViewChange,
   onDownloadState,
   onUploadClick,
@@ -50,7 +54,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }
 
   return (
-  <aside className="sidebar">
+  <aside className={`sidebar${isMinimized ? ' sidebar--minimized' : ''}`}>
+    <button
+      type="button"
+      className="sidebar__toggle"
+      onClick={onToggleMinimized}
+      title="minimise"
+      aria-label="minimise"
+    >
+      ☰
+    </button>
+    {!isMinimized && (
+      <>
     <header className="sidebar__header">
       <h1>TTRP campaign assistant</h1>
       <p>Your party control room</p>
@@ -158,5 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
     </div>
     <footer className="sidebar__footer" aria-hidden="true" />
+      </>
+    )}
   </aside>
 )}
