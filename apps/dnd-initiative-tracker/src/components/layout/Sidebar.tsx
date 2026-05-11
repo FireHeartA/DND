@@ -1,6 +1,12 @@
 import type { ChangeEvent, RefObject } from 'react'
 
-export type ViewMode = 'initiative' | 'campaigns' | 'quest-logs' | 'session-logs' | 'treasure-ledger'
+export type ViewMode =
+  | 'initiative'
+  | 'campaigns'
+  | 'player-characters'
+  | 'quest-logs'
+  | 'session-logs'
+  | 'treasure-ledger'
 
 interface SidebarProps {
   activeView: ViewMode
@@ -48,6 +54,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onViewChange('campaigns')}
           >
             Combatant Manager
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            className={`sidebar__item${activeView === 'player-characters' ? ' sidebar__item--active' : ''}`}
+            onClick={() => onViewChange('player-characters')}
+          >
+            Player Characters
           </button>
         </li>
         <li>

@@ -4,6 +4,7 @@ import { useDispatch, useStore } from 'react-redux'
 import './App.css'
 import { Sidebar, ViewMode } from './components/layout/Sidebar'
 import { CampaignManagerView } from './components/campaign/CampaignManagerView'
+import { PlayerCharactersView } from './components/campaign/PlayerCharactersView'
 import { InitiativeView } from './components/initiative/InitiativeView'
 import { QuestLogView } from './components/quest/QuestLogView'
 import { SessionLogsView } from './components/quest/SessionLogsView'
@@ -203,6 +204,7 @@ function App() {
    * Memoizes the campaign manager view to avoid unnecessary re-renders.
    */
   const campaignView = useMemo(() => <CampaignManagerView />, [])
+  const playerCharactersView = useMemo(() => <PlayerCharactersView />, [])
   const questLogView = useMemo(() => <QuestLogView />, [])
   const sessionLogsView = useMemo(() => <SessionLogsView />, [])
   const treasureLedgerView = useMemo(() => <TreasureLedgerView />, [])
@@ -221,6 +223,7 @@ function App() {
       />
       <main className="main">
         {activeView === 'campaigns' && campaignView}
+        {activeView === 'player-characters' && playerCharactersView}
         {activeView === 'initiative' && initiativeView}
         {activeView === 'quest-logs' && questLogView}
         {activeView === 'session-logs' && sessionLogsView}

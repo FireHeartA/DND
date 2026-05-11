@@ -161,7 +161,13 @@ const importDndBeyondCharacterSnapshot = async (
 /**
  * Displays the campaign manager view, allowing the user to manage rosters and monsters.
  */
-export const CampaignManagerView: React.FC = () => {
+interface CampaignManagerViewProps {
+  title?: string
+}
+
+export const CampaignManagerView: React.FC<CampaignManagerViewProps> = ({
+  title = 'Combatant Manager',
+}) => {
   const dispatch = useDispatch<AppDispatch>()
   const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
   const activeCampaignId = useSelector((state: RootState) => state.campaigns.activeCampaignId)
@@ -1535,7 +1541,7 @@ export const CampaignManagerView: React.FC = () => {
     <>
       <section className="main__header">
         <div>
-          <h2>Combatant Manager</h2>
+          <h2>{title}</h2>
           <p>
             Add players and monsters for each campaign you run, so jumping into initiative is quick and easy
           </p>
