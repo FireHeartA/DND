@@ -1,9 +1,4 @@
-import type { ChangeEvent, FormEvent, RefObject } from 'react'
-import { useState } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { createCampaign as createCampaignAction } from '../../store/campaignSlice'
-import type { AppDispatch } from '../../store'
-import type { RootState } from '../../types'
+import type { ChangeEvent, RefObject } from 'react'
 
 export type ViewMode = 'initiative' | 'campaigns' | 'quest-logs' | 'session-logs' | 'treasure-ledger'
 
@@ -33,25 +28,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   fileInputRef,
   onFileChange,
 }) => {
-  const dispatch = useDispatch<AppDispatch>()
-  const campaigns = useSelector((state: RootState) => state.campaigns.campaigns)
-  const [campaignName, setCampaignName] = useState('')
-  const [campaignFormError, setCampaignFormError] = useState('')
-
-  const sortedCampaigns = [...campaigns].sort((a, b) => a.createdAt - b.createdAt)
-
-  const handleCreateCampaign = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const name = campaignName.trim()
-    if (!name) {
-      setCampaignFormError('Name your campaign to begin planning your adventures.')
-      return
-    }
-    dispatch(createCampaignAction({ name }))
-    setCampaignName('')
-    setCampaignFormError('')
-  }
-
   return (
   <aside className={`sidebar${isMinimized ? ' sidebar--minimized' : ''}`}>
     <button
@@ -66,29 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {!isMinimized && (
       <>
     <nav className="sidebar__nav">
-      <div className="sidebar__campaign-controls">
-        <span className="sidebar__section">Campaign</span>
-        {sortedCampaigns.length > 0 && (
-          <p className="sidebar__campaign-count" role="status" aria-live="polite">
-            {sortedCampaigns.length} campaign{sortedCampaigns.length === 1 ? '' : 's'} created
-          </p>
-        )}
-        <form className="campaign-form campaign-form--compact" onSubmit={handleCreateCampaign}>
-          <h4>Start a new campaign</h4>
-          <label>
-            <span>Campaign name</span>
-            <input
-              type="text"
-              value={campaignName}
-              onChange={(event) => setCampaignName(event.target.value)}
-              placeholder="e.g. Stormwreck Expedition"
-            />
-          </label>
-          {campaignFormError && <p className="form-error">{campaignFormError}</p>}
-          <button type="submit" className="primary-button">Create campaign</button>
-        </form>
-      </div>
-      <span className="sidebar__section">Campaign Tools</span>
+      <span className="sidebar__section">Campaign tools</span>
       <ul>
         <li>
           <button
