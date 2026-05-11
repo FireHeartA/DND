@@ -67,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {!isMinimized && (
       <>
     <nav className="sidebar__nav">
-      {/* <div className="sidebar__campaign-controls">
+      <div className="sidebar__campaign-controls">
         <label>
           <span className="sidebar__section">Campaign</span>
           <select
@@ -94,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {campaignFormError && <p className="form-error">{campaignFormError}</p>}
           <button type="submit" className="primary-button">Create campaign</button>
         </form>
-      // </div> */}
+      </div>
       <span className="sidebar__section">Campaign Overview</span>
       <ul>
         <li>
