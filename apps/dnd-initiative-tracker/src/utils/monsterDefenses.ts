@@ -41,6 +41,7 @@ const damageOptions: DefenseOption[] = [
   { value: 'poison', label: 'Poison', icon: '☠️', color: '#7fc97f', category: 'damage' },
   { value: 'psychic', label: 'Psychic', icon: '🧠', color: '#85a6ff', category: 'damage' },
   { value: 'radiant', label: 'Radiant', icon: '🌟', color: '#ffd87a', category: 'damage' },
+  { value: 'radiant-damage', label: 'Radiant Damage', icon: '✨', color: '#ffe08a', category: 'damage' },
   { value: 'slashing', label: 'Slashing', icon: '🗡️', color: '#e0aaff', category: 'damage' },
   { value: 'thunder', label: 'Thunder', icon: '🌩️', color: '#7cc8ff', category: 'damage' },
 ]
