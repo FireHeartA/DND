@@ -3,7 +3,9 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { useDispatch, useSelector, useStore } from 'react-redux'
 import './App.css'
 import { Sidebar, ViewMode } from './components/layout/Sidebar'
-import { CampaignManagerView } from './components/campaign/CampaignManagerView'
+import { PlayerCharactersView } from './components/campaign/PlayerCharactersView'
+import { CampaignMonstersView } from './components/campaign/CampaignMonstersView'
+import { NpcCreationView } from './components/campaign/NpcCreationView'
 import { InitiativeView } from './components/initiative/InitiativeView'
 import { QuestLogView } from './components/quest/QuestLogView'
 import { SessionLogsView } from './components/quest/SessionLogsView'
@@ -244,14 +246,16 @@ function App() {
    * Memoizes the initiative view element with the current reset key.
    */
   const initiativeView = useMemo(
-    () => <InitiativeView onNavigateToCampaigns={() => handleViewChange('campaigns')} resetKey={resetKey} />,
+    () => <InitiativeView onNavigateToCampaigns={() => handleViewChange('players')} resetKey={resetKey} />,
     [handleViewChange, resetKey],
   )
 
   /**
    * Memoizes the campaign manager view to avoid unnecessary re-renders.
    */
-  const campaignView = useMemo(() => <CampaignManagerView />, [])
+  const playersView = useMemo(() => <PlayerCharactersView />, [])
+  const monstersView = useMemo(() => <CampaignMonstersView />, [])
+  const npcsView = useMemo(() => <NpcCreationView />, [])
   const questLogView = useMemo(() => <QuestLogView />, [])
   const sessionLogsView = useMemo(() => <SessionLogsView />, [])
   const treasureLedgerView = useMemo(() => <TreasureLedgerView />, [])
@@ -313,7 +317,9 @@ function App() {
         onFileChange={handleFileInputChange}
       />
       <main className="main">
-        {activeView === 'campaigns' && campaignView}
+        {activeView === 'players' && playersView}
+        {activeView === 'monsters' && monstersView}
+        {activeView === 'npcs' && npcsView}
         {activeView === 'initiative' && initiativeView}
         {activeView === 'quest-logs' && questLogView}
         {activeView === 'session-logs' && sessionLogsView}
