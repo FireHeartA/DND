@@ -214,6 +214,8 @@ function App() {
       <header className="top-bar">
         <div className="top-bar__brand">QuestKeep TTRPG</div>
         <div className="top-bar__actions">
+          <button type="button" className="top-bar__button">Select campaign</button>
+
           <button type="button" className="top-bar__button">Help</button>
           <button type="button" className="top-bar__button">User</button>
         </div>
