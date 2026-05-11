@@ -66,10 +66,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </button>
     {!isMinimized && (
       <>
-    <header className="sidebar__header">
-      <h1>TTRP campaign assistant</h1>
-      <p>Your party control room</p>
-    </header>
     <nav className="sidebar__nav">
       <div className="sidebar__campaign-controls">
         <label>
