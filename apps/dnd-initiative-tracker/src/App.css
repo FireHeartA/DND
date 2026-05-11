@@ -42,11 +42,20 @@
   padding: 0.4rem 0.8rem;
 }
 
+.top-bar__campaign-select {
+  display: inline-flex;
+}
+
+.top-bar__select {
+  appearance: none;
+  cursor: pointer;
+}
+
 .sidebar {
   backdrop-filter: blur(6px);
   background: linear-gradient(180deg, rgba(21, 16, 24, 0.92), rgba(21, 16, 24, 0.7));
   border-right: 1px solid rgba(244, 241, 234, 0.08);
-  padding: 2.5rem 2rem;
+  padding: 3.25rem 2rem 2.5rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -66,7 +75,9 @@
 }
 
 .sidebar__toggle {
-  align-self: flex-end;
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
   width: 2rem;
   height: 2rem;
   border-radius: 8px;
